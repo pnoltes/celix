@@ -1,7 +1,15 @@
 FROM gitpod/workspace-full
-
-# Install custom tools, runtimes, etc.
-# For example "bastet", a command-line tetris clone:
-# RUN brew install bastet
-#
-# More information: https://www.gitpod.io/docs/config-docker/
+RUN sudo apt-get update && \
+        sudo apt-get install -yq --no-install-recommends \
+          build-essential \
+          curl \
+          uuid-dev \
+          libjansson-dev \
+          libcurl4-openssl-dev \
+          default-jdk \
+          cmake \
+          libffi-dev \
+          libxml2-dev \
+          libczmq-dev \
+          libcpputest-dev \
+          libtbb-dev
