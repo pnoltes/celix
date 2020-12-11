@@ -1,7 +1,8 @@
 {
-    "cmake.configureArgs": [
-        "ENABLE_TESTING=ON",
-        "ENABLE_ADDRESS_SANITIZER=ON",
-        "BUILD_EXPERIMENTAL=ON"
-    ]
+    "cmake.configureSettings": {
+	"ENABLE_TESTING" : "ON",
+	"ENABLE_ADDRESS_SANITIZER" : "ON",
+	"BUILD_EXPERIMENTAL" : "ON"
+    }
 }
+
