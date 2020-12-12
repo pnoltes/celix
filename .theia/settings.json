@@ -1,8 +1,14 @@
 {
     "cmake.configureSettings": {
-	"ENABLE_TESTING" : "ON",
-	"ENABLE_ADDRESS_SANITIZER" : "ON",
-	"BUILD_EXPERIMENTAL" : "ON"
+        "ENABLE_TESTING" : "ON",
+        "ENABLE_ADDRESS_SANITIZER" : "ON",
+        "BUILD_EXPERIMENTAL" : "ON"
+    },
+    "cmake.debugConfig": {
+        "type": "gdb",
+        "request": "launch",
+        "target" : "${command:cmake.launchTargetFilename}",
+        "cwd" : "${command:cmake.getLaunchTargetDirectory}"
     }
 }
 
