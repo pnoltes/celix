@@ -618,21 +618,21 @@ namespace celix {
             opts.callbackHandle = this;
             opts.onInstalled = [](void *handle, const celix_bundle_t *cBnd) {
                 auto tracker = static_cast<BundleTracker *>(handle);
-                auto bnd = celix::Bundle{const_cast<celix_bundle_t *>(cBnd)};
+                celix::Bundle bnd{const_cast<celix_bundle_t *>(cBnd)};
                 for (const auto& cb : tracker->onInstallCallbacks) {
                     cb(bnd);
                 }
             };
             opts.onStarted = [](void *handle, const celix_bundle_t *cBnd) {
                 auto tracker = static_cast<BundleTracker *>(handle);
-                auto bnd = celix::Bundle{const_cast<celix_bundle_t *>(cBnd)};
+                celix::Bundle bnd{const_cast<celix_bundle_t *>(cBnd)};
                 for (const auto& cb : tracker->onStartCallbacks) {
                     cb(bnd);
                 }
             };
             opts.onStopped = [](void *handle, const celix_bundle_t *cBnd) {
                 auto tracker = static_cast<BundleTracker *>(handle);
-                auto bnd = celix::Bundle{const_cast<celix_bundle_t *>(cBnd)};
+                celix::Bundle bnd{const_cast<celix_bundle_t *>(cBnd)};
                 for (const auto& cb : tracker->onStopCallbacks) {
                     cb(bnd);
                 }

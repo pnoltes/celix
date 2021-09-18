@@ -16,12 +16,31 @@
 # under the License.
 
 add_celix_bundle(simple_test_bundle1 NO_ACTIVATOR VERSION 1.0.0)
+celix_bundle_name(simple_test_bundle1 "Simple Test Bundle")
+celix_bundle_group(simple_test_bundle1 "test/group")
+celix_bundle_description(simple_test_bundle1 "Test Description")
+
 add_celix_bundle(simple_test_bundle2 NO_ACTIVATOR VERSION 1.0.0)
 add_celix_bundle(simple_test_bundle3 NO_ACTIVATOR VERSION 1.0.0)
 add_celix_bundle(bundle_with_exception SOURCES src/nop_activator.c VERSION 1.0.0)
 add_celix_bundle(simple_cxx_bundle SOURCES src/HelloWorldCxxActivator.cc VERSION 1.0.0)
 add_celix_bundle(cmp_test_bundle SOURCES src/CmpTestBundleActivator.cc)
+
 add_subdirectory(subdir) #simple_test_bundle4, simple_test_bundle5 and sublib
+
+add_celix_bundle(get_bundle_context_test_bundle1 SOURCES
+        src/get_bundle_context_test_activator.c
+        VERSION 1.0.0)
+celix_bundle_private_libs(get_bundle_context_test_bundle1 sublib)
+
+add_celix_bundle(get_bundle_context_test_bundle2 SOURCES
+        src/get_bundle_context_test_activator.c
+        VERSION 1.0.0)
+celix_bundle_private_libs(get_bundle_context_test_bundle2 sublib)
+
+add_celix_bundle(get_cxx_bundle_context_test_bundle SOURCES
+        src/GetBundleContextActivator.cc VERSION 1.0.0)
+
 
 add_celix_bundle(unresolveable_bundle SOURCES src/nop_activator.c VERSION 1.0.0)
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -46,14 +65,21 @@ add_executable(test_framework
         src/CxxFrameworkFactoryTestSuite.cc
         src/CxxBundleActivatorTestSuite.cc
         src/CxxUtilsTestSuite.cc
-)
-
-target_link_libraries(test_framework Celix::framework CURL::libcurl GTest::gtest GTest::gtest_main)
-add_dependencies(test_framework simple_test_bundle1_bundle simple_test_bundle2_bundle simple_test_bundle3_bundle simple_test_bundle4_bundle simple_test_bundle5_bundle bundle_with_exception_bundle unresolveable_bundle_bundle simple_cxx_bundle)
+        src/GetBundleContextTestSuite.cc
+        src/get_bundle_name_service.h)
+target_link_libraries(test_framework PRIVATE Celix::framework CURL::libcurl GTest::gtest GTest::gtest_main)
+add_celix_bundle_dependencies(test_framework
+        simple_test_bundle1 get_bundle_context_test_bundle1
+        get_bundle_context_test_bundle2 get_cxx_bundle_context_test_bundle
+        simple_test_bundle2 simple_test_bundle3 simple_test_bundle4
+        simple_test_bundle5 bundle_with_exception unresolveable_bundle simple_cxx)
 target_include_directories(test_framework PRIVATE ../src)
 
 celix_get_bundle_file(simple_cxx_bundle SIMPLE_CXX_BUNDLE_LOC)
 celix_get_bundle_file(cmp_test_bundle CMP_TEST_BUNDLE_LOC)
+celix_get_bundle_file(get_bundle_context_test_bundle1 GET_BUNDLECONTEXT_TEST_BUNDLE1)
+celix_get_bundle_file(get_bundle_context_test_bundle2 GET_BUNDLECONTEXT_TEST_BUNDLE2)
+celix_get_bundle_file(get_cxx_bundle_context_test_bundle GET_CXX_BUNDLECONTEXT_TEST_BUNDLE)
 target_compile_definitions(test_framework PRIVATE
         SIMPLE_TEST_BUNDLE1_LOCATION="$<TARGET_PROPERTY:simple_test_bundle1,BUNDLE_FILE>"
         SIMPLE_TEST_BUNDLE2_LOCATION="$<TARGET_PROPERTY:simple_test_bundle2,BUNDLE_FILE>"
@@ -64,6 +90,9 @@ target_compile_definitions(test_framework PRIVATE
         TEST_BUNDLE_UNRESOLVEABLE_LOCATION="$<TARGET_PROPERTY:unresolveable_bundle,BUNDLE_FILE>"
         SIMPLE_CXX_BUNDLE_LOC="${SIMPLE_CXX_BUNDLE_LOC}"
         CMP_TEST_BUNDLE_LOC="${CMP_TEST_BUNDLE_LOC}"
+        GET_BUNDLECONTEXT_TEST_BUNDLE1="${GET_BUNDLECONTEXT_TEST_BUNDLE1}"
+        GET_BUNDLECONTEXT_TEST_BUNDLE2="${GET_BUNDLECONTEXT_TEST_BUNDLE2}"
+        GET_CXX_BUNDLECONTEXT_TEST_BUNDLE="${GET_CXX_BUNDLECONTEXT_TEST_BUNDLE}"
 )
 
 configure_file(config.properties.in config.properties @ONLY)

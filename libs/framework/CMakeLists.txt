@@ -45,6 +45,9 @@ target_include_directories(framework PUBLIC
 target_compile_options(framework PRIVATE -DUSE_FILE32API)
 target_compile_options(framework PRIVATE -Wno-deprecated-declarations) #note part of the api is deprecated, ignore this warning on own api
 set_target_properties(framework PROPERTIES "SOVERSION" 2)
+#if (APPLE)
+#    target_link_options(framework PUBLIC "-Wl,-U,_celix_bundleActivator_getBundleContext")
+#endif ()
 
 target_link_libraries(framework PUBLIC Celix::utils Celix::dfi ${CELIX_OPTIONAL_EXTRA_LIBS})
 target_link_libraries(framework PUBLIC UUID::lib CURL::libcurl ZLIB::ZLIB)

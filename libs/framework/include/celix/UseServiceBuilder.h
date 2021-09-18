@@ -155,7 +155,7 @@ namespace celix {
             opts.useWithOwner = [](void* data, void *voidSvc, const celix_properties_t* cProps, const celix_bundle_t* cBnd) {
                 auto* builder = static_cast<UseServiceBuilder<I>*>(data);
                 auto* svc = static_cast<I*>(voidSvc);
-                const Bundle bnd = Bundle{const_cast<celix_bundle_t*>(cBnd)};
+                const Bundle bnd{const_cast<celix_bundle_t*>(cBnd)};
                 auto props = celix::Properties::wrap(cProps);
                 for (const auto& func : builder->callbacks) {
                     func(*svc);

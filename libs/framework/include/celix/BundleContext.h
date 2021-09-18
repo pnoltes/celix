@@ -607,4 +607,42 @@ namespace celix {
     };
 }
 
+namespace celix {
+    /**
+     * Get the bundle context from the current bundle.
+     *
+     * The function will infer the bundle context by using the bundle activator
+     * `celix_bundleActivator_getCxxBundleContext` symbol.
+     * This symbol is retrieved using the special handle `RTLD_SELF`
+     *
+     * @return The bundle context if this is called from a bundle, otherwise an empty shared_ptr will be returned.
+     */
+//    inline const std::shared_ptr<celix::BundleContext>& getBundleContext() {
+//        static std::shared_ptr<celix::BundleContext> empty{};
+//        /*
+//         * Getting the `celix_bundleActivator_getCxxBundleContext` from dlsym using the RTLD_SELF special handle.
+//         * from `man dlsym`: "If dlsym() is called with the special handle RTLD_SELF, then the search for the
+//         * symbol starts with the image that called dlsym()."
+//         *
+//         * Note that this function works as long as it is inlined, otherwise this should be a macro.
+//         */
+//        auto* getCtxFunc = (std::shared_ptr<celix::BundleContext>*(*)())dlsym(RTLD_SELF, "celix_bundleActivator_getCxxBundleContext");
+//        if (getCtxFunc) {
+//            auto* ctxPtr = getCtxFunc();
+//            if (ctxPtr) {
+//                return *ctxPtr;
+//            }
+//        }
+//        return empty;
+//    }
+
+    inline const std::shared_ptr<celix::BundleContext> getBundleContext() {
+        auto* ctx = static_cast<std::shared_ptr<celix::BundleContext>*>(celix_bundleContext_getCxxBundleContext());
+        if (ctx) {
+            return *ctx;
+        }
+        return nullptr;
+    }
+}
+
 

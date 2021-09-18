@@ -654,3 +654,27 @@ TEST_F(CxxBundleContextTestSuite, CheckStandardServiceProperties) {
 
     celix_bundleContext_unregisterService(ctx->getCBundleContext(), svcId);
 }
+
+TEST_F(CxxBundleContextTestSuite, GetBundleInformation) {
+
+    EXPECT_EQ(ctx->getBundle().getSymbolicName(), std::string{"celix_framework"});
+    EXPECT_EQ(ctx->getBundle().getName(), std::string{"Celix Framework"});
+    EXPECT_EQ(ctx->getBundle().getGroup(), std::string{"Celix/Framework"});
+    EXPECT_EQ(ctx->getBundle().getDescription(), std::string{"The Celix Framework System Bundle"});
+
+    std::atomic<bool> startCalled{false};
+    auto bndTracker = ctx->trackBundles()
+        .addOnStartCallback([&startCalled](const celix::Bundle& bnd) {
+            EXPECT_EQ(bnd.getSymbolicName(), std::string{"simple_test_bundle1"});
+            EXPECT_EQ(bnd.getName(), std::string{"Simple Test Bundle"});
+            EXPECT_EQ(bnd.getGroup(), std::string{"test/group"});
+            EXPECT_EQ(bnd.getDescription(), std::string{"Test Description"});
+            startCalled = true;
+        })
+        .build();
+
+    long bndId1 = ctx->installBundle(TEST_BND1_LOC);
+    EXPECT_GE(bndId1, 0);
+    ctx->waitForEvents();
+    EXPECT_TRUE(startCalled);
+}

@@ -28,34 +28,30 @@
 namespace celix {
     namespace impl {
 
-        template<typename I>
+        template<typename T>
         struct BundleActivatorData {
             long bndId;
             std::shared_ptr<celix::BundleContext> ctx;
-            std::unique_ptr<I> bundleActivator;
+            std::unique_ptr<T> bundleActivator;
         };
 
 
-        template<typename I>
-        typename std::enable_if<std::is_constructible<I, std::shared_ptr<celix::BundleContext>>::value, celix_status_t>::type
-        createActivator(celix_bundle_context_t *cCtx, void **out) {
+        template<typename T>
+        typename std::enable_if<std::is_constructible<T, std::shared_ptr<celix::BundleContext>>::value, BundleActivatorData<T>*>::type
+        createActivator(celix_bundle_context_t* cCtx) {
             auto ctx = std::make_shared<celix::BundleContext>(cCtx);
-            auto act = std::unique_ptr<I>(new I{ctx});
-            auto *data = new BundleActivatorData<I>{ctx->getBundleId(), std::move(ctx), std::move(act)};
-            *out = (void *) data;
-            return CELIX_SUCCESS;
+            auto act = std::unique_ptr<T>(new T{ctx});
+            return new BundleActivatorData<T>{ctx->getBundleId(), std::move(ctx), std::move(act)};
         }
 
-        template<typename I>
-        typename std::enable_if<std::is_constructible<I, std::shared_ptr<celix::dm::DependencyManager>>::value, celix_status_t>::type
-        createActivator(celix_bundle_context_t *cCtx, void **out) {
+        template<typename T>
+        typename std::enable_if<std::is_constructible<T, std::shared_ptr<celix::dm::DependencyManager>>::value, BundleActivatorData<T>*>::type
+        createActivator(celix_bundle_context_t* cCtx) {
             auto ctx = std::make_shared<celix::BundleContext>(cCtx);
             auto dm = ctx->getDependencyManager();
-            auto act = std::unique_ptr<I>(new I{dm});
+            auto act = std::unique_ptr<T>(new T{ctx->getDependencyManager()});
             dm->start();
-            auto *data = new BundleActivatorData<I>{ctx->getBundleId(), std::move(ctx), std::move(act)};
-            *out = (void *) data;
-            return CELIX_SUCCESS;
+            return new BundleActivatorData<T>{ctx->getBundleId(), std::move(ctx), std::move(act)};
         }
 
         template<typename T>
@@ -78,22 +74,40 @@ namespace celix {
             }
         }
 
-        template<typename I>
-        celix_status_t destroyActivator(void *userData) {
-            auto *data = static_cast<BundleActivatorData<I> *>(userData);
+        template<typename T>
+        celix_status_t destroyActivator(BundleActivatorData<T> **g_data) {
+            BundleActivatorData<T>* data = *g_data;
             data->bundleActivator.reset();
             data->ctx->getDependencyManager()->clear();
-
             auto bndId = data->bndId;
-            std::weak_ptr<celix::BundleContext> ctx = data->ctx;
-            std::weak_ptr<celix::dm::DependencyManager> dm = data->ctx->getDependencyManager();
+            std::weak_ptr<celix::BundleContext> weakCtx = data->ctx;
+            std::weak_ptr<celix::dm::DependencyManager> weakDm = data->ctx->getDependencyManager();
+            auto ctxCpy = data->ctx; //copy to ensure bundle context "lives" during delete data
             delete data;
-            waitForExpired(bndId, ctx, "celix::BundleContext", ctx);
-            waitForExpired(bndId, ctx, "celix::dm::DependencyManager", dm);
+            *g_data = nullptr;
+            ctxCpy.reset();
+            waitForExpired(bndId, weakCtx, "celix::BundleContext", weakCtx);
+            waitForExpired(bndId, weakCtx, "celix::dm::DependencyManager", weakDm);
             return CELIX_SUCCESS;
+        }
+
+        template<typename T>
+        celix_bundle_context_t* getCBundleContext(BundleActivatorData<T>* data) {
+            return data->ctx->getCBundleContext();
+        }
+
+        template<typename T>
+        const std::shared_ptr<celix::BundleContext>& getBundleContext(BundleActivatorData<T>* data) {
+            return data->ctx;
         }
     }
 }
+
+/**
+ * @brief Returns the C++ BundleContext as a std::shared_ptr<celix::BundleContext>*
+ */
+extern "C" void* celix_bundleContext_getCxxBundleContext();
+
 
 /**
  * @brief Macro to generate the required bundle activator functions for C++.
@@ -115,8 +129,21 @@ namespace celix {
  * argument of std::shared_ptr<celix::BundleContext> or std::shared_ptr<DependencyManager>.
  */
 #define CELIX_GEN_CXX_BUNDLE_ACTIVATOR(actType)                                                                        \
-extern "C" celix_status_t bundleActivator_create(celix_bundle_context_t *context, void** userData) {                   \
-    return celix::impl::createActivator<actType>(context, userData);                                                   \
+                                                                                                                       \
+static celix::impl::BundleActivatorData<actType>* g_celix_bundleActivatorData = nullptr;                               \
+                                                                                                                       \
+extern "C" celix_bundle_context_t* celix_bundleContext_getBundleContext() {                                          \
+    auto* ctx = (std::shared_ptr<celix::BundleContext>*)celix_bundleContext_getCxxBundleContext();                   \
+    return ctx != nullptr ? (*ctx)->getCBundleContext() : nullptr;                                                     \
+}                                                                                                                      \
+                                                                                                                       \
+extern "C" void* celix_bundleContext_getCxxBundleContext() {                                                         \
+    return g_celix_bundleActivatorData != nullptr ? (void*)&g_celix_bundleActivatorData->ctx : nullptr;                \
+}                                                                                                                      \
+                                                                                                                       \
+extern "C" celix_status_t bundleActivator_create(celix_bundle_context_t *cCtx, void** /*userData*/) {                  \
+    g_celix_bundleActivatorData = celix::impl::createActivator<actType>(cCtx);                                         \
+    return CELIX_SUCCESS;                                                                                              \
 }                                                                                                                      \
                                                                                                                        \
 extern "C" celix_status_t bundleActivator_start(void *, celix_bundle_context_t *) {                                    \
@@ -124,8 +151,8 @@ extern "C" celix_status_t bundleActivator_start(void *, celix_bundle_context_t *
     return CELIX_SUCCESS;                                                                                              \
 }                                                                                                                      \
                                                                                                                        \
-extern "C" celix_status_t bundleActivator_stop(void *userData, celix_bundle_context_t*) {                              \
-    return celix::impl::destroyActivator<actType>(userData);                                                           \
+extern "C" celix_status_t bundleActivator_stop(void */*userData*/, celix_bundle_context_t*) {                          \
+    return celix::impl::destroyActivator<actType>(&g_celix_bundleActivatorData);                                       \
 }                                                                                                                      \
                                                                                                                        \
 extern "C" celix_status_t bundleActivator_destroy(void *, celix_bundle_context_t*) {                                   \

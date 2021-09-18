@@ -40,6 +40,28 @@
 #include "service_tracker_private.h"
 #include "celix_array_list.h"
 
+//celix_bundle_context_t* celix_getBundleContext() {
+//    printf("WRONG\n");
+//    return NULL;
+//}
+
+//celix_bundle_context_t* celix_getBundleContext() __attribute__((weak_import)) {
+//    printf("Calling celix_getBundleContext from bundle_context.c\n");
+//    return NULL; //Note this is the default (weak) impl, the C and C++ bundle activator macro will override this
+//};
+
+//celix_bundle_context_t* celix_bundleActivator_getBundleContext() {
+//    return NULL;
+//}
+
+celix_bundle_context_t* celix_getBundleContext() {
+    return NULL; //Note this is the default (weak) impl, the C and C++ bundle activator macro will override this
+}
+
+extern void* celix_bundleContext_getCxxBundleContext() {
+    return NULL;
+}
+
 static celix_status_t bundleContext_bundleChanged(void *handle, bundle_event_t *event);
 static void bundleContext_cleanupBundleTrackers(bundle_context_t *ct);
 static void bundleContext_cleanupServiceTrackers(bundle_context_t *ctx);
