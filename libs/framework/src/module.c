@@ -158,7 +158,9 @@ void module_destroy(module_pt module) {
 
 	free(module->id);
 	free(module->symbolicName);
-	free(module->group);
+    free(module->name);
+    free(module->group);
+    free(module->description);
 	free(module);
 }
 

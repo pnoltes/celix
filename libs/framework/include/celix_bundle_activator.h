@@ -103,9 +103,10 @@ celix_status_t celix_bundleActivator_stop(void *userData, celix_bundle_context_t
  */
 celix_status_t celix_bundleActivator_destroy(void *userData, celix_bundle_context_t* ctx);
 
-//celix_bundle_context_t* celix_bundleActivator_getBundleContext();
-
-celix_bundle_context_t* celix_getBundleContext();
+/**
+ * @brief Returns the C bundle context.
+ */
+celix_bundle_context_t* celix_bundleActivator_getBundleContext();
 
 /**
  * @brief This macro generates the required bundle activator functions for C.
@@ -123,15 +124,18 @@ celix_bundle_context_t* celix_getBundleContext();
  */
 #define CELIX_GEN_BUNDLE_ACTIVATOR(actType, actStart, actStop)                                                         \
                                                                                                                        \
-static celix_bundle_context_t* g_celix_currentBundleContext = NULL;                                                    \
+static celix_bundle_context_t* celix_currentBundleContext = NULL;                                                      \
                                                                                                                        \
-celix_bundle_context_t* celix_getBundleContext() {                                                                     \
-    printf("Getting context from activator\n");                                                                        \
-    return g_celix_currentBundleContext;                                                                               \
+celix_bundle_context_t* celix_bundleActivator_getBundleContext() {                                                     \
+    /*celix_bundle_context_t* ctx;                                                                                     \
+    __atomic_load(&g_celix_currentBundleContext, &ctx, __ATOMIC_ACQUIRE);                                              \
+    return ctx;*/                                                                                                      \
+    return celix_currentBundleContext;                                                                                 \
 }                                                                                                                      \
                                                                                                                        \
 celix_status_t celix_bundleActivator_create(celix_bundle_context_t *ctx, void **userData) {                            \
-    g_celix_currentBundleContext = ctx;                                                                                \
+    /*__atomic_store(&celix_currentBundleContext, &ctx, __ATOMIC_RELAXED);*/                                           \
+    celix_currentBundleContext = ctx;                                                                                  \
     celix_status_t status = CELIX_SUCCESS;                                                                             \
     actType *data = (actType*)calloc(1, sizeof(*data));                                                                \
     if (data != NULL) {                                                                                                \

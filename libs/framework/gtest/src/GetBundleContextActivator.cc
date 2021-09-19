@@ -25,10 +25,10 @@ namespace {
     public:
         explicit BundleActivator(const std::shared_ptr<celix::BundleContext> &ctx) {
             auto svc = std::make_shared<get_bundle_name_service>();
-            svc->getBundleName = []() -> const char * {
+            svc->getBundleName = []() -> char * {
                 auto& ctx = celix::getBundleContext();
                 static auto name = ctx->getBundle().getSymbolicName();
-                return name.c_str();
+                return celix_utils_strdup(name.c_str());
             };
             reg = ctx->registerService<get_bundle_name_service>(svc, GET_BUNDLE_NAME_SERVICE_NAME).build();
         }

@@ -27,7 +27,11 @@ extern "C" {
 #define GET_BUNDLE_NAME_SERVICE_NAME "get_bundle_name_service"
 
 typedef struct get_bundle_name_service {
-    const char *(*getBundleName)();
+    /**
+     * Returns the name of the bundle.
+     * Caller needs to free the return value.
+     */
+    char *(*getBundleName)();
 } get_bundle_name_service_t;
 
 #ifdef __cplusplus

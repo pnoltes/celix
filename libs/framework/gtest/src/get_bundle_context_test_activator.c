@@ -20,7 +20,7 @@
 #include "celix_api.h"
 #include "get_bundle_name_service.h"
 
-extern const char* get_bundle_name();
+extern char* get_bundle_name();
 
 struct bundle_act {
     long svcId;

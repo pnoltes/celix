@@ -37,8 +37,7 @@
 #include "bundle_private.h"
 #include "celix_bundle_context.h"
 #include "bundle_context_private.h"
-#include "service_tracker.h"
-#include "celix_library_loader.h"
+#include "celix_libloader.h"
 #include "celix_log_constants.h"
 
 typedef celix_status_t (*create_function_fp)(bundle_context_t *context, void **userData);

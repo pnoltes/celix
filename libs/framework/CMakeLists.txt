@@ -32,10 +32,10 @@ set(SOURCES
         src/celix_log.c src/celix_launcher.c
         src/celix_framework_factory.c
         src/dm_dependency_manager_impl.c src/dm_component_impl.c
-        src/dm_service_dependency.c src/celix_library_loader.c
+        src/dm_service_dependency.c src/celix_libloader.c
         src/framework_bundle_lifecycle_handler.c
         src/celix_bundle_state.c
-)
+        )
 add_library(framework SHARED ${SOURCES})
 set_target_properties(framework PROPERTIES OUTPUT_NAME "celix_framework")
 target_include_directories(framework PUBLIC

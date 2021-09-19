@@ -22,17 +22,18 @@
 #include <assert.h>
 
 void foo();
-const char* get_bundle_name();
+char* get_bundle_name();
 
 void foo() {
     printf("nop\n");
 }
 
-const char* get_bundle_name() {
+char* get_bundle_name() {
     celix_bundle_context_t* ctx = celix_getBundleContext();
     if (ctx) {
         celix_bundle_t *bnd = celix_bundleContext_getBundle(ctx);
-        return celix_bundle_getSymbolicName(bnd);
+        const char* name = celix_bundle_getSymbolicName(bnd);
+        return celix_utils_strdup(name);
     }
     return NULL;
 }

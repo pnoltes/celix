@@ -103,10 +103,16 @@ namespace celix {
     }
 }
 
+
 /**
- * @brief Returns the C++ BundleContext as a std::shared_ptr<celix::BundleContext>*
+ * @brief Returns the C bundle context.
  */
-extern "C" void* celix_bundleContext_getCxxBundleContext();
+extern "C" celix_bundle_context_t* celix_bundleActivator_getBundleContext();
+
+/**
+ * @brief Returns the C++ bundle context as a std::shared_ptr<celix::BundleContext>* cast to void*
+ */
+extern "C" void* celix_bundleActivator_getCxxBundleContext();
 
 
 /**
@@ -132,12 +138,12 @@ extern "C" void* celix_bundleContext_getCxxBundleContext();
                                                                                                                        \
 static celix::impl::BundleActivatorData<actType>* g_celix_bundleActivatorData = nullptr;                               \
                                                                                                                        \
-extern "C" celix_bundle_context_t* celix_bundleContext_getBundleContext() {                                          \
-    auto* ctx = (std::shared_ptr<celix::BundleContext>*)celix_bundleContext_getCxxBundleContext();                   \
+extern "C" celix_bundle_context_t* celix_bundleActivator_getBundleContext() {                                          \
+    auto* ctx = (std::shared_ptr<celix::BundleContext>*)celix_bundleContext_getCxxBundleContext();                     \
     return ctx != nullptr ? (*ctx)->getCBundleContext() : nullptr;                                                     \
 }                                                                                                                      \
                                                                                                                        \
-extern "C" void* celix_bundleContext_getCxxBundleContext() {                                                         \
+extern "C" void* celix_bundleActivator_getCxxBundleContext() {                                                         \
     return g_celix_bundleActivatorData != nullptr ? (void*)&g_celix_bundleActivatorData->ctx : nullptr;                \
 }                                                                                                                      \
                                                                                                                        \

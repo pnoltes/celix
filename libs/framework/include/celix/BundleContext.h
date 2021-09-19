@@ -608,34 +608,37 @@ namespace celix {
 }
 
 namespace celix {
-    /**
-     * Get the bundle context from the current bundle.
-     *
-     * The function will infer the bundle context by using the bundle activator
-     * `celix_bundleActivator_getCxxBundleContext` symbol.
-     * This symbol is retrieved using the special handle `RTLD_SELF`
-     *
-     * @return The bundle context if this is called from a bundle, otherwise an empty shared_ptr will be returned.
-     */
-//    inline const std::shared_ptr<celix::BundleContext>& getBundleContext() {
-//        static std::shared_ptr<celix::BundleContext> empty{};
-//        /*
-//         * Getting the `celix_bundleActivator_getCxxBundleContext` from dlsym using the RTLD_SELF special handle.
-//         * from `man dlsym`: "If dlsym() is called with the special handle RTLD_SELF, then the search for the
-//         * symbol starts with the image that called dlsym()."
-//         *
-//         * Note that this function works as long as it is inlined, otherwise this should be a macro.
-//         */
-//        auto* getCtxFunc = (std::shared_ptr<celix::BundleContext>*(*)())dlsym(RTLD_SELF, "celix_bundleActivator_getCxxBundleContext");
-//        if (getCtxFunc) {
-//            auto* ctxPtr = getCtxFunc();
-//            if (ctxPtr) {
-//                return *ctxPtr;
-//            }
-//        }
-//        return empty;
-//    }
 
+    /**
+     * @brief Utility function to get the bundle context for current bundle.
+     *
+     * This function tries to find the current bundle activator library (dlopen handle) using `dladdr1` and the
+     * return address of the caller.
+     *
+     * If the bundle activator library is found, the bundle context will retrieved
+     * using the `celix_bundleActivator_getCxxBundleContext` C function.
+     *
+     * Note that function only works under the following preconditions:
+     *  - It called from a started bundle;
+     *  - The call originates from a function/method in the bundle;
+     *  - The bundle has been created using the CELIX_CXX_GEN_BUNDLE_ACTIVATOR macro;
+     *  - The call is made from the bundle activator sources (the source added to the add_celix_bundle cmake command) or
+     *  - the call is made from a library bundle added with `celix_bundle_private_libs`.
+     *
+     *  If the call is made from a library bundle (added with `celix_bundle_private_libs`) this library needs to be
+     *  unique in the framework process.
+     *  The reason is that libraries directly or indirectly loaded with dlopen will only actually
+     *  loaded if the SO_NAME is unique. If not unique already loaded library will be "reused".
+     *  For example installing in order:
+     *   - BundleA with a private library libfoo (SONAME=libfoo.so) and
+     *   - BundleB with a private libary libfoo (SONAME=libfoo.so)
+     *  Will result in BundleB also using libfoo loaded from the cache dir in BundleA.
+     *
+     *  If this function is called from a inline function, the bundle context will be lookup using the return
+     *  address of the first non-inline calling function.
+     *
+     * @return The bundle context shared_ptr or empty shared_ptr if the bundle context cannot be found (not called from a bundle).
+     */
     inline const std::shared_ptr<celix::BundleContext> getBundleContext() {
         auto* ctx = static_cast<std::shared_ptr<celix::BundleContext>*>(celix_bundleContext_getCxxBundleContext());
         if (ctx) {

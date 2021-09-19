@@ -39,28 +39,7 @@
 #include "module.h"
 #include "service_tracker_private.h"
 #include "celix_array_list.h"
-
-//celix_bundle_context_t* celix_getBundleContext() {
-//    printf("WRONG\n");
-//    return NULL;
-//}
-
-//celix_bundle_context_t* celix_getBundleContext() __attribute__((weak_import)) {
-//    printf("Calling celix_getBundleContext from bundle_context.c\n");
-//    return NULL; //Note this is the default (weak) impl, the C and C++ bundle activator macro will override this
-//};
-
-//celix_bundle_context_t* celix_bundleActivator_getBundleContext() {
-//    return NULL;
-//}
-
-celix_bundle_context_t* celix_getBundleContext() {
-    return NULL; //Note this is the default (weak) impl, the C and C++ bundle activator macro will override this
-}
-
-extern void* celix_bundleContext_getCxxBundleContext() {
-    return NULL;
-}
+#include "celix_libloader.h"
 
 static celix_status_t bundleContext_bundleChanged(void *handle, bundle_event_t *event);
 static void bundleContext_cleanupBundleTrackers(bundle_context_t *ct);
@@ -1745,4 +1724,22 @@ void celix_bundleContext_log(const celix_bundle_context_t *ctx, celix_log_level_
 
 void celix_bundleContext_vlog(const celix_bundle_context_t *ctx, celix_log_level_e level, const char *format, va_list formatArgs) {
     celix_framework_vlog(ctx->framework->logger, level, NULL, NULL, 0, format, formatArgs);
+}
+
+celix_bundle_context_t* celix_getBundleContext() {
+    void* addr = __builtin_extract_return_addr(__builtin_return_address(0));
+    celix_bundle_context_t*(*getCtx)() = (celix_bundle_context_t*(*)())celix_libloader_findBundleActivatorSymbolFromAddr(addr, CELIX_FRAMEWORK_BUNDLE_ACTIVATOR_GET_BUNDLE_CONTEXT);
+    if (getCtx) {
+        return getCtx();
+    }
+    return NULL;
+}
+
+void* celix_bundleContext_getCxxBundleContext() {
+    void* addr = __builtin_extract_return_addr(__builtin_return_address(0));
+    celix_bundle_context_t*(*getCtx)() = (celix_bundle_context_t*(*)())celix_libloader_findBundleActivatorSymbolFromAddr(addr, CELIX_FRAMEWORK_BUNDLE_ACTIVATOR_GET_CXX_BUNDLE_CONTEXT);
+    if (getCtx) {
+        return getCtx();
+    }
+    return NULL;
 }

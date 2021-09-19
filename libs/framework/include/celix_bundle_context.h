@@ -42,40 +42,6 @@ extern "C" {
 #define OPTS_INIT
 #endif
 
-///**
-// * Get the bundle context from the current bundle.
-// *
-// * The function will infer the bundle context by using the bundle activator
-// * `celix_bundleActivator_getBundleContext` symbol.
-// * This symbol is retrieved using the special handle `RTLD_SELF`
-// *
-// * @return The bundle context if this is called from a bundle, otherwise a NULL ptr will be returned.
-// */
-//static inline celix_bundle_context_t* celix_getBundleContext() {
-//    /*
-//     * Getting the `celix_bundleActivator_getCxxBundleContext` from dlsym using the RTLD_SELF special handle.
-//     * from `man dlsym`: "If dlsym() is called with the special handle RTLD_SELF, then the search for the
-//     * symbol starts with the image that called dlsym()."
-//     *
-//     * Note that this function works as long as it is inlined, otherwise this should be a macro.
-//     */
-//    celix_bundle_context_t*(*getCtx)() = (celix_bundle_context_t*(*)())dlsym(RTLD_DEFAULT, "celix_bundleActivator_getBundleContext");
-//    if (getCtx != NULL) {
-//        printf("Found SYMBOL\n");
-//        return getCtx();
-//    } else {
-//        printf("WRONG\n");
-//    }
-//    return NULL;
-//}
-
-extern celix_bundle_context_t* celix_getBundleContext() __attribute__((weak));
-
-extern void* celix_bundleContext_getCxxBundleContext() __attribute__((weak));
-
-
-//extern celix_bundle_context_t* celix_getBundleContext();
-
 /**
  * @brief Register a service to the Celix framework.
  *
@@ -1314,6 +1280,53 @@ double celix_bundleContext_getPropertyAsDouble(celix_bundle_context_t *ctx, cons
  * @return The property value for the provided key or the provided defaultValue is the key is not found.
  */
 bool celix_bundleContext_getPropertyAsBool(celix_bundle_context_t *ctx, const char *key, bool defaultValue);
+
+/**
+ * @brief Utility function to get the bundle context for current bundle.
+ *
+ * This function tries to find the current bundle activator library (dlopen handle) using `dladdr1` and the
+ * return address of the caller.
+ *
+ * If the bundle activator library is found, the bundle context will retrieved
+ * using the `celix_bundleActivator_getBundleContext` function.
+ *
+ * Note that function only works under the following preconditions:
+ *  - It called from a started bundle;
+ *  - The call originates from a function/method in the bundle;
+ *  - The bundle has been created using the CELIX_GEN_BUNDLE_ACTIVATOR macro;
+ *  - The call is made from the bundle activator sources (the source added to the add_celix_bundle cmake command) or
+ *  - the call is made from a library bundle added with `celix_bundle_private_libs`.
+ *
+ *  If the call is made from a library bundle (added with `celix_bundle_private_libs`) this library needs to be
+ *  unique in the framework process.
+ *  The reason is that libraries directly or indirectly loaded with dlopen will only actually
+ *  loaded if the SO_NAME is unique. If not unique already loaded library will be "reused".
+ *  For example installing in order:
+ *   - BundleA with a private library libfoo (SONAME=libfoo.so) and
+ *   - BundleB with a private libary libfoo (SONAME=libfoo.so)
+ *  Will result in BundleB also using libfoo loaded from the cache dir in BundleA.
+ *
+ *  If this function is called from a inline function, the bundle context will be lookup using the return
+ *  address of the first non-inline calling function.
+ *
+ * @return The bundle context or NULL if the bundle context cannot be found (not called from a bundle)
+ */
+celix_bundle_context_t* celix_getBundleContext();
+
+/**
+ * @brief Utility function to get the C++ bundle context for current bundle.
+ *
+ * The function work the same as `celix_getBundleContext`, but retrieves the C++ bundle context
+ * from the `celix_bundleActivator_getCxxBundleContext` bundle activator function and only
+ * works if the CELIX_CXX_GEN_BUNDLE_ACTIVATOR macro was used to generated the C++ bundle activator.
+ *
+ * Note that this function returns a void* instead of `std::shared_ptr<celix::BundleContext>*` to keep a C function.
+ *
+ * @note For C++ use the celix::getBundleContext() instead of directly calling this function.
+ *
+ * @return a ptr to the std::shared_ptr<celix::BundleContext> (as void*) or NULL.
+ */
+void* celix_bundleContext_getCxxBundleContext();
 
 #undef OPTS_INIT
 
