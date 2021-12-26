@@ -48,7 +48,7 @@ static void bundleContext_cleanupServiceTrackerTrackers(bundle_context_t *ctx);
 static void bundleContext_cleanupServiceRegistration(bundle_context_t* ctx);
 static long celix_bundleContext_trackServicesWithOptionsInternal(celix_bundle_context_t *ctx, const celix_service_tracking_options_t *opts, bool async);
 
-celix_status_t bundleContext_create(framework_pt framework, celix_framework_logger_t*  logger, bundle_pt bundle, bundle_context_pt *bundle_context) {
+celix_status_t bundleContext_create(framework_pt framework, bundle_pt bundle, bundle_context_pt *bundle_context) {
 	celix_status_t status = CELIX_SUCCESS;
 	bundle_context_pt context = NULL;
 
@@ -77,7 +77,7 @@ celix_status_t bundleContext_create(framework_pt framework, celix_framework_logg
         }
 	}
 
-	framework_logIfError(context->framework->logger, status, NULL, "Failed to create context");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to create context");
 
 	return status;
 }
@@ -109,7 +109,7 @@ celix_status_t bundleContext_destroy(bundle_context_pt context) {
 		status = CELIX_ILLEGAL_ARGUMENT;
 	}
 
-	framework_logIfError(context->framework->logger, status, NULL, "Failed to destroy context");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to destroy context");
 
 	return status;
 }
@@ -133,7 +133,7 @@ celix_status_t bundleContext_getBundle(bundle_context_pt context, bundle_pt *out
         *out = bnd;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to get bundle");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get bundle");
 
 	return status;
 }
@@ -147,7 +147,7 @@ celix_status_t bundleContext_getFramework(bundle_context_pt context, framework_p
 		*framework = context->framework;
 	}
 
-	framework_logIfError(context->framework->logger, status, NULL, "Failed to get framework");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get framework");
 
 	return status;
 }
@@ -170,7 +170,7 @@ celix_status_t bundleContext_installBundle2(bundle_context_pt context, const cha
         status = CELIX_ILLEGAL_ARGUMENT;
 	}
 
-	framework_logIfError(context->framework->logger, status, NULL, "Failed to install bundle");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to install bundle");
 
 	return status;
 }
@@ -188,7 +188,7 @@ celix_status_t bundleContext_registerService(bundle_context_pt context, const ch
 	    status = CELIX_ILLEGAL_ARGUMENT;
 	}
 
-	framework_logIfError(context->framework->logger, status, NULL, "Failed to register service. serviceName '%s'", serviceName);
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to register service. serviceName '%s'", serviceName);
 
 	return status;
 }
@@ -206,7 +206,7 @@ celix_status_t bundleContext_registerServiceFactory(bundle_context_pt context, c
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to register service factory");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to register service factory");
 
     return status;
 }
@@ -220,7 +220,7 @@ celix_status_t bundleContext_getServiceReferences(bundle_context_pt context, con
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to get service references");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get service references");
 
 	return status;
 }
@@ -242,7 +242,7 @@ celix_status_t bundleContext_getServiceReference(bundle_context_pt context, cons
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to get service reference");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get service reference");
 
 	return status;
 }
@@ -256,7 +256,7 @@ FRAMEWORK_EXPORT celix_status_t bundleContext_retainServiceReference(bundle_cont
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to get service references");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get service references");
 
     return status;
 }
@@ -270,7 +270,7 @@ celix_status_t bundleContext_ungetServiceReference(bundle_context_pt context, se
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to unget service_reference");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to unget service_reference");
 
     return status;
 }
@@ -288,7 +288,7 @@ celix_status_t bundleContext_getService(bundle_context_pt context, service_refer
     }
 
     if (status != CELIX_SUCCESS) {
-        fw_log(context->framework->logger, CELIX_LOG_LEVEL_ERROR, "Failed to get service");
+        CELIX_FRAMEWORKLOGGER_LOG(context->framework->logger, CELIX_LOG_LEVEL_ERROR, "Failed to get service");
     }
 
     return status;
@@ -303,7 +303,7 @@ celix_status_t bundleContext_ungetService(bundle_context_pt context, service_ref
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to unget service");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to unget service");
 
     return status;
 }
@@ -317,7 +317,7 @@ celix_status_t bundleContext_getBundles(bundle_context_pt context, array_list_pt
 		*bundles = framework_getBundles(context->framework);
 	}
 
-	framework_logIfError(context->framework->logger, status, NULL, "Failed to get bundles");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get bundles");
 
 	return status;
 }
@@ -334,7 +334,7 @@ celix_status_t bundleContext_getBundleById(bundle_context_pt context, long id, b
         }
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to get bundle [id=%ld]", id);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to get bundle [id=%ld]", id);
 
 	return status;
 }
@@ -348,7 +348,7 @@ celix_status_t bundleContext_addServiceListener(bundle_context_pt context, celix
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to add service listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to add service listener");
 
     return status;
 }
@@ -362,7 +362,7 @@ celix_status_t bundleContext_removeServiceListener(bundle_context_pt context, ce
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to remove service listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to remove service listener");
 
     return status;
 }
@@ -376,7 +376,7 @@ celix_status_t bundleContext_addBundleListener(bundle_context_pt context, bundle
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to add bundle listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to add bundle listener");
 
     return status;
 }
@@ -390,7 +390,7 @@ celix_status_t bundleContext_removeBundleListener(bundle_context_pt context, bun
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to remove bundle listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to remove bundle listener");
 
     return status;
 }
@@ -404,7 +404,7 @@ celix_status_t bundleContext_addFrameworkListener(bundle_context_pt context, fra
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to add framework listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to add framework listener");
 
     return status;
 }
@@ -418,7 +418,7 @@ celix_status_t bundleContext_removeFrameworkListener(bundle_context_pt context, 
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
-    framework_logIfError(context->framework->logger, status, NULL, "Failed to remove framework listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(context->framework->logger, status, NULL, "Failed to remove framework listener");
 
     return status;
 }
@@ -486,12 +486,12 @@ long celix_bundleContext_registerServiceFactory(celix_bundle_context_t *ctx, cel
 static long celix_bundleContext_registerServiceWithOptionsInternal(bundle_context_t *ctx, const celix_service_registration_options_t *opts, bool async) {
     bool valid = opts->serviceName != NULL && strncmp("", opts->serviceName, 1) != 0;
     if (!valid) {
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Required serviceName argument is NULL or empty");
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Required serviceName argument is NULL or empty");
         return -1;
     }
     valid = opts->svc != NULL || opts->factory != NULL;
     if (!valid) {
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Required svc or factory argument is NULL");
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Required svc or factory argument is NULL");
         return -1;
     }
 
@@ -589,7 +589,7 @@ static void celix_bundleContext_unregisterServiceInternal(celix_bundle_context_t
                 celix_bundleContext_waitForAsyncUnregistration(ctx, serviceId);
             }
         } else {
-            framework_logIfError(ctx->framework->logger, CELIX_ILLEGAL_ARGUMENT, NULL,
+            CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(ctx->framework->logger, CELIX_ILLEGAL_ARGUMENT, NULL,
                                  "No service registered with svc id %li for bundle %s (bundle id: %li)!", serviceId,
                                  celix_bundle_getSymbolicName(ctx->bundle), celix_bundle_getId(ctx->bundle));
         }
@@ -618,7 +618,7 @@ celix_dependency_manager_t* celix_bundleContext_getDependencyManager(bundle_cont
             ctx->mng = celix_private_dependencyManager_create(ctx);
         }
         if (ctx->mng == NULL) {
-            framework_logIfError(ctx->framework->logger, CELIX_BUNDLE_EXCEPTION, NULL, "Cannot create dependency manager");
+            CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(ctx->framework->logger, CELIX_BUNDLE_EXCEPTION, NULL, "Cannot create dependency manager");
         }
         result = ctx->mng;
         celixThreadMutex_unlock(&ctx->mutex);
@@ -666,7 +666,7 @@ void celix_bundleContext_trackBundlesWithOptionsCallback(void *data) {
     entry->created = true;
     celixThreadMutex_unlock(&entry->ctx->mutex);
     if (cancelled) {
-        fw_log(entry->ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Creation of bundle tracker cancelled. trk id = %li", entry->trackerId);
+        CELIX_FRAMEWORKLOGGER_LOG(entry->ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Creation of bundle tracker cancelled. trk id = %li", entry->trackerId);
         free(entry);
     } else {
         fw_addBundleListener(entry->ctx->framework, entry->ctx->bundle, &entry->listener);
@@ -780,7 +780,7 @@ static void bundleContext_cleanupBundleTrackers(bundle_context_t *ctx) {
     hash_map_iterator_t iter = hashMapIterator_construct(ctx->bundleTrackers);
     while (hashMapIterator_hasNext(&iter)) {
         long trkId = (long)hashMapIterator_nextKey(&iter);
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling bundle tracker with id %li for bundle %s. Add missing 'celix_bundleContext_stopTracker' calls.", trkId, symbolicName);
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling bundle tracker with id %li for bundle %s. Add missing 'celix_bundleContext_stopTracker' calls.", trkId, symbolicName);
         if (danglingTrkIds == NULL) {
             danglingTrkIds = celix_arrayList_create();
         }
@@ -810,7 +810,7 @@ static void bundleContext_cleanupServiceTrackers(bundle_context_t *ctx) {
     while (hashMapIterator_hasNext(&iter)) {
         long trkId = (long)hashMapIterator_nextKey(&iter);
         celix_bundle_context_service_tracker_entry_t* entry = hashMap_get(ctx->serviceTrackers, (void*)trkId);
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling service tracker with trkId %li, for bundle %s and with filter %s. Add missing 'celix_bundleContext_stopTracker' calls.", trkId, symbolicName, entry->tracker->filter);
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling service tracker with trkId %li, for bundle %s and with filter %s. Add missing 'celix_bundleContext_stopTracker' calls.", trkId, symbolicName, entry->tracker->filter);
         if (danglingTrkIds == NULL) {
             danglingTrkIds = celix_arrayList_create();
         }
@@ -840,7 +840,7 @@ static void bundleContext_cleanupServiceTrackerTrackers(bundle_context_t *ctx) {
     while (hashMapIterator_hasNext(&iter)) {
         long trkId = (long)hashMapIterator_nextKey(&iter);
         celix_bundle_context_service_tracker_tracker_entry_t *entry = hashMap_get(ctx->metaTrackers, (void*)trkId);
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling meta tracker (service tracker tracker) with trkId %li, for bundle %s and for the services %s. Add missing 'celix_bundleContext_stopTracker' calls.", trkId, symbolicName, entry->serviceName);
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling meta tracker (service tracker tracker) with trkId %li, for bundle %s and for the services %s. Add missing 'celix_bundleContext_stopTracker' calls.", trkId, symbolicName, entry->serviceName);
         if (danglingTrkIds == NULL) {
             danglingTrkIds = celix_arrayList_create();
         }
@@ -868,7 +868,7 @@ static void bundleContext_cleanupServiceRegistration(bundle_context_t* ctx) {
     celixThreadMutex_lock(&ctx->mutex);
     for (int i = 0; i < celix_arrayList_size(ctx->svcRegistrations); ++i) {
         long svcId = celix_arrayList_getLong(ctx->svcRegistrations, i);
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling service registration with svcId %li, for bundle %s. Add missing 'celix_bundleContext_unregisterService' calls.", svcId, symbolicName);
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Dangling service registration with svcId %li, for bundle %s. Add missing 'celix_bundleContext_unregisterService' calls.", svcId, symbolicName);
         if (danglingSvcIds == NULL) {
             danglingSvcIds = celix_arrayList_create();
         }
@@ -992,7 +992,7 @@ static void celix_bundleContext_stopTrackerInternal(bundle_context_t *ctx, long 
         } else if (svcTrackerTracker != NULL) {
             celix_framework_fireGenericEvent(ctx->framework, eventId, celix_bundle_getId(ctx->bundle), "stop meta tracker", svcTrackerTracker, celix_bundleContext_removeServiceTrackerTracker, doneData, doneCallback);
         } else {
-            fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Unexpected else branch");
+            CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Unexpected else branch");
         }
         celixThreadMutex_unlock(&ctx->mutex);
     } else if (found) { /*sync, so waiting for events*/
@@ -1004,13 +1004,13 @@ static void celix_bundleContext_stopTrackerInternal(bundle_context_t *ctx, long 
         } else if (svcTrackerTracker != NULL) {
             eventId = celix_framework_fireGenericEvent(ctx->framework, -1L, celix_bundle_getId(ctx->bundle), "stop meta tracker", svcTrackerTracker, celix_bundleContext_removeServiceTrackerTracker, doneData, doneCallback);
         } else {
-            fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Unexpected else branch");
+            CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Unexpected else branch");
         }
         celixThreadMutex_unlock(&ctx->mutex);
         celix_framework_waitForGenericEvent(ctx->framework, eventId);
     } else {
         celixThreadMutex_unlock(&ctx->mutex);
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "No tracker with id %li found'", trackerId);
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "No tracker with id %li found'", trackerId);
     }
 }
 
@@ -1349,7 +1349,7 @@ static void celix_bundleContext_createTrackerOnEventLoop(void *data) {
     bool cancelled = entry->cancelled;
     celixThreadMutex_unlock(&entry->ctx->mutex);
     if (cancelled) {
-        fw_log(entry->ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Creating of service tracker was cancelled. trk id = %li, svc name tracked = %s", entry->trackerId, entry->opts.filter.serviceName);
+        CELIX_FRAMEWORKLOGGER_LOG(entry->ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Creating of service tracker was cancelled. trk id = %li, svc name tracked = %s", entry->trackerId, entry->opts.filter.serviceName);
     } else {
         celix_service_tracker_t *tracker = celix_serviceTracker_createWithOptions(entry->ctx, &entry->opts);
         if (tracker != NULL) {
@@ -1357,7 +1357,7 @@ static void celix_bundleContext_createTrackerOnEventLoop(void *data) {
             entry->tracker = tracker;
             celixThreadMutex_unlock(&entry->ctx->mutex);
         } else {
-            fw_log(entry->ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Cannot create tracker for bnd %s (%li)", celix_bundle_getSymbolicName(entry->ctx->bundle), celix_bundle_getId(entry->ctx->bundle));
+            CELIX_FRAMEWORKLOGGER_LOG(entry->ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Cannot create tracker for bnd %s (%li)", celix_bundle_getSymbolicName(entry->ctx->bundle), celix_bundle_getId(entry->ctx->bundle));
             celix_serviceTracker_destroy(tracker);
         }
     }
@@ -1387,12 +1387,12 @@ static long celix_bundleContext_trackServicesWithOptionsInternal(celix_bundle_co
     if (ctx == NULL) {
         return -1L;
     } else if (opts == NULL) {
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Cannot track services with a NULL service tracking options argument");
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, "Cannot track services with a NULL service tracking options argument");
         return -1L;
     }
 
     if (opts->filter.serviceName == NULL) {
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Starting a tracker for any services");
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Starting a tracker for any services");
     }
 
     if (!async && celix_framework_isCurrentThreadTheEventLoop(ctx->framework)) {
@@ -1540,7 +1540,7 @@ long celix_bundleContext_trackServiceTrackersInternal(
         void *doneData,
         void (*doneCallback)(void*)) {
     if (serviceName == NULL) {
-        fw_log(ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Note starting a meta tracker for all services", __FUNCTION__);
+        CELIX_FRAMEWORKLOGGER_LOG(ctx->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Note starting a meta tracker for all services", __FUNCTION__);
     }
 
     celix_bundle_context_service_tracker_tracker_entry_t *entry = calloc(1, sizeof(*entry));
@@ -1575,7 +1575,7 @@ long celix_bundleContext_trackServiceTrackersInternal(
         celixThreadMutex_unlock(&ctx->mutex);
         return trkId;
     } else {
-        celix_framework_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, __FUNCTION__, __BASE_FILE__, __LINE__, "Error registering service listener hook for service tracker tracker\n");
+        celix_frameworkLogger_log(ctx->framework->logger, CELIX_LOG_LEVEL_ERROR, __FUNCTION__, __BASE_FILE__, __LINE__, "Error registering service listener hook for service tracker tracker\n");
         free(entry);
         return -1L;
     }
@@ -1698,5 +1698,5 @@ void celix_bundleContext_log(const celix_bundle_context_t *ctx, celix_log_level_
 }
 
 void celix_bundleContext_vlog(const celix_bundle_context_t *ctx, celix_log_level_e level, const char *format, va_list formatArgs) {
-    celix_framework_vlog(ctx->framework->logger, level, NULL, NULL, 0, format, formatArgs);
+    celix_frameworkLogger_vlog(ctx->framework->logger, level, NULL, NULL, 0, format, formatArgs);
 }

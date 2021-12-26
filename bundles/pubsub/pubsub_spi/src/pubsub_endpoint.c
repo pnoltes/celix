@@ -31,7 +31,7 @@
 #include <assert.h>
 
 #include "celix_errno.h"
-#include "celix_log.h"
+#include "../../../../libs/framework/src/celix_log.h"
 
 #include "pubsub_endpoint.h"
 #include "celix_constants.h"

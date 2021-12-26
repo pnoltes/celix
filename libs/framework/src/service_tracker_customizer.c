@@ -49,7 +49,7 @@ celix_status_t serviceTrackerCustomizer_create(void *handle,
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Cannot create customizer");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Cannot create customizer");
 
 	return status;
 }

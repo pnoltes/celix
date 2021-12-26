@@ -24,7 +24,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-
+#include "celix_log.h"
 #include "bundle_revision_private.h"
 
 celix_status_t bundleRevision_create(const char *root, const char *location, long revisionNr, const char *inputFile, bundle_revision_pt *bundle_revision) {
@@ -66,7 +66,7 @@ celix_status_t bundleRevision_create(const char *root, const char *location, lon
         }
     }
 
-    framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to create revision");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to create revision");
 
 	return status;
 }
@@ -88,7 +88,7 @@ celix_status_t bundleRevision_getNumber(bundle_revision_pt revision, long *revis
     	*revisionNr = revision->revisionNr;
     }
 
-    framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision number");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision number");
 
 	return status;
 }
@@ -101,7 +101,7 @@ celix_status_t bundleRevision_getLocation(bundle_revision_pt revision, const cha
 		*location = revision->location;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision location");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision location");
 
 	return status;
 }
@@ -114,7 +114,7 @@ celix_status_t bundleRevision_getRoot(bundle_revision_pt revision, const char **
 		*root = revision->root;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision root");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision root");
 
 	return status;
 }
@@ -127,7 +127,7 @@ celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_
 		*manifest = revision->manifest;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get manifest");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get manifest");
 
 	return status;
 }
@@ -140,7 +140,7 @@ celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, array_list
         *handles = revision->libraryHandles;
     }
 
-    framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get handles");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get handles");
 
     return status;
 }

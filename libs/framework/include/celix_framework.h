@@ -201,7 +201,6 @@ void celix_framework_waitForEmptyEventQueue(celix_framework_t *fw);
  */
 void celix_framework_setLogCallback(celix_framework_t* fw, void* logHandle, void (*logFunction)(void* handle, celix_log_level_e level, const char* file, const char *function, int line, const char *format, va_list formatArgs));
 
-
 /**
  * @brief wait until all events for the bundle identified by the bndId are processed.
  */
@@ -211,7 +210,6 @@ void celix_framework_waitUntilNoEventsForBnd(celix_framework_t* fw, long bndId);
  * @brief Returns whether the current thread is the Celix framework event loop thread.
  */
 bool celix_framework_isCurrentThreadTheEventLoop(celix_framework_t* fw);
-
 
 /**
  * @brief Fire a generic event. The event will be added to the event loop and handled on the event loop thread.

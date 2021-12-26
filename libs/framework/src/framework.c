@@ -74,7 +74,7 @@ static inline void fw_bundleEntry_waitTillUseCountIs(celix_framework_bundle_entr
         if (entry->useCount != desiredUseCount) {
             struct timespec now = celix_gettime(CLOCK_MONOTONIC);
             if (celix_difftime(&start, &now) > 5) {
-                fw_log(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_WARNING, "Bundle '%s' (bnd id = %li) still in use. Use count is %u, desired is %li", celix_bundle_getSymbolicName(entry->bnd), entry->bndId, entry->useCount, desiredUseCount);
+                CELIX_FRAMEWORKLOGGER_LOG(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_WARNING, "Bundle '%s' (bnd id = %li) still in use. Use count is %u, desired is %li", celix_bundle_getSymbolicName(entry->bnd), entry->bndId, entry->useCount, desiredUseCount);
                 start = celix_gettime(CLOCK_MONOTONIC);
             }
         }
@@ -264,7 +264,7 @@ celix_status_t framework_create(framework_pt *out, celix_properties_t* config) {
     status = CELIX_DO_IF(status, bundleCache_create(uuid, framework->configurationMap, &framework->cache));
     status = CELIX_DO_IF(status, serviceRegistry_create(framework, &framework->registry));
     bundle_context_t *context = NULL;
-    status = CELIX_DO_IF(status, bundleContext_create(framework, framework->logger, framework->bundle, &context));
+    status = CELIX_DO_IF(status, bundleContext_create(framework, framework->bundle, &context));
     status = CELIX_DO_IF(status, bundle_setContext(framework->bundle, context));
 
     //create framework bundle entry
@@ -276,7 +276,7 @@ celix_status_t framework_create(framework_pt *out, celix_properties_t* config) {
     celixThreadMutex_unlock(&framework->installedBundles.mutex);
 
     if (status != CELIX_SUCCESS) {
-        fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not create framework");
+        CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not create framework");
         free(framework);
         framework = NULL;
     }
@@ -299,7 +299,7 @@ celix_status_t framework_destroy(framework_pt framework) {
     if (shutdownInitialized) {
         framework_waitForStop(framework);
     } else {
-        fw_log(framework->logger, CELIX_LOG_LEVEL_FATAL, "Cannot destroy framework. framework is not stopped or stopping!");
+        CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_FATAL, "Cannot destroy framework. framework is not stopped or stopping!");
         return CELIX_ILLEGAL_STATE;
     }
 
@@ -324,11 +324,11 @@ celix_status_t framework_destroy(framework_pt framework) {
         bundle_t *bnd = entry->bnd;
         if (count > 0) {
             const char *bndName = celix_bundle_getSymbolicName(bnd);
-            fw_log(framework->logger, CELIX_LOG_LEVEL_FATAL, "Cannot destroy framework. The use count of bundle %s (bnd id %li) is not 0, but %u.", bndName, entry->bndId, count);
+            CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_FATAL, "Cannot destroy framework. The use count of bundle %s (bnd id %li) is not 0, but %u.", bndName, entry->bndId, count);
             celixThreadMutex_lock(&framework->dispatcher.mutex);
             int nrOfRequests = framework->dispatcher.eventQueueSize + celix_arrayList_size(framework->dispatcher.dynamicEventQueue);
             celixThreadMutex_unlock(&framework->dispatcher.mutex);
-            fw_log(framework->logger, CELIX_LOG_LEVEL_WARNING, "nr of request left: %i (should be 0).", nrOfRequests);
+            CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_WARNING, "nr of request left: %i (should be 0).", nrOfRequests);
         }
         fw_bundleEntry_destroy(entry, true);
 
@@ -478,7 +478,7 @@ celix_status_t fw_init(framework_pt framework) {
     }
 
     if (status != CELIX_SUCCESS) {
-       fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not init framework");
+        CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not init framework");
     }
 
 	return status;
@@ -509,15 +509,15 @@ celix_status_t framework_start(framework_pt framework) {
 
 	if (status != CELIX_SUCCESS) {
        status = CELIX_BUNDLE_EXCEPTION;
-       fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start framework");
+        CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start framework");
        fw_fireFrameworkEvent(framework, OSGI_FRAMEWORK_EVENT_ERROR, status);
     }
 
     framework_autoStartConfiguredBundles(framework);
 
 	if (status == CELIX_SUCCESS) {
-        fw_log(framework->logger, CELIX_LOG_LEVEL_INFO, "Celix framework started");
-        fw_log(framework->logger, CELIX_LOG_LEVEL_TRACE, "Celix framework started with uuid %s", celix_framework_getUUID(framework));
+        CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_INFO, "Celix framework started");
+        CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_TRACE, "Celix framework started with uuid %s", celix_framework_getUUID(framework));
 	}
 
 	return status;
@@ -574,7 +574,7 @@ static void framework_autoStartConfiguredBundlesForList(celix_framework_t* fw, c
         bundle_getBundleId(bnd, &bndId);
         bool started = celix_framework_startBundle(fw, bndId);
         if (!started) {
-            fw_log(fw->logger, CELIX_LOG_LEVEL_ERROR, "Could not start bundle %s (bnd id = %li)\n", bnd->symbolicName, bndId);
+            CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_ERROR, "Could not start bundle %s (bnd id = %li)\n", bnd->symbolicName, bndId);
         }
     }
 }
@@ -652,7 +652,7 @@ celix_status_t fw_installBundle2(framework_pt framework, bundle_pt * bundle, lon
     fw_getProperty(framework, CELIX_BUNDLES_PATH_NAME, CELIX_BUNDLES_PATH_DEFAULT, &paths);
     char *location = resolveBundleLocation(framework, bndLoc, paths);
     if (location == NULL) {
-        fw_log(framework->logger, CELIX_LOG_LEVEL_WARNING, "Cannot find bundle %s. Using %s=%s", bndLoc, CELIX_BUNDLES_PATH_NAME, paths);
+        CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_WARNING, "Cannot find bundle %s. Using %s=%s", bndLoc, CELIX_BUNDLES_PATH_NAME, paths);
         free(location);
         return CELIX_FILE_IO_EXCEPTION;
     }
@@ -664,7 +664,7 @@ celix_status_t fw_installBundle2(framework_pt framework, bundle_pt * bundle, lon
   	status = CELIX_DO_IF(status, bundle_getState(framework->bundle, &state));
   	if (status == CELIX_SUCCESS) {
         if (state == OSGI_FRAMEWORK_BUNDLE_STOPPING || state == OSGI_FRAMEWORK_BUNDLE_UNINSTALLED) {
-            fw_log(framework->logger, CELIX_LOG_LEVEL_INFO,  "The framework is being shutdown");
+            CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_INFO,  "The framework is being shutdown");
             status = CELIX_FRAMEWORK_SHUTDOWN;
         }
   	}
@@ -711,7 +711,7 @@ celix_status_t fw_installBundle2(framework_pt framework, bundle_pt * bundle, lon
     }
 
     if (status != CELIX_SUCCESS) {
-        fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not install bundle");
+        CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not install bundle");
     }
 
     celix_framework_bundleEntry_decreaseUseCount(entry);
@@ -753,7 +753,7 @@ celix_status_t framework_getBundleEntry(framework_pt framework, const_bundle_pt 
 
 
 celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, const char *inputFile) {
-    fw_log(framework->logger, CELIX_LOG_LEVEL_WARNING, "Update bundle functionality deprecated. Do not use!");
+    CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_WARNING, "Update bundle functionality deprecated. Do not use!");
 	celix_status_t status = CELIX_SUCCESS;
 	bundle_state_e oldState;
 	const char *location;
@@ -813,9 +813,9 @@ celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, 
         module_getSymbolicName(module, &symbolicName);
         bundle_getBundleId(bundle, &id);
         if (error != NULL) {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot update bundle: %s [%ld]; cause: %s", symbolicName, id, error);
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot update bundle: %s [%ld]; cause: %s", symbolicName, id, error);
         } else {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot update bundle: %s [%ld]", symbolicName, id);
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot update bundle: %s [%ld]", symbolicName, id);
         }
 	}
 
@@ -842,7 +842,7 @@ celix_status_t fw_refreshBundle(framework_pt framework, long bndId) {
 
         celix_framework_bundleEntry_decreaseUseCount(entry);
     } else {
-        framework_logIfError(framework->logger, status, NULL, "Cannot refresh bundle");
+        CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Cannot refresh bundle");
     }
 
 
@@ -874,7 +874,7 @@ celix_status_t fw_getDependentBundles(framework_pt framework, bundle_pt exporter
 				}
 	 }
 
-    framework_logIfError(framework->logger, status, NULL, "Cannot get dependent bundles");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Cannot get dependent bundles");
 
     return status;
 }
@@ -900,7 +900,7 @@ celix_status_t fw_populateDependentGraph(framework_pt framework, bundle_pt expor
 		  }
     }
 
-    framework_logIfError(framework->logger, status, NULL, "Cannot populate dependent graph");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Cannot populate dependent graph");
 
     return status;
 }
@@ -917,7 +917,7 @@ celix_status_t fw_registerService(framework_pt framework, service_registration_p
                                                                                                           bndId);
     status = CELIX_DO_IF(status, serviceRegistry_registerService(framework->registry, entry->bnd, serviceName, svcObj, properties, registration));
     celix_framework_bundleEntry_decreaseUseCount(entry);
-    framework_logIfError(framework->logger, status, error, "Cannot register service: %s", serviceName);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, error, "Cannot register service: %s", serviceName);
 	return status;
 }
 
@@ -936,7 +936,7 @@ celix_status_t fw_registerServiceFactory(framework_pt framework, service_registr
 
     celix_framework_bundleEntry_decreaseUseCount(entry);
 
-    framework_logIfError(framework->logger, status, error, "Cannot register service factory: %s", serviceName);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, error, "Cannot register service factory: %s", serviceName);
 
     return CELIX_SUCCESS;
 }
@@ -975,7 +975,7 @@ celix_status_t fw_getServiceReferences(framework_pt framework, array_list_pt *re
         }
 	}
 
-	framework_logIfError(framework->logger, status, NULL, "Failed to get service references");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Failed to get service references");
 
 	return status;
 }
@@ -1091,7 +1091,7 @@ celix_status_t fw_removeBundleListener(framework_pt framework, bundle_pt bundle,
     if (bundleListener != NULL) {
         fw_bundleListener_destroy(bundleListener, true);
     } else {
-        framework_logIfError(framework->logger, status, NULL, "Failed to remove bundle listener");
+        CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Failed to remove bundle listener");
     }
 
 
@@ -1114,7 +1114,7 @@ celix_status_t fw_addFrameworkListener(framework_pt framework, bundle_pt bundle,
         celixThreadMutex_unlock(&framework->frameworkListenersLock);
     }
 
-    framework_logIfError(framework->logger, status, NULL, "Failed to add framework listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Failed to add framework listener");
 
     return status;
 }
@@ -1138,7 +1138,7 @@ celix_status_t fw_removeFrameworkListener(framework_pt framework, bundle_pt bund
     }
     celixThreadMutex_unlock(&framework->frameworkListenersLock);
 
-    framework_logIfError(framework->logger, status, NULL, "Failed to remove framework listener");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Failed to remove framework listener");
 
     return status;
 }
@@ -1274,9 +1274,9 @@ static celix_status_t framework_markBundleResolved(framework_pt framework, modul
             module_getSymbolicName(module, &symbolicName);
             bundle_getBundleId(bundle, &id);
             if (error != NULL) {
-                fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]; cause: %s", symbolicName, id, error);
+                CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]; cause: %s", symbolicName, id, error);
             } else {
-                fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]", symbolicName, id);
+                CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]", symbolicName, id);
             }
         }
 
@@ -1334,7 +1334,7 @@ celix_status_t framework_waitForStop(framework_pt framework) {
 static void* framework_shutdown(void *framework) {
     framework_pt fw = (framework_pt) framework;
 
-    fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "Celix framework shutting down");
+    CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "Celix framework shutting down");
 
     celix_framework_cleanupBundleLifecycleHandlers(fw, true);
 
@@ -1394,7 +1394,7 @@ static void* framework_shutdown(void *framework) {
     celixThreadCondition_broadcast(&fw->dispatcher.cond);
     celixThreadMutex_unlock(&fw->dispatcher.mutex);
     celixThread_join(fw->dispatcher.thread, NULL);
-    fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "Joined event loop thread for framework %s", celix_framework_getUUID(framework));
+    CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "Joined event loop thread for framework %s", celix_framework_getUUID(framework));
 
 
     celixThreadMutex_lock(&fw->shutdown.mutex);
@@ -1466,7 +1466,7 @@ static void celix_framework_addToEventQueue(celix_framework_t *fw, const celix_f
         *e = *event; //shallow copy
         celix_arrayList_add(fw->dispatcher.dynamicEventQueue, e);
         if (celix_arrayList_size(fw->dispatcher.dynamicEventQueue) % 100 == 0) {
-            fw_log(fw->logger, CELIX_LOG_LEVEL_WARNING, "dynamic event queue size is %i. Is there a bundle blocking on the event loop thread?", celix_arrayList_size(fw->dispatcher.dynamicEventQueue));
+            CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_WARNING, "dynamic event queue size is %i. Is there a bundle blocking on the event loop thread?", celix_arrayList_size(fw->dispatcher.dynamicEventQueue));
         }
     } else if (fw->dispatcher.eventQueueSize < fw->dispatcher.eventQueueCap) {
         size_t index = (fw->dispatcher.eventQueueFirstEntry + fw->dispatcher.eventQueueSize) %
@@ -1475,7 +1475,7 @@ static void celix_framework_addToEventQueue(celix_framework_t *fw, const celix_f
         fw->dispatcher.eventQueueSize += 1;
     } else {
         //static queue is full, dynamics queue is empty. Add first entry to dynamic queue
-        fw_log(fw->logger, CELIX_LOG_LEVEL_WARNING,
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_WARNING,
                "Static event queue for celix framework is full, falling back to dynamic allocated events. Increase static event queue size, current size is %i", fw->dispatcher.eventQueueCap);
         celix_framework_event_t *e = malloc(sizeof(*e));
         *e = *event; //shallow copy
@@ -1524,7 +1524,7 @@ static void fw_handleEventRequest(celix_framework_t *framework, celix_framework_
         service_registration_t* reg = NULL;
         celix_status_t status = CELIX_SUCCESS;
         if (event->cancelled) {
-            fw_log(framework->logger, CELIX_LOG_LEVEL_DEBUG, "CELIX_REGISTER_SERVICE_EVENT for svcId %li (service name = %s) was cancelled. Skipping registration", event->registerServiceId, event->serviceName);
+            CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_DEBUG, "CELIX_REGISTER_SERVICE_EVENT for svcId %li (service name = %s) was cancelled. Skipping registration", event->registerServiceId, event->serviceName);
             celix_properties_destroy(event->properties);
         } else if (event->factory != NULL) {
             status = celix_serviceRegistry_registerServiceFactory(framework->registry, event->bndEntry->bnd, event->serviceName, event->factory, event->properties, event->registerServiceId, &reg);
@@ -1532,7 +1532,7 @@ static void fw_handleEventRequest(celix_framework_t *framework, celix_framework_
             status = celix_serviceRegistry_registerService(framework->registry, event->bndEntry->bnd, event->serviceName, event->svc, event->properties, event->registerServiceId, &reg);
         }
         if (status != CELIX_SUCCESS) {
-            fw_log(framework->logger, CELIX_LOG_LEVEL_ERROR, "Could not register service async. svc name is %s, error is %s", event->serviceName, celix_strerror(status));
+            CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_ERROR, "Could not register service async. svc name is %s, error is %s", event->serviceName, celix_strerror(status));
         } else if (!event->cancelled && event->registerCallback != NULL) {
             event->registerCallback(event->registerData, serviceRegistration_getServiceId(reg));
         }
@@ -1665,7 +1665,7 @@ static celix_status_t frameworkActivator_stop(void * userData, bundle_context_t 
 
     if (bundleContext_getFramework(context, &framework) == CELIX_SUCCESS) {
 
-        fw_log(framework->logger, CELIX_LOG_LEVEL_TRACE, "Start shutdown thread for framework %s", celix_framework_getUUID(framework));
+        CELIX_FRAMEWORKLOGGER_LOG(framework->logger, CELIX_LOG_LEVEL_TRACE, "Start shutdown thread for framework %s", celix_framework_getUUID(framework));
 
         celixThreadMutex_lock(&framework->shutdown.mutex);
         bool alreadyInitialized = framework->shutdown.initialized;
@@ -1679,7 +1679,7 @@ static celix_status_t frameworkActivator_stop(void * userData, bundle_context_t 
         status = CELIX_FRAMEWORK_EXCEPTION;
     }
 
-    framework_logIfError(framework->logger, status, NULL, "Failed to stop framework activator");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Failed to stop framework activator");
 
     return status;
 }
@@ -1725,7 +1725,7 @@ static celix_status_t framework_loadBundleLibraries(framework_pt framework, bund
         }
     }
 
-    framework_logIfError(framework->logger, status, NULL, "Could not load all bundle libraries");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, NULL, "Could not load all bundle libraries");
 
     return status;
 }
@@ -1833,7 +1833,7 @@ static celix_status_t framework_loadLibrary(framework_pt framework, const char *
         }
     }
 
-    framework_logIfError(framework->logger, status, error, "Could not load library: %s", libraryPath);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, error, "Could not load library: %s", libraryPath);
 
     return status;
 }
@@ -1893,7 +1893,7 @@ bool celix_framework_useBundle(framework_t *fw, bool onlyActive, long bundleId, 
             }
             celix_framework_bundleEntry_decreaseUseCount(entry);
         } else {
-            framework_logIfError(fw->logger, CELIX_FRAMEWORK_EXCEPTION, NULL, "Bundle with id %li is not installed", bundleId);
+            CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(fw->logger, CELIX_FRAMEWORK_EXCEPTION, NULL, "Bundle with id %li is not installed", bundleId);
         }
     }
     return called;
@@ -1913,13 +1913,13 @@ long celix_framework_registerService(framework_t *fw, celix_bundle_t *bnd, const
     } else if (serviceName != NULL) {
         status = celix_serviceRegistry_registerService(fw->registry, bnd, serviceName, svc, properties, 0, &reg);
     } else {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_ERROR, "Invalid arguments serviceName", serviceName);
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_ERROR, "Invalid arguments serviceName", serviceName);
         status = CELIX_ILLEGAL_ARGUMENT;
     }
 
     celix_framework_bundleEntry_decreaseUseCount(entry);
 
-    framework_logIfError(fw->logger, status, error, "Cannot register %s '%s'", factory == NULL ? "service" : "service factory", serviceName);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(fw->logger, status, error, "Cannot register %s '%s'", factory == NULL ? "service" : "service factory", serviceName);
 
     return serviceRegistration_getServiceId(reg);
 }
@@ -2187,7 +2187,7 @@ long celix_framework_installBundleInternal(celix_framework_t *fw, const char *bu
     }
 
     celix_framework_waitForBundleEvents(fw, bundleId);
-    framework_logIfError(fw->logger, status, NULL, "Failed to install bundle '%s'", bundleLoc);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(fw->logger, status, NULL, "Failed to install bundle '%s'", bundleLoc);
 
     return bundleId;
 }
@@ -2284,7 +2284,7 @@ celix_status_t celix_framework_uninstallBundleEntry(celix_framework_t* framework
 
 
         if (status != CELIX_SUCCESS) {
-            framework_logIfError(framework->logger, status, "", "Cannot uninstall bundle");
+            CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(framework->logger, status, "", "Cannot uninstall bundle");
         }
 
         return status;
@@ -2305,7 +2305,7 @@ static bool celix_framework_stopBundleInternal(celix_framework_t* fw, long bndId
         } else if (state == OSGI_FRAMEWORK_BUNDLE_RESOLVED) {
             //already stopped, silently ignore.
         } else {
-            fw_log(fw->logger, CELIX_LOG_LEVEL_WARNING, "Cannot stop bundle, bundle state is %s", celix_bundleState_getName(state));
+            CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_WARNING, "Cannot stop bundle, bundle state is %s", celix_bundleState_getName(state));
         }
         celix_framework_bundleEntry_decreaseUseCount(bndEntry);
         celix_framework_waitForBundleEvents(fw, bndId);
@@ -2421,9 +2421,9 @@ celix_status_t celix_framework_stopBundleEntry(celix_framework_t* framework, cel
         module_getSymbolicName(module, &symbolicName);
         bundle_getBundleId(bndEntry->bnd, &id);
         if (error != NULL) {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot stop bundle: %s [%ld]; cause: %s", symbolicName, id, error);
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot stop bundle: %s [%ld]; cause: %s", symbolicName, id, error);
         } else {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot stop bundle: %s [%ld]", symbolicName, id);
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot stop bundle: %s [%ld]", symbolicName, id);
         }
     } else {
         fw_fireBundleEvent(framework, OSGI_FRAMEWORK_BUNDLE_EVENT_STOPPED, bndEntry);
@@ -2506,7 +2506,7 @@ celix_status_t celix_framework_startBundleEntry(celix_framework_t* framework, ce
             name = NULL;
             bundle_getCurrentModule(bndEntry->bnd, &module);
             module_getSymbolicName(module, &name);
-            status = CELIX_DO_IF(status, bundleContext_create(framework, framework->logger, bndEntry->bnd, &context));
+            status = CELIX_DO_IF(status, bundleContext_create(framework, bndEntry->bnd, &context));
             status = CELIX_DO_IF(status, bundle_setContext(bndEntry->bnd, context));
 
             if (status == CELIX_SUCCESS) {
@@ -2586,9 +2586,9 @@ celix_status_t celix_framework_startBundleEntry(celix_framework_t* framework, ce
         module_getSymbolicName(module, &symbolicName);
         bundle_getBundleId(bndEntry->bnd, &id);
         if (error != NULL) {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]; cause: %s", symbolicName, id, error);
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]; cause: %s", symbolicName, id, error);
         } else {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]", symbolicName, id);
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle: %s [%ld]", symbolicName, id);
         }
     }
 
@@ -2644,7 +2644,7 @@ long celix_framework_fireGenericEvent(framework_t* fw, long eventId, long bndId,
     if (bndId >=0) {
         bndEntry = celix_framework_bundleEntry_getBundleEntryAndIncreaseUseCount(fw, bndId);
         if (bndEntry == NULL) {
-            fw_log(fw->logger, CELIX_LOG_LEVEL_ERROR, "Cannot find bundle for id %li", bndId);
+            CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_ERROR, "Cannot find bundle for id %li", bndId);
             return -1L;
         }
     }

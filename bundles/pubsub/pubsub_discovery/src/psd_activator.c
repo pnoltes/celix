@@ -27,7 +27,7 @@
 #include "celix_bundle_context.h"
 #include "celix_bundle_activator.h"
 #include "celix_constants.h"
-#include "celix_log.h"
+#include "../../../../libs/framework/src/celix_log.h"
 
 #include "pubsub_listeners.h"
 #include "pubsub_discovery_impl.h"

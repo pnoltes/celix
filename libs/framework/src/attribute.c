@@ -42,7 +42,7 @@ celix_status_t attribute_create(char * key, char * value, attribute_pt *attribut
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, error, "Could not create attribute: [key=%s;value=%s]", key, value);
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, error, "Could not create attribute: [key=%s;value=%s]", key, value);
 
 	return status;
 }

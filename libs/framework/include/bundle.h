@@ -29,7 +29,6 @@
 #include "wire.h"
 #include "module.h"
 #include "service_reference.h"
-#include "celix_log.h"
 #include "celix_threads.h"
 #include "bundle_context.h"
 

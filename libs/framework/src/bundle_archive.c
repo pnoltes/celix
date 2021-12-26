@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "celix_log.h"
 #include "celix_constants.h"
 #include "celix_utils_api.h"
 #include "bundle_archive.h"
@@ -89,7 +90,7 @@ celix_status_t bundleArchive_createSystemBundleArchive(bundle_archive_pt *bundle
 		bundleArchive_destroy(archive);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, error, "Could not create archive");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, error, "Could not create archive");
 
 	return status;
 }
@@ -135,7 +136,7 @@ celix_status_t bundleArchive_create(const char *archiveRoot, long id, const char
 		bundleArchive_destroy(archive);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, error, "Could not create archive");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, error, "Could not create archive");
 
 	return status;
 }
@@ -164,7 +165,7 @@ celix_status_t bundleArchive_destroy(bundle_archive_pt archive) {
 		archive = NULL;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not create archive");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not create archive");
 
 	return status;
 }
@@ -233,7 +234,7 @@ celix_status_t bundleArchive_recreate(const char * archiveRoot, bundle_archive_p
 		bundleArchive_destroy(archive);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not create archive");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not create archive");
 
 	return status;
 }
@@ -262,7 +263,7 @@ celix_status_t bundleArchive_getId(bundle_archive_pt archive, long *id) {
 		*id = archive->id;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get archive id");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get archive id");
 
 	return status;
 }
@@ -291,7 +292,7 @@ celix_status_t bundleArchive_getLocation(bundle_archive_pt archive, const char *
 		*location = archive->location;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get archive location");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get archive location");
 
 	return status;
 }
@@ -309,7 +310,7 @@ celix_status_t bundleArchive_getCurrentRevisionNumber(bundle_archive_pt archive,
 	status = CELIX_DO_IF(status, bundleArchive_getCurrentRevision(archive, &revision));
 	status = CELIX_DO_IF(status, bundleRevision_getNumber(revision, revisionNumber));
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get current revision number");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get current revision number");
 
 	return status;
 }
@@ -360,7 +361,7 @@ celix_status_t bundleArchive_getPersistentState(bundle_archive_pt archive, bundl
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get persistent state");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get persistent state");
 
 	return status;
 }
@@ -397,7 +398,7 @@ celix_status_t bundleArchive_setPersistentState(bundle_archive_pt archive, bundl
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not set persistent state");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not set persistent state");
 
 	return status;
 }
@@ -429,7 +430,7 @@ celix_status_t bundleArchive_getRefreshCount(bundle_archive_pt archive, long *re
 		*refreshCount = archive->refreshCount;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get refresh count");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get refresh count");
 
 	return status;
 }
@@ -450,7 +451,7 @@ celix_status_t bundleArchive_setRefreshCount(bundle_archive_pt archive) {
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not set refresh count");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not set refresh count");
 
 	return status;
 }
@@ -466,7 +467,7 @@ celix_status_t bundleArchive_getLastModified(bundle_archive_pt archive, time_t *
 		*lastModified = archive->lastModified;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get last modified");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not get last modified");
 
 	return status;
 }
@@ -477,7 +478,7 @@ celix_status_t bundleArchive_setLastModified(bundle_archive_pt archive, time_t l
 	archive->lastModified = lastModifiedTime;
 	status = CELIX_DO_IF(status, bundleArchive_writeLastModified(archive));
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not set last modified");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not set last modified");
 
 	return status;
 }
@@ -516,7 +517,7 @@ static celix_status_t bundleArchive_readLastModified(bundle_archive_pt archive, 
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not read last modified");
+    CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not read last modified");
 
 	return status;
 }
@@ -537,7 +538,7 @@ static celix_status_t bundleArchive_writeLastModified(bundle_archive_pt archive)
 		fclose(lastModifiedFile);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not write last modified");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not write last modified");
 
 	return status;
 }
@@ -554,7 +555,7 @@ celix_status_t bundleArchive_revise(bundle_archive_pt archive, const char * loca
 		status = bundleArchive_reviseInternal(archive, false, revNr, location, inputFile);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not revise bundle archive");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not revise bundle archive");
 
 	return status;
 }
@@ -577,7 +578,7 @@ static celix_status_t bundleArchive_reviseInternal(bundle_archive_pt archive, bo
 		linkedList_addElement(archive->revisions, revision);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not revise bundle archive");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not revise bundle archive");
 
 	return status;
 }
@@ -604,7 +605,7 @@ static celix_status_t bundleArchive_createRevisionFromLocation(bundle_archive_pt
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Could not create revision [location=%s,inputFile=%s]", location, inputFile);
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Could not create revision [location=%s,inputFile=%s]", location, inputFile);
 
 	return status;
 }
@@ -636,7 +637,7 @@ static celix_status_t bundleArchive_getRevisionLocation(bundle_archive_pt archiv
 	}
 
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision location");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision location");
 
 	return status;
 }
@@ -662,7 +663,7 @@ static celix_status_t bundleArchive_setRevisionLocation(bundle_archive_pt archiv
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to set revision location");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to set revision location");
 
 	return status;
 }
@@ -681,7 +682,7 @@ celix_status_t bundleArchive_closeAndDelete(bundle_archive_pt archive) {
 		status = bundleArchive_deleteTree(archive, archive->archiveRoot);
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to close and delete archive");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to close and delete archive");
 
 	return status;
 }
@@ -693,7 +694,7 @@ static celix_status_t bundleArchive_initialize(bundle_archive_pt archive) {
 		int err = mkdir(archive->archiveRoot, S_IRWXU) ;
 		if (err != 0) {
 			char *errmsg = strerror(errno);
-			fw_log(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_ERROR, "Error mkdir: %s\n", errmsg);
+			CELIX_FRAMEWORKLOGGER_LOG(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_ERROR, "Error mkdir: %s\n", errmsg);
 			status = CELIX_FILE_IO_EXCEPTION;
 		} else {
 			archive->archiveRootDir = opendir(archive->archiveRoot);
@@ -734,7 +735,7 @@ static celix_status_t bundleArchive_initialize(bundle_archive_pt archive) {
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to initialize archive");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to initialize archive");
 
 	return status;
 }
@@ -783,7 +784,7 @@ static celix_status_t bundleArchive_deleteTree(bundle_archive_pt archive, const 
 		}
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to delete tree");
+	CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to delete tree");
 
 	return status;
 }

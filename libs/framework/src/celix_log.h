@@ -32,16 +32,16 @@ extern "C" {
 
 typedef struct celix_framework_logger celix_framework_logger_t; //opaque
 
-#define fw_log(logger, level, fmsg, args...) celix_framework_log(logger, level, __func__, __FILE__, __LINE__, fmsg, ## args)
+#define CELIX_FRAMEWORKLOGGER_LOG(logger, level, fmsg, args...) celix_frameworkLogger_log(logger, level, __func__, __FILE__, __LINE__, fmsg, ## args)
 
-#define fw_logCode(logger, level, code, fmsg, args...) celix_framework_logCode(logger, level, __func__, __FILE__, __LINE__, code, fmsg, ## args)
+#define CELIX_FRAMEWORKLOGGER_LOG_CODE(logger, level, code, fmsg, args...) celix_frameworkLogger_logCode(logger, level, __func__, __FILE__, __LINE__, code, fmsg, ## args)
 
-#define framework_logIfError(logger, status, error, fmsg, args...) \
+#define CELIX_FRAMEWORKLOGGER_LOG_IF_ERROR(logger, status, error, fmsg, args...) \
     if (status != CELIX_SUCCESS) { \
         if (error != NULL) { \
-            fw_logCode(logger, CELIX_LOG_LEVEL_ERROR, status, #fmsg";\n Cause: %s", ## args, (char*) error); \
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(logger, CELIX_LOG_LEVEL_ERROR, status, #fmsg";\n Cause: %s", ## args, (char*) error); \
         } else { \
-            fw_logCode(logger, CELIX_LOG_LEVEL_ERROR, status, #fmsg, ## args); \
+            CELIX_FRAMEWORKLOGGER_LOG_CODE(logger, CELIX_LOG_LEVEL_ERROR, status, #fmsg, ## args); \
         } \
     }
 
@@ -49,15 +49,15 @@ typedef struct celix_framework_logger celix_framework_logger_t; //opaque
 celix_framework_logger_t* celix_frameworkLogger_create(celix_log_level_e activeLogLevel);
 void celix_frameworkLogger_destroy(celix_framework_logger_t* logger);
 void celix_frameworkLogger_setLogCallback(celix_framework_logger_t* logger, void* logHandle, void (*logFunction)(void* handle, celix_log_level_e level, const char* file, const char *function, int line, const char *format, va_list formatArgs));
-celix_framework_logger_t* celix_frameworkLogger_globalLogger(); //TODO do not use global logger, make this deprecated __attribute__((deprecated));
+celix_framework_logger_t* celix_frameworkLogger_globalLogger();
 
-void celix_framework_log(celix_framework_logger_t* logger, celix_log_level_e level, const char *func, const char *file, int line,
+void celix_frameworkLogger_log(celix_framework_logger_t* logger, celix_log_level_e level, const char *func, const char *file, int line,
               const char *format, ...);
 
-void celix_framework_logCode(celix_framework_logger_t* logger, celix_log_level_e level, const char *func, const char *file, int line,
+void celix_frameworkLogger_logCode(celix_framework_logger_t* logger, celix_log_level_e level, const char *func, const char *file, int line,
                   celix_status_t code, const char *format, ...);
 
-void celix_framework_vlog(celix_framework_logger_t* logger, celix_log_level_e level, const char* file, const char* function, int line, const char* format, va_list args);
+void celix_frameworkLogger_vlog(celix_framework_logger_t* logger, celix_log_level_e level, const char* file, const char* function, int line, const char* format, va_list args);
 
 #ifdef __cplusplus
 }

@@ -36,7 +36,6 @@
 
 #include "celix_errno.h"
 #include "manifest.h"
-#include "celix_log.h"
 #include "array_list.h"
 
 #ifdef __cplusplus

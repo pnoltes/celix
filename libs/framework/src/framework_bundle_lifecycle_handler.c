@@ -68,7 +68,7 @@ void celix_framework_cleanupBundleLifecycleHandlers(celix_framework_t* fw, bool 
             celix_framework_bundle_lifecycle_handler_t* handler = celix_arrayList_get(fw->bundleLifecycleHandling.bundleLifecycleHandlers, i);
             if (__atomic_load_n(&handler->done, __ATOMIC_RELAXED) > 0) {
                 celixThread_join(handler->thread, NULL);
-                fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "Joined thread for %s bundle %li",
+                CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "Joined thread for %s bundle %li",
                        celix_bundleLifecycleCommand_getDesc(handler->command) , handler->bndId);
                 celix_arrayList_removeAt(fw->bundleLifecycleHandling.bundleLifecycleHandlers, i);
                 free(handler);
@@ -93,7 +93,7 @@ static void celix_framework_createAndStartBundleLifecycleHandler(celix_framework
     handler->bndId = bndEntry->bndId;
     celix_arrayList_add(fw->bundleLifecycleHandling.bundleLifecycleHandlers, handler);
 
-    fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "Creating thread for %s bundle %li",
+    CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "Creating thread for %s bundle %li",
            celix_bundleLifecycleCommand_getDesc(handler->command) , handler->bndId);
     celixThread_create(&handler->thread, NULL, celix_framework_stopStartBundleThread, handler);
     celixThreadMutex_unlock(&fw->bundleLifecycleHandling.mutex);
@@ -101,11 +101,11 @@ static void celix_framework_createAndStartBundleLifecycleHandler(celix_framework
 
 celix_status_t celix_framework_startBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, bool forceSpawnThread) {
     if (forceSpawnThread) {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "start bundle from a separate thread");
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "start bundle from a separate thread");
         celix_framework_createAndStartBundleLifecycleHandler(fw, bndEntry, CELIX_BUNDLE_LIFECYCLE_START);
         return CELIX_SUCCESS;
     } else if (celix_framework_isCurrentThreadTheEventLoop(fw)) {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_DEBUG,
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_DEBUG,
                "Cannot start bundle from Celix event thread. Using a separate thread to start bundle. See celix_bundleContext_startBundle for more info.");
         celix_framework_createAndStartBundleLifecycleHandler(fw, bndEntry, CELIX_BUNDLE_LIFECYCLE_START);
         return CELIX_SUCCESS;
@@ -116,11 +116,11 @@ celix_status_t celix_framework_startBundleOnANonCelixEventThread(celix_framework
 
 celix_status_t celix_framework_stopBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, bool forceSpawnThread) {
     if (forceSpawnThread) {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "stop bundle from a separate thread");
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "stop bundle from a separate thread");
         celix_framework_createAndStartBundleLifecycleHandler(fw, bndEntry, CELIX_BUNDLE_LIFECYCLE_STOP);
         return CELIX_SUCCESS;
     } else if (celix_framework_isCurrentThreadTheEventLoop(fw)) {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_DEBUG,
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_DEBUG,
                "Cannot stop bundle from Celix event thread. Using a separate thread to stop bundle. See celix_bundleContext_startBundle for more info.");
         celix_framework_createAndStartBundleLifecycleHandler(fw, bndEntry, CELIX_BUNDLE_LIFECYCLE_STOP);
         return CELIX_SUCCESS;
@@ -131,11 +131,11 @@ celix_status_t celix_framework_stopBundleOnANonCelixEventThread(celix_framework_
 
 celix_status_t celix_framework_uninstallBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, bool forceSpawnThread) {
     if (forceSpawnThread) {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_TRACE, "uninstall bundle from a separate thread");
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_TRACE, "uninstall bundle from a separate thread");
         celix_framework_createAndStartBundleLifecycleHandler(fw, bndEntry, CELIX_BUNDLE_LIFECYCLE_UNINSTALL);
         return CELIX_SUCCESS;
     } else if (celix_framework_isCurrentThreadTheEventLoop(fw)) {
-        fw_log(fw->logger, CELIX_LOG_LEVEL_DEBUG,
+        CELIX_FRAMEWORKLOGGER_LOG(fw->logger, CELIX_LOG_LEVEL_DEBUG,
                "Cannot uninstall bundle from Celix event thread. Using a separate thread to uninstall bundle. See celix_bundleContext_uninstall Bundle for more info.");
         celix_framework_createAndStartBundleLifecycleHandler(fw, bndEntry, CELIX_BUNDLE_LIFECYCLE_UNINSTALL);
         return CELIX_SUCCESS;

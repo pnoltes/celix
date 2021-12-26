@@ -36,7 +36,6 @@
 #include "celix_errno.h"
 #include "celixbool.h"
 #include "framework_exports.h"
-#include "celix_log.h"
 
 #ifdef __cplusplus
 extern "C" {

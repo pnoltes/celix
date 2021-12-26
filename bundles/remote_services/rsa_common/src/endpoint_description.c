@@ -28,7 +28,7 @@
 #include <string.h>
 
 #include "celix_errno.h"
-#include "celix_log.h"
+#include "../../../../libs/framework/src/celix_log.h"
 
 #include "endpoint_description.h"
 #include "remote_constants.h"
@@ -54,7 +54,6 @@ celix_status_t endpointDescription_create(celix_properties_t *properties, endpoi
     ep->serviceId = serviceId;
 
     if (!(ep->frameworkUUID) || !(ep->id) || !(ep->service) ) {
-    	fw_log(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_ERROR, "ENDPOINT_DESCRIPTION: incomplete description!.");
     	status = CELIX_BUNDLE_EXCEPTION;
     }
 
