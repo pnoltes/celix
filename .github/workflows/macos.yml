@@ -32,8 +32,9 @@ jobs:
       - name: Test
         run: |
           cd build
-          export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH:$(pwd)/utils:$(pwd)/framework:$(pwd)/dfi
-          make test ARGS="-V"
+          source activate_run.sh
+          ctest --verbose
+          source deactivate_run.sh
 
   build-brew:
     runs-on: macOS-latest
@@ -54,6 +55,7 @@ jobs:
             -DENABLE_TESTING_FOR_CXX14=ON
             -DSHELL_BONJOUR=OFF
             -DCMAKE_BUILD_TYPE=Debug
+            -DENABLE_ADDRESS_SANITIZER=ON
         run: |
           mkdir build install
           cd build
@@ -64,3 +66,4 @@ jobs:
           cd $GITHUB_WORKSPACE/build
           export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH:$(pwd)/utils:$(pwd)/framework:$(pwd)/dfi
           make test ARGS="-V"
+
