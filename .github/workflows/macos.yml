@@ -32,6 +32,7 @@ jobs:
       - name: Test
         run: |
           cd build
+          export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH:$(pwd)/utils:$(pwd)/framework:$(pwd)/dfi
           make test ARGS="-V"
 
   build-brew:
@@ -52,7 +53,7 @@ jobs:
             -DENABLE_TESTING_DEPENDENCY_MANAGER_FOR_CXX11=ON
             -DENABLE_TESTING_FOR_CXX14=ON
             -DSHELL_BONJOUR=OFF
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            -DCMAKE_BUILD_TYPE=Debug
         run: |
           mkdir build install
           cd build
