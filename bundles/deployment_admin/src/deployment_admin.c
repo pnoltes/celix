@@ -32,6 +32,7 @@
 #include <curl/easy.h>
 #include <stdbool.h>
 #include <uuid/uuid.h>
+#include <celix_bundle_context.h>
 
 
 #include "deployment_admin.h"
@@ -581,6 +582,7 @@ celix_status_t deploymentAdmin_updateDeploymentPackageBundles(deployment_admin_p
 		deploymentPackage_getBundle(source, info->symbolicName, &updateBundle);
 		if (updateBundle != NULL) {
 			//printf("Update bundle from: %s\n", bundlePath);
+            celix_bundleContext_updateBundle(admin->context, updateBundle, bundlePath);
 			bundle_update(updateBundle, bundlePath);
 		} else {
 			//printf("Install bundle from: %s\n", bundlePath);

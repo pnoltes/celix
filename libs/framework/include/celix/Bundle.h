@@ -60,6 +60,12 @@ namespace celix {
          * For example if there is a resource entry in the bundle at path 'META-INF/descriptors/foo.descriptor`
          * this call will return a relative path to the extracted location of the bundle resource, e.g.:
          * .cache/bundle5/version0.0/META-INF/descriptors/foo.descriptor
+         *
+         * A path is always relative to the bundle root and can start with a "/".
+         * A path "." or "/" indicated the root of this bundle.
+         *
+         * The returned entry path should be treated as read-only, use celix::Bundle::getDataFile to access the
+         * bundle's persistent storage.
          * 
          * @param path The relative path to a bundle resource
          * @return The use-able entry path or an empty string if the entry is not found.
@@ -73,6 +79,22 @@ namespace celix {
             return getEntryInternal(path.c_str());
         }
 #endif
+
+        /**
+         * TODO
+         * @tparam StrType
+         * @param path
+         * @return
+         */
+        [[nodiscard]] std::string getDataFile(std::string_view path) const {
+            std::string result{};
+            char* entry = celix_bundle_getDataFile(cBnd.get(), path.data());
+            if (entry != nullptr) {
+                result = std::string{entry};
+                free(entry);
+            }
+            return result;
+        }
 
         /**
          * @brief Get a manifest attribute value from the bundle manifest.

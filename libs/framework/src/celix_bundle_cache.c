@@ -100,7 +100,7 @@ celix_status_t celix_bundleCache_delete(celix_bundle_cache_t* cache) {
     return status;
 }
 
-celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t* cache, array_list_pt *archives) {
+celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t* cache, celix_array_list_t **archives) {
 	celix_status_t status = CELIX_SUCCESS;
 
 	DIR *dir;
@@ -115,33 +115,28 @@ celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t* cache, array_
 	}
 
 	if (dir != NULL) {
-		array_list_pt list = NULL;
-		arrayList_create(&list);
-
+		celix_array_list_t *list = celix_arrayList_create();
 		struct dirent* dent = NULL;
-
 		errno = 0;
 		dent = readdir(dir);
 		while (errno == 0 && dent != NULL) {
-			char archiveRoot[512];
-
-			snprintf(archiveRoot, sizeof(archiveRoot), "%s/%s", cache->cacheDir, dent->d_name);
-
-			if (stat (archiveRoot, &st) == 0) {
-				if (S_ISDIR (st.st_mode)
+			char* archiveRoot = NULL;
+            asprintf(&archiveRoot, "%s/%s", cache->cacheDir, dent->d_name);
+			if (stat (archiveRoot, &st) == 0 &&
+                        S_ISDIR (st.st_mode)
 						&& (strcmp((dent->d_name), ".") != 0)
 						&& (strcmp((dent->d_name), "..") != 0)
 						&& (strncmp(dent->d_name, "bundle", 6) == 0)
 						&& (strcmp(dent->d_name, "bundle0") != 0)) {
-
-					bundle_archive_pt archive = NULL;
-					status = bundleArchive_recreate(cache->fw, archiveRoot, &archive);
-					if (status == CELIX_SUCCESS) {
-						arrayList_add(list, archive);
-					}
-				}
-			}
-
+                bundle_archive_pt archive = NULL;
+                status = bundleArchive_recreate(cache->fw, archiveRoot, &archive);
+                if (status == CELIX_SUCCESS) {
+                    arrayList_add(list, archive);
+                } else {
+                    FW_LOG(CELIX_LOG_LEVEL_ERROR, "Cannot recreate bundle archive from %s", archiveRoot);
+                    free(archiveRoot);
+                }
+            }
 			errno = 0;
 			dent = readdir(dir);
 		}
@@ -179,16 +174,30 @@ celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t* cache, array_
 	return status;
 }
 
-celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, const char * location, const char *inputFile, bundle_archive_pt *archive) {
+celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, const char *location, const char *inputFile __attribute__((unused)), bundle_archive_pt *archive) {
 	celix_status_t status = CELIX_SUCCESS;
-	char archiveRoot[512];
-
-	if (fw && location) {
-		snprintf(archiveRoot, sizeof(archiveRoot), "%s/bundle%ld",  fw->cache->cacheDir, id);
+    char *archiveRoot = NULL;
+    if (fw && location) {
+		asprintf(&archiveRoot, "%s/bundle%li",  fw->cache->cacheDir, id);
 		status = bundleArchive_create(fw, archiveRoot, id, location, inputFile, archive);
 	}
-
+    if (status != CELIX_SUCCESS) {
+        free(archiveRoot);
+    }
 	framework_logIfError(fw->logger, status, NULL, "Failed to create archive");
-
 	return status;
+}
+
+celix_status_t celix_bundleCache_createSystemArchive(celix_framework_t* fw, bundle_archive_pt* archive) {
+    celix_status_t status = CELIX_SUCCESS;
+    char *archiveRoot = NULL;
+    if (fw) {
+        asprintf(&archiveRoot, "%s/bundle%li",  fw->cache->cacheDir, CELIX_FRAMEWORK_BUNDLE_ID);
+        status = bundleArchive_createSystemBundleArchive(fw, archiveRoot, archive);
+    }
+    if (status != CELIX_SUCCESS) {
+        free(archiveRoot);
+    }
+    framework_logIfError(fw->logger, status, NULL, "Failed to create system archive");
+    return status;
 }

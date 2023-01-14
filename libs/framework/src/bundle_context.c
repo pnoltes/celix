@@ -1101,17 +1101,20 @@ bool celix_bundleContext_isBundleActive(celix_bundle_context_t *ctx, long bndId)
     return celix_framework_isBundleActive(ctx->framework, bndId);
 }
 
-bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bundleId) {
-    return celix_framework_startBundle(ctx->framework, bundleId);
+bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bndId) {
+    return celix_framework_startBundle(ctx->framework, bndId);
 }
 
-
-bool celix_bundleContext_stopBundle(celix_bundle_context_t *ctx, long bundleId) {
-    return celix_framework_stopBundle(ctx->framework, bundleId);
+bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId) {
+    return celix_framework_updateBundle(ctx->framework, bndId);
 }
 
-bool celix_bundleContext_uninstallBundle(bundle_context_t *ctx, long bundleId) {
-    return celix_framework_uninstallBundle(ctx->framework, bundleId);
+bool celix_bundleContext_stopBundle(celix_bundle_context_t *ctx, long bndId) {
+    return celix_framework_stopBundle(ctx->framework, bndId);
+}
+
+bool celix_bundleContext_uninstallBundle(bundle_context_t *ctx, long bndId) {
+    return celix_framework_uninstallBundle(ctx->framework, bndId);
 }
 
 bool celix_bundleContext_useServiceWithId(

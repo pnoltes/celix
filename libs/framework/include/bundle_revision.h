@@ -109,7 +109,7 @@ celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_
  *      - CELIX_SUCCESS when no errors are encountered.
  *      - CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, celix_array_list_t **handles);
+//celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, celix_array_list_t **handles); TODO add back for backward compatibility reasons
 
 #ifdef __cplusplus
 }

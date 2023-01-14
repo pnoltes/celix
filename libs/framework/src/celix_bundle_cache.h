@@ -92,6 +92,20 @@ celix_bundleCache_createArchive(celix_framework_t *fw, long id, const char *loca
                                 bundle_archive_pt *archive);
 
 /**
+ * @@brief Creates a new system archive for framework bundle.
+ * @param[in] fw The Celix framework to create an archive in
+ * @param[out] archive  The archive to create
+ * @return Status code indication failure or success:
+ *         - CELIX_SUCCESS when no errors are encountered.
+ *         - CELIX_ILLEGAL_ARGUMENT If <code>bundle_archive</code> not is null.
+ *         - CELIX_ENOMEM If allocating memory for <code>bundle_archive</code> failed.
+ *         - CELIX_FILE_IO_EXCEPTION If the cache cannot be opened or read.
+ *         - CELIX_BUNDLE_EXCEPTION If the bundle cannot be created.
+ */
+celix_status_t celix_bundleCache_createSystemArchive(celix_framework_t* fw, bundle_archive_pt *archive);
+
+
+/**
  * @brief Deletes the entire bundle cache.
  *
  * @param cache the cache to delete

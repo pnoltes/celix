@@ -17,58 +17,72 @@
  * under the License.
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <archive.h>
-#include <string.h>
-#include <assert.h>
 
+#include "celix_utils.h"
 #include "celix_framework.h"
 #include "bundle_revision_private.h"
 #include "celix_framework_utils_private.h"
+#include "framework_private.h"
 
-celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, const char *inputFile, bundle_revision_pt *bundle_revision) {
-    assert(inputFile == NULL); //the inputFile arg is deprecated and should always be NULL"
+celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, bundle_revision_pt *bundle_revision) {
     celix_status_t status = CELIX_SUCCESS;
-	bundle_revision_pt revision = NULL;
+	bundle_revision_pt revision =  malloc(sizeof(*revision));
 
-	revision = (bundle_revision_pt) malloc(sizeof(*revision));
     if (!revision) {
-    	status = CELIX_ENOMEM;
-    } else {
-        int state = mkdir(root, S_IRWXU);
-        if ((state != 0) && (errno != EEXIST)) {
-            free(revision);
-            status = CELIX_FILE_IO_EXCEPTION;
-        } else {
-            status = celix_framework_utils_extractBundle(fw, location, root);
-            status = CELIX_DO_IF(status, arrayList_create(&(revision->libraryHandles)));
-            if (status == CELIX_SUCCESS) {
-                revision->revisionNr = revisionNr;
-                revision->root = strdup(root);
-                revision->location = strdup(location);
-
-                *bundle_revision = revision;
-
-                char manifest[512];
-                snprintf(manifest, sizeof(manifest), "%s/META-INF/MANIFEST.MF", revision->root);
-				status = manifest_createFromFile(manifest, &revision->manifest);
-            }
-            else {
-            	free(revision);
-            }
-
-        }
+        status = CELIX_ENOMEM;
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, out of memory");
+        return CELIX_ENOMEM;
     }
 
-    framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to create revision");
+    int state = mkdir(root, S_IRWXU);
+    if ((state != 0) && (errno != EEXIST)) {
+        free(revision);
+        status = CELIX_FILE_IO_EXCEPTION;
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status,
+                   "Cannot create bundle revision, cannot create directory %s", root);
+        return status;
+    }
 
+    status = celix_framework_utils_extractBundle(fw, location, root);
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, cannot extract bundle from %s to %s", location, root);
+        free(revision);
+        return status;
+    }
+
+    revision->fw = fw;
+    revision->root = celix_utils_strdup(root);
+    revision->location = celix_utils_strdup(location);;
+    revision->libraryHandles = celix_arrayList_create();
+    revision->revisionNr = revisionNr;
+    //celixThreadMutex_create(&revision->libraryHandlesLock, NULL);
+
+    if (revision->root == NULL || revision->location == NULL || revision->libraryHandles == NULL) {
+        status = CELIX_ENOMEM;
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, out of memory");
+        bundleRevision_destroy(revision);
+        return status;
+    }
+
+    char manifestBuffer[512];
+    char* manifestPath = celix_utils_writeOrCreateString(manifestBuffer, sizeof(manifestBuffer), "%s/META-INF/MANIFEST.MF", root);
+    status = manifest_createFromFile(manifestPath, &revision->manifest);
+    celix_utils_freeStringIfNeeded(manifestBuffer, manifestPath);
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, cannot create manifest from file %s/META-INF/MANIFEST.MF", root);
+        bundleRevision_destroy(revision);
+        return status;
+    }
+
+    *bundle_revision = revision;
 	return status;
 }
 
 celix_status_t bundleRevision_destroy(bundle_revision_pt revision) {
-    arrayList_destroy(revision->libraryHandles);
+    celix_arrayList_destroy(revision->libraryHandles);
     manifest_destroy(revision->manifest);
     free(revision->root);
     free(revision->location);
@@ -77,66 +91,22 @@ celix_status_t bundleRevision_destroy(bundle_revision_pt revision) {
 }
 
 celix_status_t bundleRevision_getNumber(bundle_revision_pt revision, long *revisionNr) {
-	celix_status_t status = CELIX_SUCCESS;
-    if (revision == NULL) {
-        status = CELIX_ILLEGAL_ARGUMENT;
-    } else {
-    	*revisionNr = revision->revisionNr;
-    }
-
-    framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision number");
-
-	return status;
+    *revisionNr = revision->revisionNr;
+    return CELIX_SUCCESS;
 }
 
 celix_status_t bundleRevision_getLocation(bundle_revision_pt revision, const char **location) {
-	celix_status_t status = CELIX_SUCCESS;
-	if (revision == NULL) {
-		status = CELIX_ILLEGAL_ARGUMENT;
-	} else {
-		*location = revision->location;
-	}
-
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision location");
-
-	return status;
+    *location = revision->location;
+    return CELIX_SUCCESS;
 }
 
 celix_status_t bundleRevision_getRoot(bundle_revision_pt revision, const char **root) {
-	celix_status_t status = CELIX_SUCCESS;
-	if (revision == NULL) {
-		status = CELIX_ILLEGAL_ARGUMENT;
-	} else {
-		*root = revision->root;
-	}
-
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get revision root");
-
-	return status;
+    *root = revision->root;
+    return CELIX_SUCCESS;
 }
 
 celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_pt *manifest) {
-	celix_status_t status = CELIX_SUCCESS;
-	if (revision == NULL) {
-		status = CELIX_ILLEGAL_ARGUMENT;
-	} else {
-		*manifest = revision->manifest;
-	}
-
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get manifest");
-
-	return status;
+    *manifest = revision->manifest;
+    return CELIX_SUCCESS;
 }
 
-celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, array_list_pt *handles) {
-    celix_status_t status = CELIX_SUCCESS;
-    if (revision == NULL) {
-        status = CELIX_ILLEGAL_ARGUMENT;
-    } else {
-        *handles = revision->libraryHandles;
-    }
-
-    framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to get handles");
-
-    return status;
-}

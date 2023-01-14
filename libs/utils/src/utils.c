@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "utils.h"
 #include "celix_utils.h"
@@ -64,9 +65,42 @@ bool celix_utils_stringEquals(const char* a, const char* b) {
     }
 }
 
+bool celix_utils_containsWhitespace(const char* s) {
+    if (!celix_utils_isStringNullOrEmpty(s)) {
+        for (int i = 0; s[i] != '\0'; ++i) {
+            if (isspace(s[i])) {
+                return true;
+            }
+        }
+    }
+    return false;
+};
+
 bool celix_utils_isStringNullOrEmpty(const char* s) {
     return s == NULL || s[0] == '\0';
 }
+
+char* celix_utils_makeCIdentifier(const char* s) {
+    if (celix_utils_isStringNullOrEmpty(s)) {
+        return NULL;
+    }
+    size_t len = strnlen(s, CELIX_UTILS_MAX_STRLEN);
+    char* ns = malloc(len + 2); //+2 for '\0' and an extra _ prefix if needed.
+    int i = 0;
+    if (isdigit(s[0])) {
+        ns[i++] = '_';
+    }
+    for (size_t j = 0; j < len; j++) {
+        if (isalnum(s[j])) {
+            ns[i++] = s[j];
+        } else {
+            ns[i++] = '_';
+        }
+    }
+    ns[i] = '\0';
+    return ns;
+}
+
 
 char * string_ndup(const char *s, size_t n) {
     size_t len = strlen(s);
@@ -136,6 +170,27 @@ bool utils_isStringEmptyOrNull(const char * const str) {
     }
 
     return empty;
+}
+
+char* celix_utils_writeOrCreateString(char* buffer, size_t bufferSize, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    int written = vsnprintf(buffer, bufferSize, format, args);
+    if (written < 0 || written >= bufferSize) {
+        //buffer to small, create new string
+        char* newStr = NULL;
+        vasprintf(&newStr, format, args);
+        return newStr;
+    } else {
+        return buffer;
+    }
+    va_end(args);
+}
+
+void celix_utils_freeStringIfNeeded(char* buffer, char* str) {
+    if (str != buffer) {
+        free(str);
+    }
 }
 
 celix_status_t thread_equalsSelf(celix_thread_t thread, bool *equals) {

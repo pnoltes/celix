@@ -30,25 +30,31 @@ extern "C" {
 #endif
 
 /**
- * @brief Returns the bundle id.
+ * @brief Return the bundle id.
  * @param bnd The bundle
  * @return The bundle id or < 0 if something went wrong.
  */
 long celix_bundle_getId(const celix_bundle_t *bnd);
 
 /**
- * @brief Returns the bundle state.
+ * @brief Return the bundle state.
  * @param bnd The bundle
  * @return The bundle state or OSGI_FRAMEWORK_BUNDLE_UNKNOWN if something went wrong.
  */
 celix_bundle_state_e celix_bundle_getState(const celix_bundle_t *bnd);
 
 /**
- * Returns a use-able entry path for the provided relative path to a bundle resource.
+ * Return a use-able entry path for the provided relative path to a bundle resource.
  *
  * For example if there is a resource entry in the bundle at path 'META-INF/descriptors/foo.descriptor` this call
  * will return a relative path to the extracted location of the bundle resource, e.g.:
  * .cache/bundle5/version0.0/META-INF/descriptors/foo.descriptor
+ *
+ * A path is always relative to the bundle root and can start with a "/".
+ * A path "." or "/" indicated the root of this bundle.
+ *
+ * The returned entry path should be treated as read-only, use celix_bundle_getDataFile to access the bundle's
+ * persistent storage.
  *
  * The caller is responsible for freeing the returned path entry.
  *
@@ -57,6 +63,22 @@ celix_bundle_state_e celix_bundle_getState(const celix_bundle_t *bnd);
  * @return A use-able path to the bundle resource entry or NULL if the entry is not found.
  */
 char* celix_bundle_getEntry(const celix_bundle_t* bnd, const char *path);
+
+/**
+ * TODO rewrite javadoc
+ * Create a File object for a file in the persistent storage area provided for this bundle by the Framework. This method will return null if the platform does not have file system support or this bundle is a fragment bundle.
+ * A File object for the base directory of the persistent storage area provided for this bundle by the Framework can be obtained by calling this method with an empty string as filename.
+ *
+ * If the Java Runtime Environment supports permissions, the Framework will ensure that this bundle has the java.io.FilePermission with actions read,write,delete for all files (recursively) in the persistent storage area provided for this bundle.
+ *
+ * TODO mention that the returned path can be treated as rw, not only ro
+ * TODO example like, e.g. .cache/bundle5/store/media/image.png
+ *
+ * @param bnd
+ * @param path
+ * @return
+ */
+char* celix_bundle_getDataFile(const celix_bundle_t* bnd, const char *path);
 
 /**
  * @brief Get a manifest attribute value from the bundle manifest.
@@ -68,31 +90,31 @@ char* celix_bundle_getEntry(const celix_bundle_t* bnd, const char *path);
 const char* celix_bundle_getManifestValue(const celix_bundle_t* bnd, const char* attribute);
 
 /**
- * @brief Returns the group of the bundle. Groups are used to order bundles.
+ * @brief Return the group of the bundle. Groups are used to order bundles.
  * Note the return value is valid as long as the bundle is installed.
  */
 const char* celix_bundle_getGroup(const celix_bundle_t *bnd);
 
 /**
- * @brief Returns the symbolic name of the bundle.
+ * @brief Return the symbolic name of the bundle.
  * Note the return value is valid as long as the bundle is installed.
  */
 const char* celix_bundle_getSymbolicName(const celix_bundle_t *bnd);
 
 /**
- * @brief Returns the name of the bundle.
+ * @brief Return the name of the bundle.
  * Note the return value is valid as long as the bundle is installed.
  */
 const char* celix_bundle_getName(const celix_bundle_t* bnd);
 
 /**
- * @brief Returns the description of the bundle.
+ * @brief Return the description of the bundle.
  * Note the return value is valid as long as the bundle is installed.
  */
 const char* celix_bundle_getDescription(const celix_bundle_t* bnd);
 
 /**
- * @brief Returns whether the bundle is the system bundle.
+ * @brief Return whether the bundle is the system bundle.
  */
 bool celix_bundle_isSystemBundle(const celix_bundle_t *bnd);
 
@@ -105,7 +127,7 @@ typedef struct celix_bundle_service_list_entry {
 } celix_bundle_service_list_entry_t;
 
 /**
- * Returns a array list of registered service info entries for this bundle.
+ * Return a array list of registered service info entries for this bundle.
  *
  * @param ctx       The bundle context
  * @param bndId     The bundle id for which the services should be listed

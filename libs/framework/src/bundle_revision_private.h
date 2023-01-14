@@ -28,6 +28,19 @@
 #define BUNDLE_REVISION_PRIVATE_H_
 
 #include "bundle_revision.h"
+#include "celix_threads.h"
+
+
+struct bundleRevision {
+    celix_framework_t *fw;
+    long revisionNr;
+    char *root;
+    char *location;
+    manifest_pt manifest;
+
+    //celix_thread_mutex_t libraryHandlesLock; //protects libraryHandles
+    celix_array_list_t* libraryHandles; //deprecated, moved to module
+};
 
 /**
  * Creates a new revision for the given inputFile or location.
@@ -45,18 +58,10 @@
  * 		- CELIX_SUCCESS when no errors are encountered.
  * 		- CELIX_ENOMEM If allocating memory for <code>bundle_revision</code> failed.
  */
-celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, const char *inputFile,
-                                     bundle_revision_pt *bundle_revision);
+celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, bundle_revision_pt *bundle_revision);
 
 celix_status_t bundleRevision_destroy(bundle_revision_pt revision);
 
-struct bundleRevision {
-	long revisionNr;
-	char *root;
-	char *location;
-	manifest_pt manifest;
-
-	array_list_pt libraryHandles;
-};
+void celix_bundleRevision_addHandle(bundle_revision_t* revision, void *handle);
 
 #endif /* BUNDLE_REVISION_PRIVATE_H_ */

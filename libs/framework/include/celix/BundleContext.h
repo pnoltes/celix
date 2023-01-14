@@ -429,8 +429,13 @@ namespace celix {
          *
          * Will silently ignore bundle ids < 0.
          *
+         * If this function is called on the Celix event thread, the actual starting of the bundle will be done async
+         * and on a separate thread.
+         * If this function is called from a different thread than the Celix event thread, then the function will
+         * return after the bundle start is completed.
+         *
          * @param bndId The bundle id to start.
-         * @return true if the bundle is found & correctly started. False if not.
+         * @return true if the bundle is found & correctly started or if the bundle is started async. False if not.
          */
         bool startBundle(long bndId) {
             return celix_bundleContext_startBundle(cCtx.get(), bndId);
@@ -441,11 +446,39 @@ namespace celix {
          *
          * Will silently ignore bundle ids < 0.
          *
+         * If this function is called on the Celix event thread, the actual stopping of the bundle will be done async
+         * and on a separate thread.
+         * If this function is called from a different thread than the Celix event thread, then the function will
+         * return after the bundle stop is completed.
+         *
          * @param bndId The bundle id to stop.
-         * @return true if the bundle is found & correctly stop. False if not.
+         * @return true if the bundle is found & correctly stop or if the bundle is stopped async. False if not.
          */
         bool stopBundle(long bndId) {
             return celix_bundleContext_stopBundle(cCtx.get(), bndId);
+        }
+
+        /**
+         * @brief Update the bundle with the provided bundle id async.
+         *
+         * This will do the following:
+         *  - Stop the bundle (if needed);
+         *  - Update the bundle revision if a newer bundle zip if found;
+         *  - Start the bundle, if it was started.
+         *
+         * Will silently ignore bundle ids < 0.
+         *
+         * If this function is called on the Celix event thread, the actual updating of the bundle will be done async
+         * and on a separate thread.
+         * If this function is called from a different thread than the Celix event thread, then the function will
+         * return after the bundle update is completed.
+         *
+         * @param ctx The bundle context
+         * @param bndId The bundle id to start.
+         * @return true if the bundle is found & correctly started or if the bundle is updated async. False if not.
+         */
+        bool updateBundle(long bndId) {
+            return celix_bundleContext_updateBundle(cCtx.get(), bndId);
         }
 
         /**

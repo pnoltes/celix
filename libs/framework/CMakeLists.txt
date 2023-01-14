@@ -34,7 +34,7 @@ set(SOURCES
         src/framework_bundle_lifecycle_handler.c
         src/celix_bundle_state.c
         src/celix_framework_utils.c
-        )
+        src/celix_module_private.h)
 add_library(framework SHARED ${SOURCES})
 set_target_properties(framework PROPERTIES OUTPUT_NAME "celix_framework")
 target_include_directories(framework PUBLIC

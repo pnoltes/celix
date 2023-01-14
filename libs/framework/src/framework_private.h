@@ -106,7 +106,8 @@ typedef struct celix_framework_event celix_framework_event_t;
 enum celix_bundle_lifecycle_command {
     CELIX_BUNDLE_LIFECYCLE_START,
     CELIX_BUNDLE_LIFECYCLE_STOP,
-    CELIX_BUNDLE_LIFECYCLE_UNINSTALL
+    CELIX_BUNDLE_LIFECYCLE_UNINSTALL,
+    CELIX_BUNDLE_LIFECYCLE_UPDATE
 };
 
 typedef struct celix_framework_bundle_lifecycle_handler {
@@ -186,7 +187,6 @@ FRAMEWORK_EXPORT celix_status_t fw_getProperty(framework_pt framework, const cha
 FRAMEWORK_EXPORT celix_status_t fw_installBundle(framework_pt framework, bundle_pt * bundle, const char * location, const char *inputFile);
 FRAMEWORK_EXPORT celix_status_t fw_uninstallBundle(framework_pt framework, bundle_pt bundle);
 
-FRAMEWORK_EXPORT celix_status_t framework_getBundleEntry(framework_pt framework, const_bundle_pt bundle, const char* name, char** entry);
 FRAMEWORK_EXPORT celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, const char* inputFile);
 
 FRAMEWORK_EXPORT celix_status_t fw_registerService(framework_pt framework, service_registration_pt * registration, long bundleId, const char* serviceName, const void* svcObj, properties_pt properties);
@@ -340,6 +340,16 @@ celix_status_t celix_framework_stopBundleOnANonCelixEventThread(celix_framework_
 celix_status_t celix_framework_uninstallBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, bool forceSpawnThread);
 
 /**
+ * Update (and if needed stop and start) a bundle and ensure that this is not done on the Celix event thread.
+ * Will spawn a thread if needed.
+ * @param fw The Celix framework
+ * @param bndEntry A bnd entry
+ * @param forceSpawnThread If the true, the start bundle will always be done on a spawn thread
+ * @return CELIX_SUCCESS of the call went alright.
+ */
+celix_status_t celix_framework_updateBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, bool forceSpawnThread);
+
+/**
  * cleanup finished bundle lifecyles threads.
  * @param fw                The framework.
  * @param waitTillEmpty     Whether to wait for all threads to be finished.
@@ -360,5 +370,10 @@ celix_status_t celix_framework_stopBundleEntry(celix_framework_t* fw, celix_fram
  * Uninstall a bundle. Cannot be called on the Celix event thread.
  */
 celix_status_t celix_framework_uninstallBundleEntry(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry);
+
+/**
+ * Uninstall a bundle. Cannot be called on the Celix event thread.
+ */
+celix_status_t celix_framework_updateBundleEntry(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry);
 
 #endif /* FRAMEWORK_PRIVATE_H_ */

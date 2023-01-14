@@ -943,6 +943,28 @@ bool celix_bundleContext_stopBundle(celix_bundle_context_t *ctx, long bndId);
 bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bndId);
 
 /**
+ * @brief Update the bundle with the provided bundle id async.
+ *
+ * This will do the following:
+ *  - stop the bundle (if needed);
+ *  - update the bundle revision if a newer bundle zip if found;
+ *  - start the bundle, if it was started.
+ *
+ * Will silently ignore bundle ids < 0.
+ *
+ * If this function is called on the Celix event thread, the actual updating of the bundle will be done async and
+ * on a separate thread.
+ * If this function is called from a different thread than the Celix event thread, then the function will
+ * return after the bundle update is completed.
+ * TODO update based on BunddleContext.updateBundle, startBundle and stopBundle doxygen
+ *
+ * @param ctx The bundle context
+ * @param bndId The bundle id to start.
+ * @return true if the bundle is found & correctly started. False if not.
+ */
+bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId);
+
+/**
  * @brief Returns the bundle symbolic name for the provided bundle id.
  * The caller is owner of the return string.
  *

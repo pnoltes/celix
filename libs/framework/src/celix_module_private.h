@@ -17,30 +17,24 @@
  * under the License.
  */
 
-#ifndef BUNDLE_PRIVATE_H_
-#define BUNDLE_PRIVATE_H_
+#ifndef CELIX_CELIX_MODULE_PRIVATE_H
+#define CELIX_CELIX_MODULE_PRIVATE_H
 
-#include "bundle.h"
-#include "celix_bundle.h"
+#include "module.h"
 
-FRAMEWORK_EXPORT celix_status_t
-bundle_createFromArchive(celix_bundle_t **bundle, celix_framework_t *framework, bundle_archive_pt archive);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-FRAMEWORK_EXPORT celix_status_t bundle_destroy(celix_bundle_t *bundle);
 
-struct celix_bundle {
-	bundle_context_pt context;
-    char *symbolicName;
-	char *name;
-	char *group;
-	char *description;
-	struct celix_bundle_activator *activator;
-	bundle_state_e state;
-	void * handle;
-	bundle_archive_pt archive;
-	array_list_pt modules;
+celix_status_t celix_module_loadLibraries(celix_module_t *module);
 
-	celix_framework_t *framework;
-};
+celix_status_t celix_module_closeLibraries(celix_module_t *module);
 
-#endif /* BUNDLE_PRIVATE_H_ */
+void *celix_module_getBundleActivatorHandler(celix_module_t *module);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //CELIX_CELIX_MODULE_PRIVATE_H

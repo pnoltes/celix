@@ -23,13 +23,28 @@
 
 #include "bundle_archive.h"
 
-celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location, const char *inputFile,
+/**
+ * @brief Create bundle archive.
+ *
+ * Takes ownership of archiveRoot.
+ */
+celix_status_t bundleArchive_create(celix_framework_t* fw, char *archiveRoot, long id, const char *location, const char *inputFile,
                                     bundle_archive_pt *bundle_archive);
 
-celix_status_t bundleArchive_createSystemBundleArchive(celix_framework_t* fw, bundle_archive_pt *bundle_archive);
+celix_status_t bundleArchive_createSystemBundleArchive(celix_framework_t* fw, char *archiveRoot, bundle_archive_pt *bundle_archive);
 
-celix_status_t bundleArchive_recreate(celix_framework_t* fw, const char *archiveRoot, bundle_archive_pt *bundle_archive);
+celix_status_t bundleArchive_recreate(celix_framework_t* fw, char *archiveRoot, bundle_archive_pt *bundle_archive);
 
 celix_status_t bundleArchive_destroy(bundle_archive_pt archive);
+
+/**
+ * Returns the root of the bundle persistent store.
+ */
+const char* celix_bundleArchive_getPersistentStoreRoot(bundle_archive_t *archive);
+
+/**
+ * Returns the root of the bundle latest revision
+ */
+const char* celix_bundleArchive_getBundleLatestRevisionRoot(bundle_archive_t *archive);
 
 #endif /* BUNDLE_ARCHIVE_PRIVATE_H_ */

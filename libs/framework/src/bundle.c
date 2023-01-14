@@ -24,6 +24,7 @@
 #include <service_tracker.h>
 #include <celix_constants.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "framework_private.h"
 #include "resolver.h"
@@ -34,38 +35,9 @@
 #include "service_tracker_private.h"
 
 
+static char* celix_bundle_getBundleOrPersistentStoreEntry(const celix_bundle_t* bnd, bool bundleEntry, const char* name);
 celix_status_t bundle_createModule(bundle_pt bundle, module_pt *module);
 celix_status_t bundle_closeRevisions(const_bundle_pt bundle);
-
-celix_status_t bundle_create(celix_framework_t* fw, bundle_pt * bundle) {
-    celix_status_t status;
-    bundle_archive_pt archive = NULL;
-
-	*bundle = (bundle_pt) calloc(1, sizeof(**bundle));
-	if (*bundle == NULL) {
-		return CELIX_ENOMEM;
-	}
-	status = bundleArchive_createSystemBundleArchive(fw, &archive);
-	if (status == CELIX_SUCCESS) {
-        module_pt module;
-
-        (*bundle)->archive = archive;
-        (*bundle)->activator = NULL;
-        (*bundle)->context = NULL;
-        (*bundle)->framework = fw;
-        (*bundle)->state = CELIX_BUNDLE_STATE_INSTALLED;
-        (*bundle)->modules = NULL;
-        arrayList_create(&(*bundle)->modules);
-        (*bundle)->handle = NULL;
-
-        module = module_createFrameworkModule((*bundle));
-        bundle_addModule(*bundle, module);
-
-	}
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Failed to create bundle");
-
-	return status;
-}
 
 celix_status_t bundle_createFromArchive(bundle_pt * bundle, framework_pt framework, bundle_archive_pt archive) {
     module_pt module;
@@ -117,15 +89,11 @@ celix_status_t bundle_destroy(bundle_pt bundle) {
 
 celix_status_t bundle_getArchive(const_bundle_pt bundle, bundle_archive_pt *archive) {
 	celix_status_t status = CELIX_SUCCESS;
-
 	if (bundle != NULL && *archive == NULL) {
 		*archive = bundle->archive;
 	} else {
 		status = CELIX_ILLEGAL_ARGUMENT;
 	}
-
-	framework_logIfError(bundle->framework->logger, status, NULL, "Failed to get bundle archive");
-
 	return status;
 }
 
@@ -173,7 +141,8 @@ celix_status_t bundle_setContext(bundle_pt bundle, bundle_context_pt context) {
 }
 
 celix_status_t bundle_getEntry(const_bundle_pt bundle, const char* name, char** entry) {
-	return framework_getBundleEntry(bundle->framework, bundle, name, entry);
+	*entry = celix_bundle_getBundleOrPersistentStoreEntry(bundle, true, name);
+    return *entry == NULL ? CELIX_ILLEGAL_ARGUMENT : CELIX_SUCCESS;
 }
 
 celix_status_t bundle_getState(const_bundle_pt bundle, bundle_state_e *state) {
@@ -207,7 +176,7 @@ celix_status_t bundle_createModule(bundle_pt bundle, module_pt *module) {
 			char moduleId[512];
 
 			snprintf(moduleId, sizeof(moduleId), "%ld.%d", bundleId, revision_no);
-			*module = module_create(headerMap, moduleId, bundle);
+			*module = module_create(headerMap, moduleId, bundle->framework, bundle);
 
 			if (*module != NULL) {
 				const char * symName = NULL;
@@ -238,27 +207,9 @@ celix_status_t bundle_start(celix_bundle_t* bundle) {
     return celix_framework_startBundle(bundle->framework, celix_bundle_getId(bundle));
 }
 
-celix_status_t bundle_update(bundle_pt bundle, const char *inputFile) {
-    fw_log(bundle->framework->logger, CELIX_LOG_LEVEL_WARNING, "Bundle update functionality is deprecated. Do not use!");
-    assert(!celix_framework_isCurrentThreadTheEventLoop(bundle->framework));
-	celix_status_t status = CELIX_SUCCESS;
-	if (bundle != NULL) {
-		bool systemBundle = false;
-		status = bundle_isSystemBundle(bundle, &systemBundle);
-		if (status == CELIX_SUCCESS) {
-			if (systemBundle) {
-				status = CELIX_BUNDLE_EXCEPTION;
-			} else {
-				status = framework_updateBundle(bundle->framework, bundle, inputFile);
-			}
-		}
-	}
-
-	framework_logIfError(bundle->framework->logger, status, NULL, "Failed to update bundle");
-
-	return status;
+celix_status_t bundle_update(bundle_pt bundle, const char *inputFile __attribute__((unused))) {
+    return celix_framework_updateBundle(bundle->framework, celix_bundle_getId(bundle));
 }
-
 
 celix_status_t bundle_stop(bundle_pt bundle) {
     //note deprecated call use celix_bundleContext_startBundle instead
@@ -540,16 +491,53 @@ long celix_bundle_getId(const bundle_t* bnd) {
 	return bndId;
 }
 
-celix_bundle_state_e celix_bundle_getState(const bundle_t *bnd) {
+celix_bundle_state_e celix_bundle_getState(const celix_bundle_t *bnd) {
     return __atomic_load_n(&bnd->state, __ATOMIC_ACQUIRE);
 }
 
-char* celix_bundle_getEntry(const bundle_t* bnd, const char *path) {
+static char* celix_bundle_getBundleOrPersistentStoreEntry(const celix_bundle_t* bnd, bool bundleEntry, const char* name) {
+    bundle_archive_pt archive = NULL;
+    celix_status_t status = bundle_getArchive(bnd, &archive);
+    if (status != CELIX_SUCCESS) {
+        return NULL;
+    }
+
+    const char *root;
+    if (bundleEntry) {
+        root = celix_bundleArchive_getBundleLatestRevisionRoot(archive);
+    } else {
+        root = celix_bundleArchive_getPersistentStoreRoot(archive);
+    }
+
+    char *entry = NULL;
+    if ((strlen(name) > 0) && (name[0] == '/')) {
+        asprintf(&entry, "%s%s", root, name);
+    } else {
+        asprintf(&entry, "%s/%s", root, name);
+    }
+
+    if (access(entry, F_OK) == 0) {
+        return entry;
+    } else {
+        free(entry);
+        return NULL;
+    }
+}
+
+char* celix_bundle_getEntry(const celix_bundle_t* bnd, const char *path) {
 	char *entry = NULL;
 	if (bnd != NULL && bnd->framework != NULL) {
-		framework_getBundleEntry(bnd->framework, (celix_bundle_t*)bnd, path, &entry);
+        entry = celix_bundle_getBundleOrPersistentStoreEntry(bnd, true, path);
 	}
 	return entry;
+}
+
+char* celix_bundle_getDataFile(const celix_bundle_t* bnd, const char *path) {
+    char *entry = NULL;
+    if (bnd != NULL && bnd->framework != NULL) {
+        entry = celix_bundle_getBundleOrPersistentStoreEntry(bnd, false, path);
+    }
+    return entry;
 }
 
 const char* celix_bundle_getManifestValue(const celix_bundle_t* bnd, const char* attribute) {
