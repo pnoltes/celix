@@ -63,7 +63,7 @@ char* celix_utils_writeOrCreateString(char* buffer, size_t bufferSize, const cha
  * @param buffer The buffer to compare the str to.
  * @param str The string to free if it is not equal to the buffer.
  */
-void celix_utils_freeStringIfNeeded(char* buffer, char* str);
+void celix_utils_freeStringIfNeeded(const char* buffer, char* str);
 
 
 /**

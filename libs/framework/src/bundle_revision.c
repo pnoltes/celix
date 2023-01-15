@@ -18,63 +18,38 @@
  */
 
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <archive.h>
 
 #include "celix_utils.h"
-#include "celix_framework.h"
 #include "bundle_revision_private.h"
-#include "celix_framework_utils_private.h"
 #include "framework_private.h"
 
-celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, bundle_revision_pt *bundle_revision) {
+celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, manifest_pt manifest, bundle_revision_pt *bundle_revision) {
     celix_status_t status = CELIX_SUCCESS;
-	bundle_revision_pt revision =  malloc(sizeof(*revision));
-
-    if (!revision) {
-        status = CELIX_ENOMEM;
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, out of memory");
-        return CELIX_ENOMEM;
+	bundle_revision_pt revision = calloc(1, sizeof(*revision));
+    if (revision != NULL) {
+        revision->fw = fw;
+        revision->libraryHandles = celix_arrayList_create();
+        revision->revisionNr = revisionNr;
+        revision->manifest = manifest;
     }
 
-    int state = mkdir(root, S_IRWXU);
-    if ((state != 0) && (errno != EEXIST)) {
-        free(revision);
-        status = CELIX_FILE_IO_EXCEPTION;
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status,
-                   "Cannot create bundle revision, cannot create directory %s", root);
-        return status;
-    }
-
-    status = celix_framework_utils_extractBundle(fw, location, root);
-    if (status != CELIX_SUCCESS) {
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, cannot extract bundle from %s to %s", location, root);
-        free(revision);
-        return status;
-    }
-
-    revision->fw = fw;
-    revision->root = celix_utils_strdup(root);
-    revision->location = celix_utils_strdup(location);;
-    revision->libraryHandles = celix_arrayList_create();
-    revision->revisionNr = revisionNr;
-    //celixThreadMutex_create(&revision->libraryHandlesLock, NULL);
-
-    if (revision->root == NULL || revision->location == NULL || revision->libraryHandles == NULL) {
+    if (revision == NULL || revision->libraryHandles == NULL) {
         status = CELIX_ENOMEM;
         fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, out of memory");
         bundleRevision_destroy(revision);
         return status;
     }
 
-    char manifestBuffer[512];
-    char* manifestPath = celix_utils_writeOrCreateString(manifestBuffer, sizeof(manifestBuffer), "%s/META-INF/MANIFEST.MF", root);
-    status = manifest_createFromFile(manifestPath, &revision->manifest);
-    celix_utils_freeStringIfNeeded(manifestBuffer, manifestPath);
-    if (status != CELIX_SUCCESS) {
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, cannot create manifest from file %s/META-INF/MANIFEST.MF", root);
-        bundleRevision_destroy(revision);
-        return status;
+    bool isSystemRevision = root == NULL && location == NULL;
+    if (!isSystemRevision) {
+        revision->location = celix_utils_strdup(location);
+        revision->root = celix_utils_strdup(root);
+        if (revision->location == NULL || revision->root == NULL) {
+            status = CELIX_ENOMEM;
+            fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle revision, out of memory");
+            bundleRevision_destroy(revision);
+            return status;
+        }
     }
 
     *bundle_revision = revision;
@@ -82,11 +57,13 @@ celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, co
 }
 
 celix_status_t bundleRevision_destroy(bundle_revision_pt revision) {
-    celix_arrayList_destroy(revision->libraryHandles);
-    manifest_destroy(revision->manifest);
-    free(revision->root);
-    free(revision->location);
-    free(revision);
+    if (revision != NULL) {
+        celix_arrayList_destroy(revision->libraryHandles);
+        manifest_destroy(revision->manifest);
+        free(revision->root);
+        free(revision->location);
+        free(revision);
+    }
 	return CELIX_SUCCESS;
 }
 
@@ -105,7 +82,7 @@ celix_status_t bundleRevision_getRoot(bundle_revision_pt revision, const char **
     return CELIX_SUCCESS;
 }
 
-celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_pt *manifest) {
+celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_pt* manifest) {
     *manifest = revision->manifest;
     return CELIX_SUCCESS;
 }

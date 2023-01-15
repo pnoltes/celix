@@ -16,16 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- *
- * @defgroup BundleRevision Bundle Revision
- * @ingroup framework
- * @{
- *
- *  \author    	<a href="mailto:dev@celix.apache.org">Apache Celix Project Team</a>
- *  \date      	April 12, 2011
- *  \copyright	Apache License, Version 2.0
- */
 
 #ifndef BUNDLE_REVISION_H_
 #define BUNDLE_REVISION_H_
@@ -49,6 +39,8 @@ extern "C" {
  * An archive can have multiple revisions, each update of a bundle results in a new one.
  *
  * In a revision the content of a bundle (ZIP file) is extracted to a specified location inside the archive.
+ *
+ * @note The bundle revision is immutable and thread safe.
  */
 
 /**
@@ -109,7 +101,8 @@ celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_
  *      - CELIX_SUCCESS when no errors are encountered.
  *      - CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-//celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, celix_array_list_t **handles); TODO add back for backward compatibility reasons
+celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, celix_array_list_t **handles)
+    __attribute__((deprecated("Deprecated. Library handles are no now handled by the bundle module.")));
 
 #ifdef __cplusplus
 }

@@ -81,11 +81,11 @@ namespace celix {
 #endif
 
         /**
-         * TODO
-         * @tparam StrType
-         * @param path
-         * @return
+         * @brief Get a use-able entry path for the provided relative path to a bundle store resource.
+         * @param path The relative path to a bundle store resource
+         * @return The use-able entry path or an empty string if the entry is not found.
          */
+#if __cplusplus >= 201703L //C++17 or higher
         [[nodiscard]] std::string getDataFile(std::string_view path) const {
             std::string result{};
             char* entry = celix_bundle_getDataFile(cBnd.get(), path.data());
@@ -95,6 +95,17 @@ namespace celix {
             }
             return result;
         }
+#else
+        [[nodiscard]] std::string getDataFile(const std::string& path) const {
+            std::string result{};
+            char* entry = celix_bundle_getDataFile(cBnd.get(), path.c_str());
+            if (entry != nullptr) {
+                result = std::string{entry};
+                free(entry);
+            }
+            return result;
+        }
+#endif
 
         /**
          * @brief Get a manifest attribute value from the bundle manifest.

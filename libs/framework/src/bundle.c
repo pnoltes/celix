@@ -504,7 +504,7 @@ static char* celix_bundle_getBundleOrPersistentStoreEntry(const celix_bundle_t* 
 
     const char *root;
     if (bundleEntry) {
-        root = celix_bundleArchive_getBundleLatestRevisionRoot(archive);
+        root = celix_bundleArchive_getCurrentRevisionRoot(archive);
     } else {
         root = celix_bundleArchive_getPersistentStoreRoot(archive);
     }

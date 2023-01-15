@@ -181,27 +181,21 @@ char* celix_utils_writeOrCreateString(char* buffer, size_t bufferSize, const cha
         char* newStr = NULL;
         vasprintf(&newStr, format, args);
         return newStr;
-    } else {
-        return buffer;
     }
     va_end(args);
+    return buffer;
 }
 
-void celix_utils_freeStringIfNeeded(char* buffer, char* str) {
+void celix_utils_freeStringIfNeeded(const char* buffer, char* str) {
     if (str != buffer) {
         free(str);
     }
 }
 
 celix_status_t thread_equalsSelf(celix_thread_t thread, bool *equals) {
-    celix_status_t status = CELIX_SUCCESS;
-
     celix_thread_t self = celixThread_self();
-    if (status == CELIX_SUCCESS) {
-        *equals = celixThread_equals(self, thread);
-    }
-
-    return status;
+    *equals = celixThread_equals(self, thread);
+    return CELIX_SUCCESS;
 }
 
 celix_status_t utils_isNumeric(const char *number, bool *ret) {

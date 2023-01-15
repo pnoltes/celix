@@ -28,12 +28,10 @@
  *
  * Takes ownership of archiveRoot.
  */
-celix_status_t bundleArchive_create(celix_framework_t* fw, char *archiveRoot, long id, const char *location, const char *inputFile,
+celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location, const char *inputFile,
                                     bundle_archive_pt *bundle_archive);
 
-celix_status_t bundleArchive_createSystemBundleArchive(celix_framework_t* fw, char *archiveRoot, bundle_archive_pt *bundle_archive);
-
-celix_status_t bundleArchive_recreate(celix_framework_t* fw, char *archiveRoot, bundle_archive_pt *bundle_archive);
+celix_status_t bundleArchive_recreate(celix_framework_t* fw, const char *archiveRoot, bundle_archive_pt *bundle_archive);
 
 celix_status_t bundleArchive_destroy(bundle_archive_pt archive);
 
@@ -43,8 +41,19 @@ celix_status_t bundleArchive_destroy(bundle_archive_pt archive);
 const char* celix_bundleArchive_getPersistentStoreRoot(bundle_archive_t *archive);
 
 /**
- * Returns the root of the bundle latest revision
+ * Get the last modified time of the current bundle revision.
+ * @param[in] archive The bundle archive.
+ * @param[out] lastModified The last modified time of the current bundle revision.
+ * @return CELIX_SUCCESS if the last modified time is returned.
  */
-const char* celix_bundleArchive_getBundleLatestRevisionRoot(bundle_archive_t *archive);
+celix_status_t celix_bundleArchive_getLastModifiedCurrentRevision(bundle_archive_pt archive, struct timespec* lastModified);
+
+/**
+ * Get the last modified time of the current bundle revision.
+ * @param[in] archive The bundle archive.
+ * @return The current revision root
+ * @retval NULL if the current revision root is not set.
+ */
+const char* celix_bundleArchive_getCurrentRevisionRoot(bundle_archive_pt archive);
 
 #endif /* BUNDLE_ARCHIVE_PRIVATE_H_ */

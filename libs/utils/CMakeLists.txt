@@ -43,6 +43,7 @@ add_library(utils SHARED
     src/celix_log_utils.c
     src/celix_hash_map.c
     src/celix_file_utils.c
+    src/celix_convert_utils.c
     ${MEMSTREAM_SOURCES}
 )
 set_target_properties(utils PROPERTIES OUTPUT_NAME "celix_utils")

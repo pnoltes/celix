@@ -269,8 +269,6 @@ celix_status_t framework_create(framework_pt *out, celix_properties_t* config) {
     status = CELIX_DO_IF(status, bundle_setContext(framework->bundle, context));
 
     //create framework bundle entry
-    long bndId = -1L;
-    bundle_getBundleId(framework->bundle, &bndId);
     celix_framework_bundle_entry_t *entry = fw_bundleEntry_create(framework->bundle);
     celixThreadMutex_lock(&framework->installedBundles.mutex);
     celix_arrayList_add(framework->installedBundles.entries, entry);
@@ -279,7 +277,7 @@ celix_status_t framework_create(framework_pt *out, celix_properties_t* config) {
     if (status != CELIX_SUCCESS) {
         fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not create framework");
         free(framework);
-        framework = NULL;
+        return status;
     }
 
     //setup framework bundle lifecycle handling

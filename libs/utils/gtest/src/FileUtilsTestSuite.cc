@@ -22,6 +22,7 @@
 
 #include "celix_file_utils.h"
 #include "celix_properties.h"
+#include "celix_utils.h"
 
 class FileUtilsTestSuite : public ::testing::Test {};
 
@@ -202,7 +203,7 @@ TEST_F(FileUtilsTestSuite, LastModifiedTest) {
 
 
     //Given a file, I can get the last modified time
-    struct timespec lastModified;
+    struct timespec lastModified{};
     auto status = celix_utils_getLastModified(testFile, &lastModified);
     EXPECT_EQ(status, CELIX_SUCCESS);
     EXPECT_NE(lastModified.tv_sec, 0);
@@ -233,19 +234,20 @@ TEST_F(FileUtilsTestSuite, TouchTest) {
     EXPECT_TRUE(celix_utils_fileExists(testFile));
 
     //Given a file, I can touch the file
-    struct timespec lastModified;
+    struct timespec lastModified{};
     auto status = celix_utils_getLastModified(testFile, &lastModified);
     EXPECT_EQ(status, CELIX_SUCCESS);
     EXPECT_NE(lastModified.tv_sec, 0);
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     status = celix_utils_touch(testFile);
     EXPECT_EQ(status, CELIX_SUCCESS);
-    struct timespec lastModified2;
+    struct timespec lastModified2{};
     status = celix_utils_getLastModified(testFile, &lastModified2);
     EXPECT_EQ(status, CELIX_SUCCESS);
     EXPECT_NE(lastModified2.tv_sec, 0);
-    EXPECT_EQ(lastModified.tv_sec, lastModified2.tv_sec);
-    EXPECT_NE(lastModified.tv_nsec, lastModified2.tv_nsec);
+    double diff = celix_difftime(&lastModified, &lastModified2);
+    EXPECT_LT(diff, 1.0); //should be less than 1 seconds
+    EXPECT_GT(diff, 0.0); //should be more than 0 seconds
 
     //Given a directory, I can touch the directory
     status = celix_utils_getLastModified(testDir, &lastModified);
@@ -256,9 +258,9 @@ TEST_F(FileUtilsTestSuite, TouchTest) {
     EXPECT_EQ(status, CELIX_SUCCESS);
     status = celix_utils_getLastModified(testDir, &lastModified2);
     EXPECT_EQ(status, CELIX_SUCCESS);
-    EXPECT_NE(lastModified2.tv_sec, 0);
-    EXPECT_EQ(lastModified.tv_sec, lastModified2.tv_sec);
-    EXPECT_NE(lastModified.tv_nsec, lastModified2.tv_nsec);
+    diff = celix_difftime(&lastModified, &lastModified2);
+    EXPECT_LT(diff, 1.0); //should be less than 1 seconds
+    EXPECT_GT(diff, 0.0); //should be more than 0 seconds
 
     //Given a non-existing file, I cannot touch the file
     status = celix_utils_touch("does-not-exists");

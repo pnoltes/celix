@@ -30,6 +30,19 @@
 #include "celix_framework.h"
 #include "celix_constants.h"
 #include "framework_private.h"
+#include "bundle_archive_private.h"
+
+
+#ifdef __linux__
+#define CELIX_LIBRARY_PREFIX "lib"
+#define CELIX_LIBRARY_EXTENSION ".so"
+#elif __APPLE__
+#define CELIX_LIBRARY_PREFIX "lib"
+#define CELIX_LIBRARY_EXTENSION = ".dylib";
+#elif WIN32
+#define CELIX_LIBRARY_PREFIX ""
+#define CELIX_LIBRARY_EXTENSION = ".dll";
+#endif
 
 struct module {
     celix_framework_t* fw;
@@ -372,49 +385,29 @@ static celix_status_t celix_module_loadLibrary(celix_module_t* module, const cha
 static celix_status_t celix_module_loadLibraryForManifestEntry(celix_module_t* module, const char *library, bundle_archive_pt archive, void **handle) {
     celix_status_t status = CELIX_SUCCESS;
 
-#ifdef __linux__
-    char * library_prefix = "lib";
-    char * library_extension = ".so";
-#elif __APPLE__
-    char * library_prefix = "lib";
-    char * library_extension = ".dylib";
-#elif WIN32
-    char * library_prefix = "";
-    char * library_extension = ".dll";
-#endif
-
     const char *error = NULL;
     char libraryPath[512];
-    long refreshCount = 0;
-    const char *archiveRoot = NULL;
-    long revisionNumber = 0;
-    bundle_revision_pt revision = NULL;
+    const char* revRoot = celix_bundleArchive_getCurrentRevisionRoot(archive);
 
-    status = CELIX_DO_IF(status, bundleArchive_getRefreshCount(archive, &refreshCount));
-    status = CELIX_DO_IF(status, bundleArchive_getArchiveRoot(archive, &archiveRoot));
-    status = CELIX_DO_IF(status, bundleArchive_getCurrentRevisionNumber(archive, &revisionNumber));
-    status = CELIX_DO_IF(status, bundleArchive_getCurrentRevision(archive, &revision));
-
-    if (status != CELIX_SUCCESS) {
+    if (!revRoot) {
         fw_logCode(module->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not get bundle archive information");
         return status;
     }
 
     char* path;
-    if (strncmp("lib", library, 3) == 0) {
-        path = celix_utils_writeOrCreateString(libraryPath, sizeof(libraryPath), "%s/version%ld.%ld/%s", archiveRoot, refreshCount, revisionNumber, library);
+    if (strstr(library, CELIX_LIBRARY_EXTENSION)) {
+        path = celix_utils_writeOrCreateString(libraryPath, sizeof(libraryPath), "%s/%s", revRoot, library);
     } else {
-        path = celix_utils_writeOrCreateString(libraryPath, sizeof(libraryPath), "%s/version%ld.%ld/%s%s%s", archiveRoot, refreshCount, revisionNumber, library_prefix, library, library_extension);
+        path = celix_utils_writeOrCreateString(libraryPath, sizeof(libraryPath), "%s/%s%s%s", revRoot, CELIX_LIBRARY_PREFIX, library, CELIX_LIBRARY_EXTENSION);
     }
 
     if (!path) {
-        error = "Cannot create full library path";
-        status = CELIX_FRAMEWORK_EXCEPTION;
-    } else {
-        status = celix_module_loadLibrary(module, path, handle);
+        fw_logCode(module->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create full library path");
+        return status;
     }
-    celix_utils_freeStringIfNeeded(libraryPath, path);
 
+    status = celix_module_loadLibrary(module, path, handle);
+    celix_utils_freeStringIfNeeded(libraryPath, path);
     framework_logIfError(module->fw->logger, status, error, "Could not load library: %s", libraryPath);
     return status;
 }
@@ -508,8 +501,10 @@ celix_status_t celix_module_loadLibraries(celix_module_t* module) {
     }
 
 
-    fw_logCode(module->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not load libraries for bundle %s",
-               celix_bundle_getSymbolicName(module->bundle));
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(module->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not load libraries for bundle %s",
+                   celix_bundle_getSymbolicName(module->bundle));
+    }
 
     return status;
 }

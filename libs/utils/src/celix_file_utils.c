@@ -282,7 +282,11 @@ celix_status_t celix_utils_getLastModified(const char* path, struct timespec* la
     celix_status_t status = CELIX_SUCCESS;
     struct stat st;
     if (stat(path, &st) == 0) {
+#ifdef __APPLE__
         *lastModified = st.st_mtimespec;
+#else
+        *lastModified = st.st_mtim;
+#endif
     } else {
         lastModified->tv_sec = 0;
         lastModified->tv_nsec = 0;
