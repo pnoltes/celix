@@ -34,7 +34,8 @@
 #include "celix_log.h"
 
 int fpeek(FILE *stream);
-celix_status_t manifest_readAttributes(manifest_pt manifest, properties_pt properties, FILE *file);
+
+static celix_status_t manifest_readAttributes(manifest_pt manifest, properties_pt properties, FILE *file);
 
 celix_status_t manifest_create(manifest_pt *manifest) {
 	celix_status_t status = CELIX_SUCCESS;
@@ -200,7 +201,7 @@ int fpeek(FILE *stream) {
 	return c;
 }
 
-celix_status_t manifest_readAttributes(manifest_pt manifest, properties_pt properties, FILE *file) {
+static celix_status_t manifest_readAttributes(manifest_pt manifest, properties_pt properties, FILE *file) {
 	char name[512]; memset(name,0,512);
 	char value[512]; memset(value,0,512);
 	char lastLine[512]; memset(lastLine,0,512);

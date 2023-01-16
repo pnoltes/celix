@@ -121,9 +121,11 @@ module_pt module_createFrameworkModule(celix_framework_t* fw, bundle_pt bundle) 
     module_pt module;
 
 	module = (module_pt) calloc(1, sizeof(*module));
+    char modId[2];
+    snprintf(modId, 2, "%li", CELIX_FRAMEWORK_BUNDLE_ID);
 	if (module) {
         module->fw = fw;
-        module->id = strdup("0");
+        module->id = celix_utils_strdup(modId);
         module->symbolicName = celix_utils_strdup("celix_framework");
         module->group = celix_utils_strdup("Celix/Framework");
         module->name = celix_utils_strdup("Celix Framework");

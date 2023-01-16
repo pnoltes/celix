@@ -88,8 +88,7 @@ celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t *cache, celix_
  * 		- CELIX_ENOMEM If allocating memory for <code>bundle_archive</code> failed.
  */
 celix_status_t
-celix_bundleCache_createArchive(celix_framework_t *fw, long id, const char *location, const char *inputFile,
-                                bundle_archive_pt *archive);
+celix_bundleCache_createArchive(celix_framework_t *fw, long id, const char *location, bundle_archive_pt *archive);
 
 /**
  * @@brief Creates a new system archive for framework bundle.

@@ -191,12 +191,12 @@ celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t* cache, celix_
 	return status;
 }
 
-celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, const char *location, const char *inputFile __attribute__((unused)), bundle_archive_pt *archive) {
+celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, const char *location, bundle_archive_pt *archive) {
 	celix_status_t status = CELIX_SUCCESS;
     char archiveRootBuffer[512];
     char *archiveRoot = celix_utils_writeOrCreateString(archiveRootBuffer, sizeof(archiveRootBuffer), CELIX_BUNDLE_ARCHIVE_ROOT_FORMAT, fw->cache->cacheDir, id);
     if (archiveRoot) {
-		status = bundleArchive_create(fw, archiveRoot, id, location, inputFile, archive);
+		status = bundleArchive_create(fw, archiveRoot, id, location, archive);
 	} else {
         status = CELIX_ENOMEM;
     }
@@ -206,5 +206,5 @@ celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, c
 }
 
 celix_status_t celix_bundleCache_createSystemArchive(celix_framework_t* fw, bundle_archive_pt* archive) {
-    return celix_bundleCache_createArchive(fw, CELIX_FRAMEWORK_BUNDLE_ID, NULL, NULL, archive);
+    return celix_bundleCache_createArchive(fw, CELIX_FRAMEWORK_BUNDLE_ID, NULL, archive);
 }

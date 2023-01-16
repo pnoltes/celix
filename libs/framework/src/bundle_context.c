@@ -158,7 +158,7 @@ celix_status_t bundleContext_installBundle2(bundle_context_pt context, const cha
 	bundle_pt b = NULL;
 
 	if (context != NULL) {
-		if (fw_installBundle(context->framework, &b, location, inputFile) != CELIX_SUCCESS) {
+		if (celix_framework_installBundleInternal(context->framework, -1, location, NULL, &b) != CELIX_SUCCESS) {
             status = CELIX_FRAMEWORK_EXCEPTION;
 		} else {
 			*bundle = b;

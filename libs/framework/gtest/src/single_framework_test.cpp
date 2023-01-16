@@ -241,7 +241,7 @@ TEST_F(FrameworkFactory, restartFramework) {
 
 TEST_F(CelixFramework, testLaunchFrameworkWithConfig) {
     /* Rule: When a Celix framework is started with a config for auto starting bundles and installing bundles,
-     * the specified bundle are installed and if needed started.
+     * the specified bundles will be installed and - if needed - started.
      */
 
     auto* config = celix_properties_load(INSTALL_AND_START_BUNDLES_CONFIG_PROPERTIES_FILE);

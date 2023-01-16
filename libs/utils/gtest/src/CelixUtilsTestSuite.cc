@@ -158,6 +158,7 @@ TEST_F(UtilsTestSuite, MakeCIdentifierTest) {
     //When a string start with a digit a _ is prefixed
     id = celix_utils_makeCIdentifier("1234abcdABCD");
     EXPECT_STREQ(id, "_1234abcdABCD");
+    free(id);
 
     //When a string contains non isalnum characters, those are replaced with _
     id = celix_utils_makeCIdentifier("$%ab \tcd^&");

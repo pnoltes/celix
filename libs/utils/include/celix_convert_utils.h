@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-//TODO test functions
 //TODO use functions in celix_bundle_context.h
 
 /**

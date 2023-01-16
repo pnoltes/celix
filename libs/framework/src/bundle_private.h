@@ -23,8 +23,8 @@
 #include "bundle.h"
 #include "celix_bundle.h"
 
-FRAMEWORK_EXPORT celix_status_t
-bundle_createFromArchive(celix_bundle_t **bundle, celix_framework_t *framework, bundle_archive_pt archive);
+FRAMEWORK_EXPORT
+celix_status_t celix_bundle_createFromArchive(celix_framework_t *framework, bundle_archive_pt archive, celix_bundle_t **bundleOut);
 
 FRAMEWORK_EXPORT celix_status_t bundle_destroy(celix_bundle_t *bundle);
 

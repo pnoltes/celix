@@ -28,7 +28,7 @@
  *
  * Takes ownership of archiveRoot.
  */
-celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location, const char *inputFile,
+celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location,
                                     bundle_archive_pt *bundle_archive);
 
 celix_status_t bundleArchive_recreate(celix_framework_t* fw, const char *archiveRoot, bundle_archive_pt *bundle_archive);

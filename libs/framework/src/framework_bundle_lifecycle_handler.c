@@ -38,6 +38,7 @@ static void* celix_framework_stopStartBundleThread(void *data) {
         case CELIX_BUNDLE_LIFECYCLE_UNINSTALL:
             celix_framework_bundleEntry_decreaseUseCount(handler->bndEntry);
             celix_framework_uninstallBundleEntry(handler->framework, handler->bndEntry);
+            break;
         default:
             //maybe decrease use count?
             celix_framework_updateBundleEntry(handler->framework, handler->bndEntry);

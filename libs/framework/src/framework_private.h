@@ -184,8 +184,7 @@ struct celix_framework {
 
 FRAMEWORK_EXPORT celix_status_t fw_getProperty(framework_pt framework, const char* name, const char* defaultValue, const char** value);
 
-FRAMEWORK_EXPORT celix_status_t fw_installBundle(framework_pt framework, bundle_pt * bundle, const char * location, const char *inputFile);
-FRAMEWORK_EXPORT celix_status_t fw_uninstallBundle(framework_pt framework, bundle_pt bundle);
+FRAMEWORK_EXPORT celix_status_t celix_framework_installBundleInternal(celix_framework_t *framework, long id, const char *bndLoc, bundle_archive_pt archive, celix_bundle_t **bundleOut);
 
 FRAMEWORK_EXPORT celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, const char* inputFile);
 

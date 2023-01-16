@@ -50,33 +50,37 @@ celix_bundle_state_e celix_bundle_getState(const celix_bundle_t *bnd);
  * will return a relative path to the extracted location of the bundle resource, e.g.:
  * .cache/bundle5/version0.0/META-INF/descriptors/foo.descriptor
  *
- * A path is always relative to the bundle root and can start with a "/".
- * A path "." or "/" indicated the root of this bundle.
+ * A provided path is always relative to the bundle root and can start with a "/".
+ * A provided path NULL, "", "." or "/" indicates the root of this bundle.
  *
  * The returned entry path should be treated as read-only, use celix_bundle_getDataFile to access the bundle's
  * persistent storage.
  *
  * The caller is responsible for freeing the returned path entry.
  *
- * @param path The relative path to a bundle resource
- * @param bnd The bundle
+ * @param path The relative path to a bundle resource.
+ * @param bnd The bundle.
  * @return A use-able path to the bundle resource entry or NULL if the entry is not found.
  */
 char* celix_bundle_getEntry(const celix_bundle_t* bnd, const char *path);
 
 /**
- * TODO rewrite javadoc
- * Create a File object for a file in the persistent storage area provided for this bundle by the Framework. This method will return null if the platform does not have file system support or this bundle is a fragment bundle.
- * A File object for the base directory of the persistent storage area provided for this bundle by the Framework can be obtained by calling this method with an empty string as filename.
+ * Return a use-able entry path for the provided relative path to a bundle persistent storage.
  *
- * If the Java Runtime Environment supports permissions, the Framework will ensure that this bundle has the java.io.FilePermission with actions read,write,delete for all files (recursively) in the persistent storage area provided for this bundle.
+ * For example if there is a resource entry in the bundle persistent storage at path 'resources/counters.txt` this call
+ * will return a relative path to entry in the bundle persistent storage.
+ * .cache/bundle5/storage/resources/counters.txt
  *
- * TODO mention that the returned path can be treated as rw, not only ro
- * TODO example like, e.g. .cache/bundle5/store/media/image.png
+ * A provided path is always relative to the bundle persistent storage root and can start with a "/".
+ * A provided path NULL, "", "." or "/" indicates the root of this bundle cache store.
  *
- * @param bnd
- * @param path
- * @return
+ * The returned entry path should can be treated as read-write.
+ *
+ * The caller is responsible for freeing the returned path entry.
+ *
+ * @param path The relative path to a bundle persistent storage entry.
+ * @param bnd The bundle.
+ * @return A use-able path to the bundle resource entry or NULL if the entry is not found.
  */
 char* celix_bundle_getDataFile(const celix_bundle_t* bnd, const char *path);
 

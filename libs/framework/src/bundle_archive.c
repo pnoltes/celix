@@ -54,7 +54,7 @@
 
 //The refresh count in the revision version is always 0 and not supported.
 #define CELIX_BUNDLE_ARCHIVE_REVISION_DIRECTORY_NAME_FORMAT "%s/version%li.0"
-#define CELIX_BUNDLE_ARCHIVE_STORE_DIRECTORY_NAME "store"
+#define CELIX_BUNDLE_ARCHIVE_STORE_DIRECTORY_NAME "storage"
 
 struct bundleArchive {
 	celix_framework_t* fw;
@@ -229,7 +229,7 @@ static celix_status_t bundleArchive_createArchiveInternal(celix_framework_t* fw,
     return status;
 }
 
-celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location, const char *inputFile __attribute__((unused)), bundle_archive_pt *bundle_archive) {
+celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location, bundle_archive_pt *bundle_archive) {
     return bundleArchive_createArchiveInternal(fw, archiveRoot, id, location, 1, true, bundle_archive);
 }
 

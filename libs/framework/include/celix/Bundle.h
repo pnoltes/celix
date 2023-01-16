@@ -67,7 +67,7 @@ namespace celix {
          * The returned entry path should be treated as read-only, use celix::Bundle::getDataFile to access the
          * bundle's persistent storage.
          * 
-         * @param path The relative path to a bundle resource
+         * @param path The relative path to a bundle resource.
          * @return The use-able entry path or an empty string if the entry is not found.
          */
 #if __cplusplus >= 201703L //C++17 or higher
@@ -80,11 +80,21 @@ namespace celix {
         }
 #endif
 
-        /**
-         * @brief Get a use-able entry path for the provided relative path to a bundle store resource.
-         * @param path The relative path to a bundle store resource
-         * @return The use-able entry path or an empty string if the entry is not found.
-         */
+       /**
+        * @brief Return a use-able entry path for the provided relative path to a bundle persistent storage.
+        *
+        * For example if there is a resource entry in the bundle persistent storage at path 'resources/counters.txt` this call
+        * will return a relative path to entry in the bundle persistent storage.
+        * .cache/bundle5/storage/resources/counters.txt
+        *
+        * A provided path is always relative to the bundle persistent storage root and can start with a "/".
+        * A provided path NULL, "", "." or "/" indicates the root of this bundle cache store.
+        *
+        * The returned entry path should can be treated as read-write.
+        *
+        * @param path The relative path to a bundle persistent storage entry.
+        * @return The use-able entry path or an empty string if the entry is not found.
+        */
 #if __cplusplus >= 201703L //C++17 or higher
         [[nodiscard]] std::string getDataFile(std::string_view path) const {
             std::string result{};
