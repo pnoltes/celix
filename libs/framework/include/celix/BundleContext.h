@@ -333,6 +333,8 @@ namespace celix {
             return ServiceTrackerBuilder<void>{cCtx, {}};
         }
 
+        //TODO UseBundleBuilder useBundles()
+
         /**
          * @brief Track bundles in the Celix framework using a fluent builder API.
          *
@@ -623,8 +625,8 @@ namespace celix {
         /**
          * @brief Get the C bundle context.
          *
-         * @warning Try not the depend on the C API from a C++ bundle. If features are missing these should be added to
-         * the C++ API.
+         * @warning Try not the depend on the C API from a C++ BundleContext.
+         * If features are missing these should be added to the C++ API.
          */
         [[nodiscard]] celix_bundle_context_t* getCBundleContext() const {
             return cCtx.get();

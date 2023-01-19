@@ -146,11 +146,14 @@ bool celix_framework_uninstallBundle(celix_framework_t *fw, long bndId);
  *
  *  Will silently ignore bundle ids < 0.
  *
+ * @warning Update bundle is not yet fully supported. Use at your own risk.
+ *
  *  @param fw The Celix framework
  *  @parma bndId the bundle id to update.
  *  @return true if the bundle is correctly updated. False if not.
  */
-bool celix_framework_updateBundle(celix_framework_t *fw, long bndId);
+bool celix_framework_updateBundle(celix_framework_t *fw, long bndId)
+    __attribute((warning("Update bundle is not yet fully supported. Use at your own risk.")));
 
 /**
  * @brief Stop the bundle with the provided bundle id.

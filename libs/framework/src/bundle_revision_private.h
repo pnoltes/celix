@@ -30,7 +30,10 @@
 #include "bundle_revision.h"
 #include "celix_threads.h"
 
-
+/**
+ * The bundle revision structure represents a revision of a bundle.
+ * A bundle can have multiple revisions. A bundle revision is immutable.
+ */
 struct bundleRevision {
     celix_framework_t *fw;
     long revisionNr;

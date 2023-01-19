@@ -411,6 +411,8 @@ celix_status_t fw_init(framework_pt framework) {
         celix_bundleCache_delete(framework->cache);
     }
 
+    //TODO maybe the getArchives call is not needed. If bundle cache is not cleared on startup, thhe bundle archive initialize
+    //can reuse existing archives.
     celix_array_list_t* archives = NULL;
     celix_status_t status = celix_bundleCache_getArchives(framework->cache, &archives);
     if (status == CELIX_SUCCESS) {
@@ -2046,7 +2048,6 @@ celix_status_t celix_framework_uninstallBundleEntry(celix_framework_t* framework
             bundle_revision_t *revision = NULL;
             celix_module_t* module = NULL;
             status = CELIX_DO_IF(status, bundle_getArchive(bnd, &archive));
-            status = CELIX_DO_IF(status, bundleArchive_setPersistentState(archive, CELIX_BUNDLE_STATE_UNINSTALLED)); //set state to uninstalled, so that next framework start will not start bundle.
             status = CELIX_DO_IF(status, bundleArchive_getCurrentRevision(archive, &revision));
             status = CELIX_DO_IF(status, bundle_getCurrentModule(bnd, &module));
 

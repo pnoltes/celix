@@ -49,6 +49,7 @@ struct celix_bundle_cache {
     celix_framework_t* fw;
     char* cacheDir;
     bool deleteOnDestroy;
+    bool reuseBundleArchivesIfArchiveIsMoreRecentThanBundleZip; //TODO better name
 };
 
 static const char* bundleCache_progamName() {
@@ -66,14 +67,18 @@ celix_status_t celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cach
 
     const char* cacheDir = NULL;
     const char* useTmpDirStr = NULL;
+    const char* reuseArchivesStr = NULL;
     status = fw_getProperty(fw, OSGI_FRAMEWORK_FRAMEWORK_STORAGE, ".cache", &cacheDir);
     status = CELIX_DO_IF(status, fw_getProperty(fw, OSGI_FRAMEWORK_STORAGE_USE_TMP_DIR, "false", &useTmpDirStr));
+    status = CELIX_DO_IF(status, fw_getProperty(fw, "TODO_CELIX_FRAMEWORK_REUSE_BUNDLE_ARCHIVES", "false", &reuseArchivesStr));
     bool useTmpDir = celix_utils_convertStringToBool(useTmpDirStr, false, NULL);
+    bool reuseArchives = celix_utils_convertStringToBool(reuseArchivesStr, false, NULL);
     if (cacheDir == NULL) {
         cacheDir = ".cache";
     }
 
     celix_bundle_cache_t *cache = calloc(1, sizeof(*cache));
+    cache->reuseBundleArchivesIfArchiveIsMoreRecentThanBundleZip = reuseArchives;
     if (!cache) {
         status = CELIX_ENOMEM;
         fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot create bundle cache, out of memory");
@@ -196,7 +201,7 @@ celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, c
     char archiveRootBuffer[512];
     char *archiveRoot = celix_utils_writeOrCreateString(archiveRootBuffer, sizeof(archiveRootBuffer), CELIX_BUNDLE_ARCHIVE_ROOT_FORMAT, fw->cache->cacheDir, id);
     if (archiveRoot) {
-		status = bundleArchive_create(fw, archiveRoot, id, location, archive);
+		status = bundleArchive_create(fw, archiveRoot, id, location, fw->cache->reuseBundleArchivesIfArchiveIsMoreRecentThanBundleZip, archive);
 	} else {
         status = CELIX_ENOMEM;
     }

@@ -29,7 +29,7 @@
  * Takes ownership of archiveRoot.
  */
 celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location,
-                                    bundle_archive_pt *bundle_archive);
+                                    bool reuseArchive, bundle_archive_pt *bundle_archive);
 
 celix_status_t bundleArchive_recreate(celix_framework_t* fw, const char *archiveRoot, bundle_archive_pt *bundle_archive);
 
@@ -41,12 +41,16 @@ celix_status_t bundleArchive_destroy(bundle_archive_pt archive);
 const char* celix_bundleArchive_getPersistentStoreRoot(bundle_archive_t *archive);
 
 /**
- * Get the last modified time of the current bundle revision.
+ * @brief Return the last modified time of the bundle archive.
+ *
+ * The last modified time is based on the last modified time of the bundle archives MANIFEST.MF file.
+ *
  * @param[in] archive The bundle archive.
- * @param[out] lastModified The last modified time of the current bundle revision.
- * @return CELIX_SUCCESS if the last modified time is returned.
+ * @param[out] lastModified The last modified time of the bundle archive.
+ * @return CELIX_SUCCESS if the last modified time could be retrieved, CELIX_ILLEGAL_ARGUMENT if the last modified
+ * time could not be retrieved.
  */
-celix_status_t celix_bundleArchive_getLastModifiedCurrentRevision(bundle_archive_pt archive, struct timespec* lastModified);
+celix_status_t celix_bundleArchive_getLastModified(bundle_archive_pt archive, struct timespec* lastModified);
 
 /**
  * Get the last modified time of the current bundle revision.

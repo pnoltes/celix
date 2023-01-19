@@ -678,3 +678,9 @@ void celix_bundle_destroyServiceTrackerList(celix_array_list_t* list) {
         celix_arrayList_destroy(list);
     }
 }
+
+bundle_archive_t* celix_bundle_getArchive(const celix_bundle_t *bundle) {
+    bundle_archive_t* archive = NULL;
+    bundle_getArchive(bundle, &archive);
+    return archive;
+}

@@ -286,7 +286,32 @@ TEST_F(UtilsTestSuite, StringNBdupTest){
 }
 
 TEST_F(UtilsTestSuite, WriteOrCreateStringTest) {
-    //TODO
+    //Buffer big enough, write to stack buffer
+    char buffer[16];
+    char* out = celix_utils_writeOrCreateString(buffer, sizeof(buffer), "abc");
+    EXPECT_EQ(buffer, out);
+    EXPECT_STREQ("abc", out);
+    celix_utils_freeStringIfNeeded(buffer, out);
+
+    //Buffer not big enough, malloc new string
+    out = celix_utils_writeOrCreateString(buffer, sizeof(buffer), "abc123def456ghi789jkl012mno345pqr678stu901vwx234yz");
+    EXPECT_NE(buffer, out);
+    EXPECT_STREQ("abc123def456ghi789jkl012mno345pqr678stu901vwx234yz", out);
+    celix_utils_freeStringIfNeeded(buffer, out);
+
+    //same test, but with long, int and short format args
+    //Buffer big enough, write to stack buffer
+    char buffer2[64];
+    char* out2 = celix_utils_writeOrCreateString(buffer2, sizeof(buffer2), "long %ld, int %d, short %hd", 1234567890L, 123456789, 12345);
+    EXPECT_EQ(buffer2, out2);
+    EXPECT_STREQ("long 1234567890, int 123456789, short 12345", out2);
+    celix_utils_freeStringIfNeeded(buffer2, out2);
+
+    //Buffer not big enough, malloc new string
+    out2 = celix_utils_writeOrCreateString(buffer2, sizeof(buffer2), "long %ld, int %d, short %hd. abc123def456ghi789jkl012mno345pqr678stu901vwx234yz", 1234567890123456789L, 123456789, 12345);
+    EXPECT_NE(buffer2, out2);
+    EXPECT_STREQ("long 1234567890123456789, int 123456789, short 12345. abc123def456ghi789jkl012mno345pqr678stu901vwx234yz", out2);
+    celix_utils_freeStringIfNeeded(buffer2, out2);
 }
 
 

@@ -176,13 +176,15 @@ char* celix_utils_writeOrCreateString(char* buffer, size_t bufferSize, const cha
     va_list args;
     va_start(args, format);
     int written = vsnprintf(buffer, bufferSize, format, args);
+    va_end(args);
     if (written < 0 || written >= bufferSize) {
         //buffer to small, create new string
         char* newStr = NULL;
+        va_start(args, format);
         vasprintf(&newStr, format, args);
+        va_end(args);
         return newStr;
     }
-    va_end(args);
     return buffer;
 }
 

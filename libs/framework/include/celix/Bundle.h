@@ -192,6 +192,15 @@ namespace celix {
         [[nodiscard]] bool isSystemBundle() const {
             return celix_bundle_isSystemBundle(cBnd.get());
         }
+
+        /**
+         * @brief Get the C bundle handle.
+         * @warning Try not the depend on the C API from a C++ bundle. If features are missing these should be added to
+         * the C++ API.
+         */
+        [[nodiscard]] celix_bundle_t* getCBundle() const {
+            return cBnd.get();
+        }
     private:
         std::string getEntryInternal(const char* path) const {
             std::string result{};

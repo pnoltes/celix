@@ -956,13 +956,15 @@ bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bndId);
  * on a separate thread.
  * If this function is called from a different thread than the Celix event thread, then the function will
  * return after the bundle update is completed.
- * TODO update based on BunddleContext.updateBundle, startBundle and stopBundle doxygen
+ *
+ * @warning Update bundle is not yet fully supported. Use at your own risk.
  *
  * @param ctx The bundle context
  * @param bndId The bundle id to start.
  * @return true if the bundle is found & correctly started. False if not.
  */
-bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId);
+bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId)
+    __attribute((warning("Update bundle is not yet fully supported. Use at your own risk.")));
 
 /**
  * @brief Returns the bundle symbolic name for the provided bundle id.

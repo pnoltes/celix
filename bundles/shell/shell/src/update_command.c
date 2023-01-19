@@ -50,6 +50,7 @@ bool updateCommand_execute(void *handle, const char *constCommandLine, FILE *out
             } else if (!exists) {
                 fprintf(outStream, "No bundle with id %li.\n", bndId);
             } else {
+                fprintf(errStream, "Update bundle is not yet fully supported. Use at your own risk.\n");
                 celix_framework_t* fw = celix_bundleContext_getFramework(ctx);
                 celix_framework_updateBundleAsync(fw, bndId);
                 updateSucceeded = true;

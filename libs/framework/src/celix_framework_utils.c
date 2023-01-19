@@ -51,7 +51,7 @@ static const char * const EMBEDDED_BUNDLE_END_POSTFIX = "_end";
     }                                                                                                                           \
 } while(0)
 
-static char* resolveFileBundleUrl(celix_framework_t* fw, const char* bundleLocation, bool silent) {
+static char* celix_framework_utils_resolveFileBundleUrl(celix_framework_t* fw, const char* bundleLocation, bool silent) {
     char *result = NULL;
 
     const char *bundlePath = NULL;
@@ -96,7 +96,7 @@ static char* resolveFileBundleUrl(celix_framework_t* fw, const char* bundleLocat
     return result;
 }
 
-static bool isEmbeddedBundleUrlValid(celix_framework_t *fw, const char* bundleURL, bool silent) {
+static bool celix_framework_utils_isEmbeddedBundleUrlValid(celix_framework_t *fw, const char* bundleURL, bool silent) {
     bool valid = true;
 
     char* startSymbol = NULL;
@@ -124,11 +124,11 @@ static bool isEmbeddedBundleUrlValid(celix_framework_t *fw, const char* bundleUR
     return valid;
 }
 
-static bool extractBundlePath(celix_framework_t *fw, const char* bundlePath, const char* extractPath) {
+static bool celix_framework_utils_extractBundlePath(celix_framework_t *fw, const char* bundlePath, const char* extractPath) {
     FW_LOG(CELIX_LOG_LEVEL_TRACE, "Extracting bundle url `%s` to dir `%s`", bundlePath, extractPath);
     const char* err = NULL;
 
-    char* resolvedPath = resolveFileBundleUrl(fw, bundlePath, false);
+    char* resolvedPath = celix_framework_utils_resolveFileBundleUrl(fw, bundlePath, false);
     assert(resolvedPath != NULL); //should be caught by celix_framework_utils_isBundleUrlValid
 
     celix_status_t status = celix_utils_extractZipFile(resolvedPath, extractPath, &err);
@@ -141,7 +141,7 @@ static bool extractBundlePath(celix_framework_t *fw, const char* bundlePath, con
     return status == CELIX_SUCCESS;
 }
 
-static bool extractBundleEmbedded(celix_framework_t *fw, const char* embeddedBundle, const char* extractPath) {
+static bool celix_framework_utils_extractBundleEmbedded(celix_framework_t *fw, const char* embeddedBundle, const char* extractPath) {
     FW_LOG(CELIX_LOG_LEVEL_TRACE, "Extracting embedded bundle `%s` to dir `%s`", embeddedBundle, extractPath);
     char* startSymbol = NULL;
     char* endSymbol = NULL;
@@ -182,11 +182,11 @@ celix_status_t celix_framework_utils_extractBundle(celix_framework_t *fw, const 
     int fileSchemeLen = strlen(FILE_URL_SCHEME);
     int embeddedSchemeLen = strlen(EMBEDDED_URL_SCHEME);
     if (strncasecmp(FILE_URL_SCHEME, trimmedUrl, fileSchemeLen) == 0) {
-        extracted = extractBundlePath(fw, trimmedUrl+fileSchemeLen, extractPath);
+        extracted = celix_framework_utils_extractBundlePath(fw, trimmedUrl + fileSchemeLen, extractPath);
     } else if (strncasecmp(EMBEDDED_URL_SCHEME, trimmedUrl, embeddedSchemeLen) == 0) {
-        extracted = extractBundleEmbedded(fw, trimmedUrl+embeddedSchemeLen, extractPath);
+        extracted = celix_framework_utils_extractBundleEmbedded(fw, trimmedUrl + embeddedSchemeLen, extractPath);
     } else {
-        extracted = extractBundlePath(fw, trimmedUrl, extractPath);
+        extracted = celix_framework_utils_extractBundlePath(fw, trimmedUrl, extractPath);
     }
 
     free(trimmedUrl);
@@ -204,18 +204,18 @@ bool celix_framework_utils_isBundleUrlValid(celix_framework_t *fw, const char *b
 
     bool valid;
     if (strncasecmp("file://", trimmedUrl, 7) == 0) {
-        char* loc = resolveFileBundleUrl(fw, trimmedUrl+7, silent);
+        char* loc = celix_framework_utils_resolveFileBundleUrl(fw, trimmedUrl + 7, silent);
         valid = loc != NULL;
         free(loc);
     } else if (strncasecmp(EMBEDDED_URL_SCHEME, trimmedUrl, 11) == 0) {
-        valid = isEmbeddedBundleUrlValid(fw, trimmedUrl, silent);
+        valid = celix_framework_utils_isEmbeddedBundleUrlValid(fw, trimmedUrl, silent);
     } else if (strcasestr(trimmedUrl, "://")) {
         valid = false;
         if (!silent) {
             FW_LOG(CELIX_LOG_LEVEL_ERROR, "Bundle URL '%s' is not a valid url. Scheme is not supported.", bundleURL);
         }
     } else {
-        char* loc = resolveFileBundleUrl(fw, trimmedUrl, silent);
+        char* loc = celix_framework_utils_resolveFileBundleUrl(fw, trimmedUrl, silent);
         valid = loc != NULL;
         free(loc);
     }
