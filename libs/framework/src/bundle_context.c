@@ -41,7 +41,7 @@
 #include "service_tracker_private.h"
 #include "service_reference_private.h"
 #include "celix_array_list.h"
-#include "celix_libloader.h"
+#include "celix_convert_utils.h"
 
 static celix_status_t bundleContext_bundleChanged(void *handle, bundle_event_t *event);
 static void bundleContext_cleanupBundleTrackers(bundle_context_t *ct);
@@ -1640,48 +1640,27 @@ const char* celix_bundleContext_getProperty(celix_bundle_context_t *ctx, const c
 }
 
 long celix_bundleContext_getPropertyAsLong(celix_bundle_context_t *ctx, const char *key, long defaultValue) {
-    long result = defaultValue;
     const char *val = celix_bundleContext_getProperty(ctx, key, NULL);
     if (val != NULL) {
-        char *enptr = NULL;
-        errno = 0;
-        long r = strtol(val, &enptr, 10);
-        if (enptr != val && errno == 0) {
-            result = r;
-        }
+        return celix_utils_convertStringToLong(val, defaultValue, NULL);
     }
-    return result;
+    return defaultValue;
 }
 
 double celix_bundleContext_getPropertyAsDouble(celix_bundle_context_t *ctx, const char *key, double defaultValue) {
-    double result = defaultValue;
     const char *val = celix_bundleContext_getProperty(ctx, key, NULL);
     if (val != NULL) {
-        char *enptr = NULL;
-        errno = 0;
-        double r = strtod(val, &enptr);
-        if (enptr != val && errno == 0) {
-            result = r;
-        }
+        return celix_utils_convertStringToDouble(val, defaultValue, NULL);
     }
-    return result;
+    return defaultValue;
 }
 
-
 bool celix_bundleContext_getPropertyAsBool(celix_bundle_context_t *ctx, const char *key, bool defaultValue) {
-    bool result = defaultValue;
     const char *val = celix_bundleContext_getProperty(ctx, key, NULL);
     if (val != NULL) {
-        char buf[32];
-        snprintf(buf, 32, "%s", val);
-        char *trimmed = utils_stringTrim(buf);
-        if (strncasecmp("true", trimmed, strlen("true")) == 0) {
-            result = true;
-        } else if (strncasecmp("false", trimmed, strlen("false")) == 0) {
-            result = false;
-        }
+        return celix_utils_convertStringToBool(val, defaultValue, NULL);
     }
-    return result;
+    return defaultValue;
 }
 
 static void celix_bundleContext_getBundleSymbolicNameCallback(void *data, const celix_bundle_t *bnd) {

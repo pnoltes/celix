@@ -27,8 +27,6 @@
 extern "C" {
 #endif
 
-//TODO use functions in celix_bundle_context.h
-
 /**
  * @file celix_convert_utils.h
  * @brief The celix_convert_utils.h file contains utility functions to convert strings to other types.
