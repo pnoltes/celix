@@ -25,8 +25,6 @@
 #include "celix_utils.h"
 #include "celix_version.h"
 
-//TODO add comment to properties update PR to use these convert functions when merged
-
 bool celix_utils_convertStringToBool(const char* val, bool defaultValue, bool* converted) {
     bool result = defaultValue;
     if (converted != NULL) {

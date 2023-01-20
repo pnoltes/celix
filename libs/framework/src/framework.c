@@ -42,6 +42,7 @@
 #include "celix_framework_utils_private.h"
 #include "bundle_archive_private.h"
 #include "celix_module_private.h"
+#include "celix_convert_utils.h"
 
 typedef celix_status_t (*create_function_fp)(bundle_context_t *context, void **userData);
 typedef celix_status_t (*start_function_fp)(void *userData, bundle_context_t *context);
@@ -406,42 +407,9 @@ celix_status_t fw_init(framework_pt framework) {
 	celixThread_create(&framework->dispatcher.thread, NULL, fw_eventDispatcher, framework);
 	celixThread_setName(&framework->dispatcher.thread, "CelixEvent");
 
-    bool cleanCache = celix_properties_getAsBool(framework->configurationMap, OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_NAME, OSGI_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_DEFAULT);
-    if (cleanCache) {
-        celix_bundleCache_delete(framework->cache);
-    }
-
-    //TODO maybe the getArchives call is not needed. If bundle cache is not cleared on startup, thhe bundle archive initialize
-    //can reuse existing archives.
-    celix_array_list_t* archives = NULL;
-    celix_status_t status = celix_bundleCache_getArchives(framework->cache, &archives);
-    if (status == CELIX_SUCCESS) {
-        unsigned int arcIdx;
-        for (arcIdx = 0; arcIdx < arrayList_size(archives); arcIdx++) {
-            bundle_archive_pt archive1 = (bundle_archive_pt) arrayList_get(archives, arcIdx);
-            long id;
-            bundle_state_e bundleState;
-            bundleArchive_getId(archive1, &id);
-            framework->nextBundleId = framework->nextBundleId > id + 1 ? framework->nextBundleId : id + 1;
-
-            bundleArchive_getPersistentState(archive1, &bundleState);
-            if (bundleState == CELIX_BUNDLE_STATE_UNINSTALLED) {
-                bundleArchive_closeAndDelete(archive1);
-            } else {
-                bundle_pt bundle = NULL;
-                const char *location1 = NULL;
-                status = bundleArchive_getLocation(archive1, &location1);
-                status = celix_framework_installBundleInternal(framework, id, location1, archive1, &bundle);
-            }
-
-            //TODO if bundle state from archive is active, start bundle
-        }
-        arrayList_destroy(archives);
-    }
 
 
-    status = CELIX_DO_IF(status, bundle_setState(framework->bundle, CELIX_BUNDLE_STATE_STARTING));
-
+    celix_status_t status = bundle_setState(framework->bundle, CELIX_BUNDLE_STATE_STARTING);
     if (status == CELIX_SUCCESS) {
         celix_bundle_activator_t *activator = calloc(1,(sizeof(*activator)));
         if (activator != NULL) {
@@ -557,7 +525,7 @@ static void framework_autoInstallConfiguredBundlesForList(celix_framework_t* fw,
         while (location != NULL) {
             //first install
             bundle_t *bnd = NULL;
-            if (celix_framework_installBundleInternal(fw, -1, location, NULL, &bnd) == CELIX_SUCCESS) {
+            if (celix_framework_installBundleInternal(fw, location, &bnd) == CELIX_SUCCESS) {
                 if (installedBundles) {
                     celix_arrayList_add(installedBundles, bnd);
                 }
@@ -593,32 +561,65 @@ celix_status_t framework_stop(framework_pt framework) {
     return stopped ? CELIX_SUCCESS : CELIX_ILLEGAL_STATE;
 }
 
-celix_status_t fw_getProperty(framework_pt framework, const char* name, const char* defaultValue, const char** out) {
-	celix_status_t status = CELIX_SUCCESS;
+const char* celix_framework_getConfigProperty(celix_framework_t* framework, const char* name, const char* defaultValue, bool* found) {
+    const char* result = NULL;
+    if (framework && name) {
+        result = getenv(name); //NOTE that an env environment overrides the config.properties values
+        if (result == NULL && framework->configurationMap != NULL) {
+            result = celix_properties_get(framework->configurationMap, name, NULL);
+        }
+    }
 
-
-	const char *result = NULL;
-
-	if (framework == NULL || name == NULL) {
-		status = CELIX_ILLEGAL_ARGUMENT;
-	} else {
-		result = getenv(name); //NOTE that an env environment overrides the config.properties values
-		if (result == NULL && framework->configurationMap != NULL) {
-		    result = properties_get(framework->configurationMap, name);
-		}
-                if (result == NULL) {
-                    result = defaultValue;
-                }
-	}
-
-	if (out != NULL) {
-		*out = result;
-	}
-
-	return status;
+    if (found) {
+        *found = result != NULL;
+    }
+    result = result == NULL ? defaultValue : result;
+    return result;
 }
 
-celix_status_t celix_framework_installBundleInternal(celix_framework_t *framework, long id, const char *bndLoc, bundle_archive_pt archive, celix_bundle_t **bundleOut) {
+long celix_framework_getConfigPropertyAsLong(celix_framework_t* framework, const char* name, long defaultValue, bool* found) {
+    bool strFound = false;
+    bool strConverted = false;
+    long result = defaultValue;
+    const char *val = celix_framework_getConfigProperty(framework, name, NULL, &strFound);
+    if (val != NULL) {
+        result = celix_utils_convertStringToLong(val, defaultValue, &strConverted);
+    }
+    if (found) {
+        *found = strFound && strConverted;
+    }
+    return result;
+}
+
+double celix_framework_getConfigPropertyAsDouble(celix_framework_t* framework, const char* name, double defaultValue, bool* found) {
+    bool strFound = false;
+    bool strConverted = false;
+    double result = defaultValue;
+    const char *val = celix_framework_getConfigProperty(framework, name, NULL, &strFound);
+    if (val != NULL) {
+        result = celix_utils_convertStringToDouble(val, defaultValue, &strConverted);
+    }
+    if (found) {
+        *found = strFound && strConverted;
+    }
+    return result;
+}
+
+bool celix_framework_getConfigPropertyAsBool(celix_framework_t* framework, const char* name, bool defaultValue, bool* found) {
+    bool strFound = false;
+    bool strConverted = false;
+    bool result = defaultValue;
+    const char *val = celix_framework_getConfigProperty(framework, name, NULL, &strFound);
+    if (val != NULL) {
+        result = celix_utils_convertStringToBool(val, defaultValue, &strConverted);
+    }
+    if (found) {
+        *found = strFound && strConverted;
+    }
+    return result;
+}
+
+celix_status_t celix_framework_installBundleInternal(celix_framework_t *framework, const char *bndLoc, celix_bundle_t **bundleOut) {
     celix_status_t status = CELIX_SUCCESS;
     celix_bundle_t* bundle = NULL;
 
@@ -648,19 +649,12 @@ celix_status_t celix_framework_installBundleInternal(celix_framework_t *framewor
             return CELIX_SUCCESS;
         }
 
-        if (archive == NULL) {
-            id = framework_getNextBundleId(framework);
-            status = CELIX_DO_IF(status, celix_bundleCache_createArchive(framework, id, bndLoc, &archive));
-            if (status != CELIX_SUCCESS) {
-            	bundleArchive_destroy(archive);
-            }
-        } else {
-            fw_log(framework->logger, CELIX_LOG_LEVEL_TRACE, "Using existing archive for bundle %s", bndLoc);
-            fw_log(framework->logger, CELIX_LOG_LEVEL_ERROR, "Not implemented yet");
-            assert(false);
-            // TODO check and remove?
-            // purge revision
-            // multiple revisions not yet implemented
+        long alreadyExistingBndId = celix_bundleCache_findBundleIdForLocation(framework, bndLoc);
+        long id = alreadyExistingBndId == -1 ? framework_getNextBundleId(framework) : alreadyExistingBndId;
+        bundle_archive_t* archive = NULL;
+        status = CELIX_DO_IF(status, celix_bundleCache_createArchive(framework, id, bndLoc, &archive));
+        if (status != CELIX_SUCCESS) {
+            bundleArchive_destroy(archive);
         }
 
         if (status == CELIX_SUCCESS) {
@@ -1087,22 +1081,6 @@ celix_status_t fw_removeFrameworkListener(framework_pt framework, bundle_pt bund
 
     return status;
 }
-
-//celix_status_t fw_isServiceAssignable(framework_pt fw, bundle_pt requester, service_reference_pt reference, bool *assignable) {
-//	celix_status_t status = CELIX_SUCCESS;
-//
-//	*assignable = true;
-//	service_registration_pt registration = NULL;
-//	status = serviceReference_getServiceRegistration(reference, &registration);
-//	if (status == CELIX_SUCCESS) {
-//		char *serviceName = properties_get(registration->properties, (char *) OBJECTCLASS);
-//		if (!serviceReference_isAssignableTo(reference, requester, serviceName)) {
-//			*assignable = false;
-//		}
-//	}
-//
-//	return status;
-//}
 
 long framework_getNextBundleId(framework_pt framework) {
     long id = framework->nextBundleId;
@@ -1972,7 +1950,7 @@ static long celix_framework_installAndStartBundleInternal(celix_framework_t *fw,
     bundle_t *bnd = NULL;
     celix_status_t status = CELIX_SUCCESS;
 
-    if (celix_framework_installBundleInternal(fw, -1, bundleLoc, NULL, &bnd) == CELIX_SUCCESS) {
+    if (celix_framework_installBundleInternal(fw, bundleLoc, &bnd) == CELIX_SUCCESS) {
         status = bundle_getBundleId(bnd, &bundleId);
         if (status == CELIX_SUCCESS && autoStart) {
             celix_framework_bundle_entry_t* bndEntry = celix_framework_bundleEntry_getBundleEntryAndIncreaseUseCount(fw,

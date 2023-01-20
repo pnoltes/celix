@@ -54,8 +54,8 @@ static const char * const EMBEDDED_BUNDLE_END_POSTFIX = "_end";
 static char* celix_framework_utils_resolveFileBundleUrl(celix_framework_t* fw, const char* bundleLocation, bool silent) {
     char *result = NULL;
 
-    const char *bundlePath = NULL;
-    fw_getProperty(fw, CELIX_BUNDLES_PATH_NAME, CELIX_BUNDLES_PATH_DEFAULT, &bundlePath);
+    const char *bundlePath = celix_framework_getConfigProperty(fw, CELIX_BUNDLES_PATH_NAME, CELIX_BUNDLES_PATH_DEFAULT,
+                                                               NULL);
 
     if (!celix_utils_isStringNullOrEmpty(bundleLocation)) {
         if (bundleLocation[0] == '/') {

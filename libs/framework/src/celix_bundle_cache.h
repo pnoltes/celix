@@ -57,22 +57,6 @@ celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cache_t **out);
 celix_status_t celix_bundleCache_destroy(celix_bundle_cache_t *cache);
 
 /**
- * @brief Recreates and retrieves the list of archives for the given bundle cache.
- *
- * Archives are recreated on the bundle cache memory pool, the list for the results is created on the supplied pool, and is owned by the caller.
- *
- * @param cache The cache to recreate archives out
- * @param pool The pool on which the list of archives is created
- * @param archives List with recreated archives
- * @return Status code indication failure or success:
- * 		- CELIX_SUCCESS when no errors are encountered.
- * 		- CELIX_ILLEGAL_ARGUMENT If <code>archives</code> not is null.
- * 		- CELIX_ENOMEM If allocating memory for <code>archives</code> failed.
- * 		- CELIX_FILE_IO_EXCEPTION If the cache cannot be opened or read.
- */
-celix_status_t celix_bundleCache_getArchives(celix_bundle_cache_t *cache, celix_array_list_t **archives);
-
-/**
  * @brief Creates a new archive for the given bundle (using the id and location). The archive is created on the supplied bundlePool.
  *
  * @param cache The Celix framework to create an archive in
@@ -114,6 +98,18 @@ celix_status_t celix_bundleCache_createSystemArchive(celix_framework_t* fw, bund
  * 		- CELIX_FILE_IO_EXCEPTION If the cache cannot be opened or read.
  */
 celix_status_t celix_bundleCache_delete(celix_bundle_cache_t *cache);
+
+/**
+ * @brief Find - if present - the bundle id for the given location.
+ *
+ * If not found in the location -> bundle id lookup map, the map is updated and the location -> bundle id lookup is
+ * retried.
+ *
+ * @param fw The framework to find the bundle id for.
+ * @param location The location to find the bundle id for.
+ * @return The bundle id or -1 if not found.
+ */
+long celix_bundleCache_findBundleIdForLocation(celix_framework_t *fw, const char *location);
 
 #ifdef __cplusplus
 }

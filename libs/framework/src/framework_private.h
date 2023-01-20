@@ -182,15 +182,76 @@ struct celix_framework {
     } bundleLifecycleHandling;
 };
 
-FRAMEWORK_EXPORT celix_status_t fw_getProperty(framework_pt framework, const char* name, const char* defaultValue, const char** value);
+/**
+ * @brief Get the config property for the given key.
+ *
+ * The config property is a property from the framework configuration or a system property.
+ * If a system property is found, the system property is returned.
+ * Otherwise the framework configuration property - if found - is returned.
+ *
+ * @param framework The framework.
+ * @param name The name of the property.
+ * @param defaultValue The default value if the property is not found.
+ * @param found If not NULL, the found flag is set to true if the property is found, otherwise false.
+ * @return The property value or the default value if the property is not found.
+ */
+const char* celix_framework_getConfigProperty(celix_framework_t* framework, const char* name, const char* defaultValue, bool* found);
 
-FRAMEWORK_EXPORT celix_status_t celix_framework_installBundleInternal(celix_framework_t *framework, long id, const char *bndLoc, bundle_archive_pt archive, celix_bundle_t **bundleOut);
+/**
+ * @brief Get the config property for the given key converted as long value.
+ *
+ * The config property is a property from the framework configuration or a system property.
+ * If a system property is found, the system property is returned.
+ * Otherwise the framework configuration property - if found - is returned.
+ *
+ * @param framework The framework.
+ * @param name The name of the property.
+ * @param defaultValue The default value if the property is not found.
+ * @param found If not NULL, the found flag is set to true if the property is found and converted, otherwise false.
+ * @return The property value or the default value if the property is not found or the property value cannot be converted
+ *         to a long value.
+ */
+long celix_framework_getConfigPropertyAsLong(celix_framework_t* framework, const char* name, long defaultValue, bool* found);
+
+/**
+ * @brief Get the config property for the given key converted as double value.
+ *
+ * The config property is a property from the framework configuration or a system property.
+ * If a system property is found, the system property is returned.
+ * Otherwise the framework configuration property - if found - is returned.
+ *
+ * @param framework The framework.
+ * @param name The name of the property.
+ * @param defaultValue The default value if the property is not found.
+ * @param found If not NULL, the found flag is set to true if the property is found and converted, otherwise false.
+ * @return The property value or the default value if the property is not found or the property value cannot be converted
+ *         to a double value.
+ */
+double celix_framework_getConfigPropertyAsDouble(celix_framework_t* framework, const char* name, double defaultValue, bool* found);
+
+/**
+ * @brief Get the config property for the given key converted as bool value.
+ *
+ * The config property is a property from the framework configuration or a system property.
+ * If a system property is found, the system property is returned.
+ * Otherwise the framework configuration property - if found - is returned.
+ *
+ * @param framework The framework.
+ * @param name The name of the property.
+ * @param defaultValue The default value if the property is not found.
+ * @param found If not NULL, the found flag is set to true if the property is found and converted, otherwise false.
+ * @return The property value or the default value if the property is not found or the property value cannot be converted
+ *         to a bool value.
+ */
+bool celix_framework_getConfigPropertyAsBool(celix_framework_t* framework, const char* name, bool defaultValue, bool* found);
+
+
+FRAMEWORK_EXPORT celix_status_t celix_framework_installBundleInternal(celix_framework_t *framework, const char *bndLoc, celix_bundle_t **bundleOut);
 
 FRAMEWORK_EXPORT celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, const char* inputFile);
 
 FRAMEWORK_EXPORT celix_status_t fw_registerService(framework_pt framework, service_registration_pt * registration, long bundleId, const char* serviceName, const void* svcObj, properties_pt properties);
 FRAMEWORK_EXPORT celix_status_t fw_registerServiceFactory(framework_pt framework, service_registration_pt * registration, long bundleId, const char* serviceName, service_factory_pt factory, properties_pt properties);
-FRAMEWORK_EXPORT void fw_unregisterService(service_registration_pt registration);
 
 FRAMEWORK_EXPORT celix_status_t fw_getServiceReferences(framework_pt framework, array_list_pt *references, bundle_pt bundle, const char* serviceName, const char* filter);
 FRAMEWORK_EXPORT celix_status_t fw_getBundleRegisteredServices(framework_pt framework, bundle_pt bundle, array_list_pt *services);
@@ -205,18 +266,6 @@ FRAMEWORK_EXPORT celix_status_t fw_removeBundleListener(framework_pt framework, 
 FRAMEWORK_EXPORT celix_status_t fw_addFrameworkListener(framework_pt framework, bundle_pt bundle, framework_listener_pt listener);
 FRAMEWORK_EXPORT celix_status_t fw_removeFrameworkListener(framework_pt framework, bundle_pt bundle, framework_listener_pt listener);
 
-FRAMEWORK_EXPORT void fw_serviceChanged(framework_pt framework, celix_service_event_type_t eventType, service_registration_pt registration, properties_pt oldprops);
-
-FRAMEWORK_EXPORT celix_status_t fw_isServiceAssignable(framework_pt fw, bundle_pt requester, service_reference_pt reference, bool* assignable);
-
-//bundle_archive_t fw_createArchive(long id, char * location);
-//void revise(bundle_archive_t archive, char * location);
-FRAMEWORK_EXPORT celix_status_t getManifest(bundle_archive_pt archive, manifest_pt *manifest);
-
-FRAMEWORK_EXPORT bundle_pt findBundle(bundle_context_pt context);
-FRAMEWORK_EXPORT service_registration_pt findRegistration(service_reference_pt reference);
-
-FRAMEWORK_EXPORT service_reference_pt listToArray(array_list_pt list);
 FRAMEWORK_EXPORT celix_status_t framework_markResolvedModules(framework_pt framework, linked_list_pt wires);
 
 FRAMEWORK_EXPORT array_list_pt framework_getBundles(framework_pt framework) __attribute__((deprecated("not thread safe, use celix_framework_useBundles instead")));
