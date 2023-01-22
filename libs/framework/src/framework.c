@@ -43,6 +43,7 @@
 #include "bundle_archive_private.h"
 #include "celix_module_private.h"
 #include "celix_convert_utils.h"
+#include "celix_build_assert.h"
 
 typedef celix_status_t (*create_function_fp)(bundle_context_t *context, void **userData);
 typedef celix_status_t (*start_function_fp)(void *userData, bundle_context_t *context);
@@ -122,6 +123,20 @@ celix_framework_bundle_entry_t* celix_framework_bundleEntry_getBundleEntryAndInc
         if (entry->bndId == bndId) {
             celix_framework_bundleEntry_increaseUseCount(entry);
             found = entry;
+            break;
+        }
+    }
+    celixThreadMutex_unlock(&fw->installedBundles.mutex);
+    return found;
+}
+
+bool celix_framework_isBundleIdAlreadyUsed(celix_framework_t *fw, long bndId) {
+    bool found = false;
+    celixThreadMutex_lock(&fw->installedBundles.mutex);
+    for (int i = 0; i < celix_arrayList_size(fw->installedBundles.entries); ++i) {
+        celix_framework_bundle_entry_t *entry = celix_arrayList_get(fw->installedBundles.entries, i);
+        if (entry->bndId == bndId) {
+            found = true;
             break;
         }
     }
@@ -233,7 +248,7 @@ celix_status_t framework_create(framework_pt *out, celix_properties_t* config) {
     celixThreadMutex_create(&framework->installedBundles.mutex, NULL);
     celixThreadCondition_init(&framework->dispatcher.cond, NULL);
     framework->dispatcher.active = true;
-    framework->nextBundleId = CELIX_FRAMEWORK_BUNDLE_ID + 1;
+    framework->currentBundleId = CELIX_FRAMEWORK_BUNDLE_ID;
     framework->installRequestMap = hashMap_create(utils_stringHash, utils_stringHash, utils_stringEquals, utils_stringEquals);
     framework->installedBundles.entries = celix_arrayList_create();
     framework->configurationMap = config;
@@ -489,11 +504,11 @@ celix_status_t framework_start(framework_pt framework) {
 
 static void framework_autoStartConfiguredBundles(celix_framework_t* fw) {
     bundle_context_t *fwCtx = framework_getContext(fw);
-    const char* cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6"};
-    const char* celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6};
+    const char* const cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6"};
+    const char* const celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6};
+    CELIX_BUILD_ASSERT(sizeof(cosgiKeys) == sizeof(celixKeys));
     celix_array_list_t *installedBundles = celix_arrayList_create();
-    size_t len = 7;
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < sizeof(celixKeys); ++i) {
         const char *autoStart = celix_bundleContext_getProperty(fwCtx, celixKeys[i], NULL);
         if (autoStart == NULL) {
             autoStart = celix_bundleContext_getProperty(fwCtx, cosgiKeys[i], NULL);
@@ -518,7 +533,7 @@ static void framework_autoInstallConfiguredBundles(celix_framework_t* fw) {
 static void framework_autoInstallConfiguredBundlesForList(celix_framework_t* fw, const char *autoStartIn, celix_array_list_t *installedBundles) {
     char delims[] = " ";
     char *save_ptr = NULL;
-    char autoStartBuffer[512];
+    char autoStartBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
     char* autoStart = celix_utils_writeOrCreateString(autoStartBuffer, sizeof(autoStartBuffer), "%s", autoStartIn);
     if (autoStart != NULL) {
         char *location = strtok_r(autoStart, delims, &save_ptr);
@@ -1083,9 +1098,12 @@ celix_status_t fw_removeFrameworkListener(framework_pt framework, bundle_pt bund
 }
 
 long framework_getNextBundleId(framework_pt framework) {
-    long id = framework->nextBundleId;
-    framework->nextBundleId++;
-    return id;
+    long nextId = __atomic_fetch_add(&framework->currentBundleId, 1, __ATOMIC_SEQ_CST);
+    while ( celix_bundleCache_isBundleIdAlreadyUsed(framework, nextId) ||
+            celix_framework_isBundleIdAlreadyUsed(framework, nextId)) {
+        nextId = __atomic_fetch_add(&framework->currentBundleId, 1, __ATOMIC_SEQ_CST);
+    }
+    return nextId;
 }
 
 celix_status_t framework_markResolvedModules(framework_pt framework, linked_list_pt resolvedModuleWireMap) {

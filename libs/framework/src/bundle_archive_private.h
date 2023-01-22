@@ -50,9 +50,21 @@
 celix_status_t bundleArchive_create(celix_framework_t* fw, const char *archiveRoot, long id, const char *location,
                                     bool alwaysUpdateBundleArchives, bundle_archive_pt *bundle_archive);
 
-celix_status_t bundleArchive_recreate(celix_framework_t* fw, const char *archiveRoot, bundle_archive_pt *bundle_archive);
-
 celix_status_t bundleArchive_destroy(bundle_archive_pt archive);
+
+/**
+ * @brief Returns the bundle id of the bundle archive.
+ * @param archive The bundle archive.
+ * @return The bundle id.
+ */
+long celix_bundleArchive_getId(bundle_archive_pt archive);
+
+/**
+ * @brief Returns the bundle symbolic name of the bundle archive.
+ * @param archive The bundle archive.
+ * @return The bundle symbolic name.
+ */
+const char* celix_bundleArchive_getSymbolicName(bundle_archive_pt archive);
 
 /**
  * Returns the root of the bundle persistent store.

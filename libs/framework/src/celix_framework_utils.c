@@ -288,3 +288,11 @@ size_t celix_framework_utils_installBundleSet(celix_framework_t* fw, const char*
 
     return installed;
 }
+
+
+celix_status_t celix_framework_utils_createBundleArchivesCache(celix_framework_t* fw) {
+    //TODO check if tmp dir is used -> then do nothing
+    //TODO check if destroy on exit is set -> then maybe ensure that the cache is not removed on exit???
+    //or maybe destroy on exit only possible for tmp dir.
+    return celix_bundleCache_createBundleArchivesCache(fw);
+}

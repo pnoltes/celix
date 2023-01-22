@@ -36,6 +36,7 @@
 #include "framework_private.h"
 #include "bundle_archive_private.h"
 #include "celix_string_hash_map.h"
+#include "celix_build_assert.h"
 
 //for Celix 3.0 update to a different bundle root scheme
 //#define CELIX_BUNDLE_ARCHIVE_ROOT_FORMAT "%s/bundle_%li"
@@ -58,7 +59,7 @@ struct celix_bundle_cache {
     bool alwaysUpdateBundleArchives;
 
     celix_thread_mutex_t mutex; //protects below
-    celix_string_hash_map_t *locationToBundleIdLookupMap; //key = location, value = bundle id
+    celix_string_hash_map_t* locationToBundleIdLookupMap; //key = location, value = bundle id.
 };
 
 static const char* bundleCache_progamName() {
@@ -161,7 +162,7 @@ celix_status_t celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cach
     }
 
     if (cache->deleteOnCreate) {
-        status = celix_bundleCache_delete(cache);
+        status = celix_bundleCache_deleteCacheDir(cache);
         if (status != CELIX_SUCCESS) {
             celix_bundleCache_destroy(cache);
             return status;
@@ -183,7 +184,7 @@ celix_status_t celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cach
 celix_status_t celix_bundleCache_destroy(celix_bundle_cache_t* cache) {
     celix_status_t status = CELIX_SUCCESS;
 	if (cache->deleteOnDestroy) {
-        status = celix_bundleCache_delete(cache);
+        status = celix_bundleCache_deleteCacheDir(cache);
 	}
 	free(cache->cacheDir);
     celix_stringHashMap_destroy(cache->locationToBundleIdLookupMap);
@@ -192,7 +193,7 @@ celix_status_t celix_bundleCache_destroy(celix_bundle_cache_t* cache) {
 	return status;
 }
 
-celix_status_t celix_bundleCache_delete(celix_bundle_cache_t* cache) {
+celix_status_t celix_bundleCache_deleteCacheDir(celix_bundle_cache_t* cache) {
     const char* err = NULL;
     celix_status_t status = celix_utils_deleteDirectory(cache->cacheDir, &err);
     if (status != CELIX_SUCCESS) {
@@ -201,17 +202,30 @@ celix_status_t celix_bundleCache_delete(celix_bundle_cache_t* cache) {
     return status;
 }
 
-celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, const char *location, bundle_archive_pt *archive) {
+celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, const char *location, bundle_archive_t** archiveOut) {
 	celix_status_t status = CELIX_SUCCESS;
-    char archiveRootBuffer[512];
+    bundle_archive_t* archive = NULL;
+
+    char archiveRootBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
     char *archiveRoot = celix_utils_writeOrCreateString(archiveRootBuffer, sizeof(archiveRootBuffer), CELIX_BUNDLE_ARCHIVE_ROOT_FORMAT, fw->cache->cacheDir, id);
     if (archiveRoot) {
-		status = bundleArchive_create(fw, archiveRoot, id, location, fw->cache->alwaysUpdateBundleArchives, archive);
+		status = bundleArchive_create(fw, archiveRoot, id, location, fw->cache->alwaysUpdateBundleArchives, &archive);
+        if (status != CELIX_SUCCESS) {
+            celix_utils_freeStringIfNeeded(archiveRootBuffer, archiveRoot);
+            return status;
+        }
 	} else {
         status = CELIX_ENOMEM;
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to create archive. Out of memory.");
+        return status;
     }
-    celix_utils_freeStringIfNeeded(archiveRootBuffer, archiveRoot);
-	framework_logIfError(fw->logger, status, NULL, "Failed to create archive.");
+
+    //add bundle id and location to lookup maps
+    celixThreadMutex_lock(&fw->cache->mutex);
+    celix_stringHashMap_put(fw->cache->locationToBundleIdLookupMap, location, (void*)id);
+    celixThreadMutex_unlock(&fw->cache->mutex);
+
+    *archiveOut = archive;
 	return status;
 }
 
@@ -229,7 +243,7 @@ static void celix_bundleCache_updateIdForLocationLookupMap(celix_framework_t* fw
         fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, CELIX_BUNDLE_EXCEPTION, "Cannot open bundle cache directory %s", fw->cache->cacheDir);
         return;
     }
-    char archiveRootBuffer[512];
+    char archiveRootBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
     errno = 0;
     struct dirent* dent = NULL;
     while (errno == 0 && (dent = readdir(dir)) != NULL) {
@@ -275,4 +289,86 @@ long celix_bundleCache_findBundleIdForLocation(celix_framework_t *fw, const char
         celixThreadMutex_unlock(&fw->cache->mutex);
     }
     return bndId;
+}
+
+bool celix_bundleCache_isBundleIdAlreadyUsed(celix_framework_t *fw, long bndId) {
+    bool found = false;
+    celixThreadMutex_lock(&fw->cache->mutex);
+    CELIX_STRING_HASH_MAP_ITERATE(fw->cache->locationToBundleIdLookupMap, iter) {
+        if (iter.value.longValue == bndId) {
+            found = true;
+            break;
+        }
+    }
+    celixThreadMutex_unlock(&fw->cache->mutex);
+    return found;
+}
+
+
+static celix_status_t celix_bundleCache_createBundleArchivesForSpaceSeparatedList(celix_framework_t *fw, const char* list) {
+    celix_status_t status = CELIX_SUCCESS;
+    long bndId = CELIX_FRAMEWORK_BUNDLE_ID+1;
+    char delims[] = " ";
+    char *savePtr = NULL;
+    char zipFileListBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
+    char* zipFileList = celix_utils_writeOrCreateString(zipFileListBuffer, sizeof(zipFileListBuffer), "%s", list);
+    if (zipFileList) {
+        char *location = strtok_r(zipFileList, delims, &savePtr);
+        while (location != NULL) {
+            bundle_archive_t* archive = NULL;
+            status = celix_bundleCache_createArchive(fw, bndId++, location, &archive);
+            if (status != CELIX_SUCCESS) {
+                fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, CELIX_BUNDLE_EXCEPTION, "Cannot create bundle archive for %s", location);
+                break;
+            } else {
+                fw_log(fw->logger, CELIX_LOG_LEVEL_DEBUG, "Created bundle archive for bundle %s (bndId=%li)",
+                       celix_bundleArchive_getSymbolicName(archive), celix_bundleArchive_getId(archive));
+                bundleArchive_destroy(archive);
+            }
+        }
+    } else {
+        status = CELIX_ENOMEM;
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to create zip file list.");
+    }
+    celix_utils_freeStringIfNeeded(zipFileListBuffer, zipFileList);
+    return status;
+}
+
+//using tmp cache and that bundle cache is not deleted during bundle cache destroy.
+celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw) {
+    celix_status_t status = CELIX_SUCCESS;
+    const char* const cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6"};
+    const char* const celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6};
+    CELIX_BUILD_ASSERT(sizeof(cosgiKeys) == sizeof(celixKeys));
+
+
+    const char* errorStr = NULL;
+    status = celix_utils_deleteDirectory(fw->cache->cacheDir, &errorStr);
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to delete bundle cache directory %s: %s", fw->cache->cacheDir, errorStr);
+        return status;
+    }
+
+    for (int i = 0; i < sizeof(celixKeys); ++i) {
+        const char *autoStart = celix_framework_getConfigProperty(fw, celixKeys[i], NULL, NULL);
+        if (autoStart == NULL) {
+            autoStart = celix_framework_getConfigProperty(fw, cosgiKeys[i], NULL, NULL);
+        }
+        if (autoStart) {
+            status = celix_bundleCache_createBundleArchivesForSpaceSeparatedList(fw, autoStart);
+            if (status != CELIX_SUCCESS) {
+                fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to create bundle archives for auto start list %s", autoStart);
+                return status;
+            }
+        }
+    }
+    const char* autoInstall = celix_framework_getConfigProperty(fw, CELIX_AUTO_INSTALL, NULL, NULL);
+    if (autoInstall) {
+        status = celix_bundleCache_createBundleArchivesForSpaceSeparatedList(fw, autoInstall);
+        if (status != CELIX_SUCCESS) {
+            fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to create bundle archives for auto start list %s", autoInstall);
+            return status;
+        }
+    }
+    return status;
 }

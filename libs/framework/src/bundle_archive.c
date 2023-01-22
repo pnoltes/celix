@@ -291,52 +291,17 @@ celix_status_t bundleArchive_destroy(bundle_archive_pt archive) {
 	return CELIX_SUCCESS;
 }
 
-celix_status_t bundleArchive_recreate(celix_framework_t* fw, const char* archiveRoot, bundle_archive_pt* bundle_archive) {
-    //TODO maybe remove and let bundle archive initialize decide this
-    celix_status_t status = CELIX_SUCCESS;
-
-    DIR *archiveRootDir = opendir(archiveRoot);
-    if (archiveRootDir == NULL) {
-        status = CELIX_FRAMEWORK_EXCEPTION;
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not open archive root directory %s", archiveRoot);
-        return status;
-    }
-
-    celix_properties_t* stateProps = NULL;
-    struct stat st;
-    char pathBuffer[512];
-    char *propsPath = celix_utils_writeOrCreateString(pathBuffer, sizeof(pathBuffer), "%s/%s", archiveRoot, CELIX_BUNDLE_ARCHIVE_STATE_PROPERTIES_FILE_NAME);
-    if (stat(propsPath, &st) == 0) {
-        stateProps = celix_properties_load(propsPath);
-    }
-    celix_utils_freeStringIfNeeded(pathBuffer, propsPath);
-
-    if (stateProps == NULL) {
-        status = CELIX_FRAMEWORK_EXCEPTION;
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not find previous revision for bundle archive %s", archiveRoot);
-        return status;
-    }
-
-    long bndId = celix_properties_getAsLong(stateProps, CELIX_BUNDLE_ARCHIVE_BUNDLE_ID_PROPERTY_NAME, -1L);
-    long revisionId = celix_properties_getAsLong(stateProps, CELIX_BUNDLE_ARCHIVE_BUNDLE_ID_PROPERTY_NAME, -1L);
-    const char* location = celix_properties_get(stateProps, CELIX_BUNDLE_ARCHIVE_LOCATION_PROPERTY_NAME, NULL);
-    celix_properties_destroy(stateProps);
-    if (bndId < 0 || revisionId < 0 || location == NULL) {
-        status = CELIX_FRAMEWORK_EXCEPTION;
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not find previous revision entries for bundle archive %s", archiveRoot);
-        return status;
-    }
-
-    status = bundleArchive_createArchiveInternal(fw, archiveRoot, bndId, location, revisionId, true, bundle_archive);
-    if (status != CELIX_SUCCESS) {
-        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not recreate bundle archive for %s", archiveRoot);
-    }
-    return status;
-}
-
 celix_status_t bundleArchive_getId(bundle_archive_pt archive, long *id) {
      *id = archive->id;
 	return CELIX_SUCCESS;
+}
+
+long celix_bundleArchive_getId(bundle_archive_pt archive) {
+    return archive->id;
+}
+
+const char* celix_bundleArchive_getSymbolicName(bundle_archive_pt archive) {
+    return archive->bundleSymbolicName;
 }
 
 celix_status_t bundleArchive_getLocation(bundle_archive_pt archive, const char **location) {

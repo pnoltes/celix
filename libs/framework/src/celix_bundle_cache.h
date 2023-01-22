@@ -24,6 +24,7 @@
 #include "bundle_archive.h"
 #include "celix_framework.h"
 #include "celix_array_list.h"
+#include "celix_long_hash_map.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,19 +98,41 @@ celix_status_t celix_bundleCache_createSystemArchive(celix_framework_t* fw, bund
  * 		- CELIX_ILLEGAL_ARGUMENT If the cache is invalid
  * 		- CELIX_FILE_IO_EXCEPTION If the cache cannot be opened or read.
  */
-celix_status_t celix_bundleCache_delete(celix_bundle_cache_t *cache);
+celix_status_t celix_bundleCache_deleteCacheDir(celix_bundle_cache_t *cache);
 
 /**
- * @brief Find - if present - the bundle id for the given location.
+ * @brief Find if the there is already a bundle cache for the provided bundle zip location and if this is true
+ * return the bundle id for the bundle cache entry.
  *
- * If not found in the location -> bundle id lookup map, the map is updated and the location -> bundle id lookup is
- * retried.
- *
- * @param fw The framework to find the bundle id for.
- * @param location The location to find the bundle id for.
+ * @param fw The framework.
+ * @param location The location of the bundle zip to find the id for.
  * @return The bundle id or -1 if not found.
  */
 long celix_bundleCache_findBundleIdForLocation(celix_framework_t *fw, const char *location);
+
+/**
+ * @brief Find if the there is already a bundle cache for the provided bundle id.
+ * @param fw The framework.
+ * @param bndId  The bundle id to find the bundle cache for.
+ * @return Whether the bundle id is already used in a bundle cache entry.
+ */
+bool celix_bundleCache_isBundleIdAlreadyUsed(celix_framework_t *fw, long bndId);
+
+/**
+ * Clean existing cache dir and create the bundle archives cache for all the bundles configured for starting and
+ * installed.
+ *
+ * For bundle ids, the first bundle will have CELIX_FRAMEWORK_BUNDLE_ID+1 and the next CELIX_FRAMEWORK_BUNDLE_ID+2 etc.
+ *
+ *  CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4,
+ *  CELIX_AUTO_START_5, CELIX_AUTO_START_6 and lastly CELIX_AUTO_INSTALL.
+ *
+ * The returned hash map uses the bundle id as key and the bundle archive as value.
+ *
+ * @param[in] fw The framework to create the archives for.
+ * @return Status code indication failure or success.
+ */
+celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw);
 
 #ifdef __cplusplus
 }

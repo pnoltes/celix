@@ -130,7 +130,7 @@ struct celix_framework {
     array_list_pt bundleListeners;
     celix_thread_mutex_t bundleListenerLock;
 
-    long nextBundleId;
+    long currentBundleId; //atomic
     celix_service_registry_t *registry;
     celix_bundle_cache_t* cache;
 
@@ -351,6 +351,15 @@ void celix_framework_bundleEntry_decreaseUseCount(celix_framework_bundle_entry_t
  * Find the bundle entry for the bnd id and increase use count
  */
 celix_framework_bundle_entry_t* celix_framework_bundleEntry_getBundleEntryAndIncreaseUseCount(celix_framework_t *fw, long bndId);
+
+/**
+ * @brief Check if the bundle id is already in use.
+ * Note that this can happen if bundles have been created through already existing bundle archives.
+ * @param fw The framework.
+ * @param bndId The bundle id.
+ * @return True if the bundle id is already in use, false otherwise.
+ */
+bool celix_framework_isBundleIdAlreadyUsed(celix_framework_t *fw, long bndId);
 
 /**
  * @brief Check if a bundle with the provided bundle symbolic name is already installed.

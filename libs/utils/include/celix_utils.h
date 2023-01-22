@@ -46,6 +46,11 @@ char* celix_utils_strdup(const char *str);
  */
 unsigned int celix_utils_stringHash(const char* string);
 
+/**
+ * The proposed buffer size to use for celix_utils_writeOrCreateString with a buffer on the stcck.
+ */
+#define CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE 512
+
 /**`
  * @brief Format a string to the provided buffer or a newly allocated buffer if the provided buffer is to small.
  * @param[in,out] buffer The buffer to write the formatted string to.

@@ -65,6 +65,7 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 	char *config_file = NULL;
 	bool showProps = false;
     bool showEmbeddedBundles = false;
+    bool createCache = false;
 	for (int i = 1; i < argc; ++i) {
 		opt = argv[i];
 		// Check whether the user wants some help...
@@ -74,6 +75,8 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 			return 0;
 		} else if (strncmp("-p", opt, strlen("-p")) == 0 || strncmp("--props", opt, strlen("--props")) == 0) {
             showProps = true;
+        } else if (strncmp("-c", opt, strlen("-c")) == 0 || strncmp("--create-bundle-cache", opt, strlen("--create-bundle-cache")) == 0) {
+            createCache = true;
         } else if (strncmp("--embedded_bundles", opt, strlen("--embedded_bundles")) == 0) {
             showEmbeddedBundles = true;
 		} else {
@@ -94,6 +97,13 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 		celix_properties_destroy(packedConfig);
 		return 0;
 	}
+
+
+    if (createCache) {
+        //TODO create fw include props , but do not start it??
+        celix_framework_utils_createBundleArchivesCache(fw);
+        return 0;
+    }
 
     if (showEmbeddedBundles) {
         printEmbeddedBundles();
