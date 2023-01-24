@@ -20,9 +20,10 @@
 #include <gtest/gtest.h>
 
 #include "celix/FrameworkFactory.h"
-#include "bundle_archive.h"
 #include "celix_constants.h"
 #include "celix_file_utils.h"
+#include "celix_framework_utils.h"
+#include "framework.h"
 
 //declare private functions used to test the bundle archive
 extern "C" bundle_archive_t* celix_bundle_getArchive(celix_bundle_t *bundle);
@@ -140,5 +141,43 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchiveAlwaysUpdatedTest) {
 }
 
 TEST_F(CxxBundleArchiveTestSuite, BundleArchivesCreatedBeforeStarting) {
-    //TODO
+    //launch framework with the option to extract bundle archives and with embedded bundle start list
+
+    //Given a properties set with 1 bundle configured for start and 1 bundle configured for install
+    auto* props = celix_properties_create();
+    celix_properties_set(props, CELIX_AUTO_START_0, SIMPLE_TEST_BUNDLE1_LOCATION);
+    celix_properties_set(props, CELIX_AUTO_INSTALL, SIMPLE_TEST_BUNDLE2_LOCATION);
+
+    //When the framework is created
+    celix_framework_t* cFw = nullptr;
+    auto status = framework_create(&cFw, props);
+    EXPECT_EQ(status, CELIX_SUCCESS);
+
+
+    //Then the celix_framework_utils_createBundleArchivesCache should extract the bundle archives for the
+    //configured bundles
+    status = celix_framework_utils_createBundleArchivesCache(cFw);
+    EXPECT_EQ(status, CELIX_SUCCESS);
+    framework_destroy(cFw);
+
+    //When I create a new framework, but with no properties
+    auto fw = celix::createFramework();
+    //Then there a no bundles installed (because there is no start, install config
+    EXPECT_EQ(fw->getFrameworkBundleContext()->listBundleIds().size(), 0);
+
+    //But when I manually install a new bundle
+    auto bndId = fw->getFrameworkBundleContext()->installBundle(SIMPLE_TEST_BUNDLE3_LOCATION);
+    //Then  the bundle id will be 3, because there are already 2 bundles
+    //in the bundle archive which uses the bundle ids 1 and 2.
+    EXPECT_EQ(bndId, 3); // <-- note whitebox knowledge of the bundle id
+
+    //When I install SIMPLE_TEST_BUNDLE2_LOCATION again
+    bndId = fw->getFrameworkBundleContext()->installBundle(SIMPLE_TEST_BUNDLE2_LOCATION);
+    //Then the bundle id will be 2, because the bundle archive is already created
+    EXPECT_EQ(bndId, 2); // <-- note whitebox knowledge of the bundle id
+
+    //When I install SIMPLE_TEST_BUNDLE1_LOCATION again
+    bndId = fw->getFrameworkBundleContext()->installBundle(SIMPLE_TEST_BUNDLE1_LOCATION);
+    //Then the bundle id will be 1, because the bundle archive is already created
+    EXPECT_EQ(bndId, 1); // <-- note whitebox knowledge of the bundle id
 }

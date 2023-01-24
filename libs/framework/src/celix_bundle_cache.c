@@ -43,11 +43,6 @@
 
 #define CELIX_BUNDLE_ARCHIVE_ROOT_FORMAT "%s/bundle%li"
 
-#define CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE_DEFAULT true
-#define CELIX_FRAMEWORK_CACHE_USE_TMP_DIR_DEFAULT false
-#define CELIX_FRAMEWORK_FRAMEWORK_CACHE_DIR_DEFAULT ".cache"
-#define CELIX_FRAMEWORK_CACHE_ALWAYS_UPDATE_BUNDLE_ARCHIVES_DEFAULT false
-
 #define FW_LOG(level, ...) \
     celix_framework_log(cache->fw->logger, (level), __FUNCTION__ , __FILE__, __LINE__, __VA_ARGS__)
 
@@ -120,13 +115,6 @@ static bool celix_bundleCache_cleanOnCreate(celix_framework_t* fw) {
     return cleanOnCreate;
 }
 
-static bool celix_bundleCache_cleanODestroy(celix_framework_t* fw, bool defaultValue) {
-    return celix_framework_getConfigPropertyAsBool(fw,
-        CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_DESTROY,
-        defaultValue,
-        NULL);
-}
-
 celix_status_t celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cache_t **out) {
     celix_status_t status = CELIX_SUCCESS;
 
@@ -143,7 +131,7 @@ celix_status_t celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cach
         NULL);
     bool useTmpDir = celix_bundleCache_useTmpDir(fw);
     cache->deleteOnCreate = celix_bundleCache_cleanOnCreate(fw);
-    cache->deleteOnDestroy = celix_bundleCache_cleanODestroy(fw, useTmpDir);
+    cache->deleteOnDestroy = useTmpDir; //if tmp dir is used, delete on destroy
     cache->locationToBundleIdLookupMap = celix_stringHashMap_create();
     celixThreadMutex_create(&cache->mutex, NULL);
 
@@ -305,9 +293,8 @@ bool celix_bundleCache_isBundleIdAlreadyUsed(celix_framework_t *fw, long bndId) 
 }
 
 
-static celix_status_t celix_bundleCache_createBundleArchivesForSpaceSeparatedList(celix_framework_t *fw, const char* list) {
+static celix_status_t celix_bundleCache_createBundleArchivesForSpaceSeparatedList(celix_framework_t *fw, long* bndId, const char* list, bool logProgress) {
     celix_status_t status = CELIX_SUCCESS;
-    long bndId = CELIX_FRAMEWORK_BUNDLE_ID+1;
     char delims[] = " ";
     char *savePtr = NULL;
     char zipFileListBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
@@ -316,15 +303,18 @@ static celix_status_t celix_bundleCache_createBundleArchivesForSpaceSeparatedLis
         char *location = strtok_r(zipFileList, delims, &savePtr);
         while (location != NULL) {
             bundle_archive_t* archive = NULL;
-            status = celix_bundleCache_createArchive(fw, bndId++, location, &archive);
+            status = celix_bundleCache_createArchive(fw, (*bndId)++, location, &archive);
             if (status != CELIX_SUCCESS) {
                 fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, CELIX_BUNDLE_EXCEPTION, "Cannot create bundle archive for %s", location);
                 break;
             } else {
-                fw_log(fw->logger, CELIX_LOG_LEVEL_DEBUG, "Created bundle archive for bundle %s (bndId=%li)",
+                celix_log_level_e lvl = logProgress ? CELIX_LOG_LEVEL_INFO : CELIX_LOG_LEVEL_DEBUG;
+                fw_log(fw->logger, lvl, "Created bundle cache '%s' for bundle archive %s (bndId=%li).",
+                       celix_bundleArchive_getCurrentRevisionRoot(archive),
                        celix_bundleArchive_getSymbolicName(archive), celix_bundleArchive_getId(archive));
                 bundleArchive_destroy(archive);
             }
+            location = strtok_r(NULL, delims, &savePtr);
         }
     } else {
         status = CELIX_ENOMEM;
@@ -335,27 +325,32 @@ static celix_status_t celix_bundleCache_createBundleArchivesForSpaceSeparatedLis
 }
 
 //using tmp cache and that bundle cache is not deleted during bundle cache destroy.
-celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw) {
+celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw, bool logProgress) {
     celix_status_t status = CELIX_SUCCESS;
-    const char* const cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6"};
-    const char* const celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6};
-    CELIX_BUILD_ASSERT(sizeof(cosgiKeys) == sizeof(celixKeys));
 
+    const char* const cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6", NULL};
+    const char* const celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6, NULL};
+    CELIX_BUILD_ASSERT(sizeof(*cosgiKeys) == sizeof(*celixKeys));
+
+    long bndId = CELIX_FRAMEWORK_BUNDLE_ID+1; //note cleaning cache, so starting bundle id at 1
 
     const char* errorStr = NULL;
     status = celix_utils_deleteDirectory(fw->cache->cacheDir, &errorStr);
     if (status != CELIX_SUCCESS) {
         fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to delete bundle cache directory %s: %s", fw->cache->cacheDir, errorStr);
         return status;
+    } else {
+        celix_log_level_e lvl = logProgress ? CELIX_LOG_LEVEL_INFO : CELIX_LOG_LEVEL_DEBUG;
+        fw_log(fw->logger, lvl, "Deleted bundle cache directory %s", fw->cache->cacheDir);
     }
 
-    for (int i = 0; i < sizeof(celixKeys); ++i) {
+    for (int i = 0; celixKeys[i] != NULL; ++i) {
         const char *autoStart = celix_framework_getConfigProperty(fw, celixKeys[i], NULL, NULL);
         if (autoStart == NULL) {
             autoStart = celix_framework_getConfigProperty(fw, cosgiKeys[i], NULL, NULL);
         }
         if (autoStart) {
-            status = celix_bundleCache_createBundleArchivesForSpaceSeparatedList(fw, autoStart);
+            status = celix_bundleCache_createBundleArchivesForSpaceSeparatedList(fw, &bndId, autoStart, logProgress);
             if (status != CELIX_SUCCESS) {
                 fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to create bundle archives for auto start list %s", autoStart);
                 return status;
@@ -364,7 +359,7 @@ celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw
     }
     const char* autoInstall = celix_framework_getConfigProperty(fw, CELIX_AUTO_INSTALL, NULL, NULL);
     if (autoInstall) {
-        status = celix_bundleCache_createBundleArchivesForSpaceSeparatedList(fw, autoInstall);
+        status = celix_bundleCache_createBundleArchivesForSpaceSeparatedList(fw, &bndId, autoInstall, logProgress);
         if (status != CELIX_SUCCESS) {
             fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to create bundle archives for auto start list %s", autoInstall);
             return status;

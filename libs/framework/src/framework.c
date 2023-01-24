@@ -311,16 +311,13 @@ celix_status_t framework_destroy(framework_pt framework) {
 
     if (shutdownInitialized) {
         framework_waitForStop(framework);
-    } else {
-        fw_log(framework->logger, CELIX_LOG_LEVEL_FATAL, "Cannot destroy framework. framework is not stopped or stopping!");
-        return CELIX_ILLEGAL_STATE;
     }
 
     //Note the shutdown thread can not be joined on the framework_shutdown (which is normally more logical),
     //because a shutdown can be initiated from a bundle.
     //A bundle cannot be stopped when it is waiting for a framework shutdown -> hence a shutdown thread which
     //has not been joined yet.
-    if (!framework->shutdown.joined) {
+    if (shutdownInitialized && !framework->shutdown.joined) {
         celixThread_join(framework->shutdown.thread, NULL);
         framework->shutdown.joined = true;
     }
@@ -503,15 +500,14 @@ celix_status_t framework_start(framework_pt framework) {
 }
 
 static void framework_autoStartConfiguredBundles(celix_framework_t* fw) {
-    bundle_context_t *fwCtx = framework_getContext(fw);
-    const char* const cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6"};
-    const char* const celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6};
-    CELIX_BUILD_ASSERT(sizeof(cosgiKeys) == sizeof(celixKeys));
+    const char* const cosgiKeys[] = {"cosgi.auto.start.0","cosgi.auto.start.1","cosgi.auto.start.2","cosgi.auto.start.3","cosgi.auto.start.4","cosgi.auto.start.5","cosgi.auto.start.6", NULL};
+    const char* const celixKeys[] = {CELIX_AUTO_START_0, CELIX_AUTO_START_1, CELIX_AUTO_START_2, CELIX_AUTO_START_3, CELIX_AUTO_START_4, CELIX_AUTO_START_5, CELIX_AUTO_START_6, NULL};
+    CELIX_BUILD_ASSERT(sizeof(*cosgiKeys) == sizeof(*celixKeys));
     celix_array_list_t *installedBundles = celix_arrayList_create();
-    for (int i = 0; i < sizeof(celixKeys); ++i) {
-        const char *autoStart = celix_bundleContext_getProperty(fwCtx, celixKeys[i], NULL);
+    for (int i = 0; celixKeys[i] != NULL; ++i) {
+        const char *autoStart = celix_framework_getConfigProperty(fw, celixKeys[i], NULL, NULL);
         if (autoStart == NULL) {
-            autoStart = celix_bundleContext_getProperty(fwCtx, cosgiKeys[i], NULL);
+            autoStart = celix_framework_getConfigProperty(fw, cosgiKeys[i], NULL, NULL);
         }
         if (autoStart != NULL) {
             framework_autoInstallConfiguredBundlesForList(fw, autoStart, installedBundles);
@@ -522,8 +518,7 @@ static void framework_autoStartConfiguredBundles(celix_framework_t* fw) {
 }
 
 static void framework_autoInstallConfiguredBundles(celix_framework_t* fw) {
-    bundle_context_t *fwCtx = framework_getContext(fw);
-    const char* autoInstall = celix_bundleContext_getProperty(fwCtx, CELIX_AUTO_INSTALL, NULL);
+    const char* autoInstall = celix_framework_getConfigProperty(fw, CELIX_AUTO_INSTALL, NULL, NULL);
     if (autoInstall != NULL) {
         framework_autoInstallConfiguredBundlesForList(fw, autoInstall, NULL);
     }

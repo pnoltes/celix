@@ -132,7 +132,7 @@ bool celix_bundleCache_isBundleIdAlreadyUsed(celix_framework_t *fw, long bndId);
  * @param[in] fw The framework to create the archives for.
  * @return Status code indication failure or success.
  */
-celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw);
+celix_status_t celix_bundleCache_createBundleArchivesCache(celix_framework_t *fw, bool printProgress);
 
 #ifdef __cplusplus
 }

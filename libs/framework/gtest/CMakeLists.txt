@@ -51,7 +51,8 @@ set(CELIX_FRAMEWORK_TEST_SOURCES
     src/HelloWorldCxxActivator.cc
     src/CxxFrameworkFactoryTestSuite.cc
     src/CxxBundleActivatorTestSuite.cc
-    src/CxxBundleArchiveTestSuite.cc
+    src/BundleArchiveTestSuite.cc
+    src/CelixLauncherTestSuite.cc
 )
 
 add_executable(test_framework ${CELIX_FRAMEWORK_TEST_SOURCES})

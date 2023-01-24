@@ -202,15 +202,6 @@ extern "C" {
  */
 #define CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE "CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE"
 
-/**
- * @brief Celix framework environment property (named "CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_DESTROY") specifying
- * whether to delete the cache dir on framework destruction.
- *
- * If not specified and CELIX_FRAMEWORK_STORAGE_USE_TMP_DIR is true, the default is "true".
- * Otherwise the default is "false".
- */
-#define CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_DESTROY "CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_DESTROY"
-
 //@deprecated use CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE
 #define CELIX_FRAMEWORK_FRAMEWORK_STORAGE_CLEAN_NAME "org.osgi.framework.storage.clean"
 

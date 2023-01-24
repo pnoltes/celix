@@ -21,11 +21,14 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <future>
 
 #include "celix_launcher.h"
 #include "celix_framework_factory.h"
 #include "celix_framework.h"
 #include "framework.h"
+#include "celix_constants.h"
+#include "celix_utils.h"
 
 
 class CelixFramework : public ::testing::Test {
@@ -271,4 +274,3 @@ TEST_F(CelixFramework, testLaunchFrameworkWithConfig) {
     framework_waitForStop(fw);
     framework_destroy(fw);
 }
-

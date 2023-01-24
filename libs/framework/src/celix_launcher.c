@@ -34,19 +34,21 @@
 #include <curl/curl.h>
 #include <signal.h>
 
+#include "framework.h"
 #include "celix_framework_factory.h"
 #include "celix_constants.h"
 #include "celix_framework_utils.h"
 
-static void show_usage(char* prog_name);
-static void show_properties(celix_properties_t *embeddedProps, const char *configFile);
-static void printEmbeddedBundles();
-static void shutdown_framework(int signal);
-static void ignore(int signal);
-
+static void celixLauncher_shutdownFramework(int signal);
+static void celixLauncher_ignore(int signal);
 static int celixLauncher_launchWithConfigAndProps(const char *configFile, celix_framework_t* *framework, celix_properties_t* packedConfig);
+static void celixLauncher_combineProperties(celix_properties_t *original, const celix_properties_t *append);
+static celix_properties_t* celixLauncher_createConfig(const char* configFile, celix_properties_t* embeddedProperties);
 
-static void combine_properties(celix_properties_t *original, const celix_properties_t *append);
+static void celixLauncher_printUsage(char* progName);
+static void celixLauncher_printProperties(celix_properties_t *embeddedProps, const char* configFile);
+static void celixLauncher_printEmbeddedBundles();
+static int celixLauncher_createBundleCache(celix_properties_t* embeddedProperties, const char* configFile);
 
 #define DEFAULT_CONFIG_FILE "config.properties"
 
@@ -62,7 +64,7 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 		opt = argv[1];
 	}
 
-	char *config_file = NULL;
+	char* configFile = NULL;
 	bool showProps = false;
     bool showEmbeddedBundles = false;
     bool createCache = false;
@@ -70,7 +72,7 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 		opt = argv[i];
 		// Check whether the user wants some help...
 		if (strncmp("-?", opt, strlen("-?")) == 0 || strncmp("-h", opt, strlen("-h")) == 0 || strncmp("--help", opt, strlen("--help")) == 0) {
-			show_usage(argv[0]);
+            celixLauncher_printUsage(argv[0]);
 			celix_properties_destroy(packedConfig);
 			return 0;
 		} else if (strncmp("-p", opt, strlen("-p")) == 0 || strncmp("--props", opt, strlen("--props")) == 0) {
@@ -80,12 +82,12 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
         } else if (strncmp("--embedded_bundles", opt, strlen("--embedded_bundles")) == 0) {
             showEmbeddedBundles = true;
 		} else {
-			config_file = opt;
+            configFile = opt;
 		}
 	}
 
-	if (config_file == NULL) {
-		config_file = DEFAULT_CONFIG_FILE;
+	if (configFile == NULL) {
+        configFile = DEFAULT_CONFIG_FILE;
 	}
 
 	if (packedConfig == NULL) {
@@ -93,37 +95,35 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 	}
 
 	if (showProps) {
-		show_properties(packedConfig, config_file);
+        celixLauncher_printProperties(packedConfig, configFile);
 		celix_properties_destroy(packedConfig);
 		return 0;
 	}
 
 
     if (createCache) {
-        //TODO create fw include props , but do not start it??
-        celix_framework_utils_createBundleArchivesCache(fw);
-        return 0;
+        return celixLauncher_createBundleCache(packedConfig, configFile);
     }
 
     if (showEmbeddedBundles) {
-        printEmbeddedBundles();
+        celixLauncher_printEmbeddedBundles();
         celix_properties_destroy(packedConfig);
         return 0;
     }
 
 	struct sigaction sigact;
 	memset(&sigact, 0, sizeof(sigact));
-	sigact.sa_handler = shutdown_framework;
+	sigact.sa_handler = celixLauncher_shutdownFramework;
 	sigaction(SIGINT,  &sigact, NULL);
 	sigaction(SIGTERM, &sigact, NULL);
 
 	memset(&sigact, 0, sizeof(sigact));
-	sigact.sa_handler = ignore;
+	sigact.sa_handler = celixLauncher_ignore;
 	sigaction(SIGUSR1,  &sigact, NULL);
 	sigaction(SIGUSR2,  &sigact, NULL);
 
 
-	int rc = celixLauncher_launchWithConfigAndProps(config_file, &framework, packedConfig);
+	int rc = celixLauncher_launchWithConfigAndProps(configFile, &framework, packedConfig);
 	if (rc == 0) {
 		g_fw = framework;
 		celixLauncher_waitForShutdown(framework);
@@ -132,22 +132,13 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 	return rc;
 }
 
-static void show_usage(char* prog_name) {
-	printf("Usage:\n  %s [-h|-p] [path/to/runtime/config.properties]\n", basename(prog_name));
-	printf("Options:\n");
-	printf("\t-h | --help: Show this message\n");
-	printf("\t-p | --props: Show the embedded and runtime properties for this Celix container\n");
-    printf("\t--embedded_bundles: Show the embedded bundles for this Celix container\n");
-	printf("\n");
-}
-
-static void shutdown_framework(int signal) {
+static void celixLauncher_shutdownFramework(int signal) {
 	if (g_fw != NULL) {
 		celixLauncher_stop(g_fw); //NOTE main thread will destroy
 	}
 }
 
-static void ignore(int signal) {
+static void celixLauncher_ignore(int signal) {
 	//ignoring for signal SIGUSR1, SIGUSR2. Can be used on threads
 }
 
@@ -155,24 +146,13 @@ int celixLauncher_launch(const char *configFile, celix_framework_t* *framework) 
 	return celixLauncher_launchWithConfigAndProps(configFile, framework, NULL);
 }
 
-static int celixLauncher_launchWithConfigAndProps(const char *configFile, celix_framework_t* *framework, celix_properties_t* packedConfig) {
-	if (packedConfig == NULL) {
-		packedConfig = celix_properties_create();
-	}
-
-	FILE *config = fopen(configFile, "r");
-	if (config != NULL) {
-		celix_properties_t *configProps = celix_properties_loadWithStream(config);
-		fclose(config);
-		combine_properties(packedConfig, configProps);
-		celix_properties_destroy(configProps);
-	}
-
-	return celixLauncher_launchWithProperties(packedConfig, framework);
+static int celixLauncher_launchWithConfigAndProps(const char *configFile, celix_framework_t** framework, celix_properties_t* packedConfig) {
+    celix_properties_t* config = celixLauncher_createConfig(configFile, packedConfig);
+    return celixLauncher_launchWithProperties(config, framework);
 }
 
 
-int celixLauncher_launchWithProperties(celix_properties_t* config, celix_framework_t* *framework) {
+int celixLauncher_launchWithProperties(celix_properties_t* config, celix_framework_t** framework) {
 #ifndef CELIX_NO_CURLINIT
 	// Before doing anything else, let's setup Curl
 	curl_global_init(CURL_GLOBAL_NOTHING);
@@ -197,7 +177,18 @@ void celixLauncher_stop(celix_framework_t* framework) {
     celix_framework_stopBundle(framework, CELIX_FRAMEWORK_BUNDLE_ID);
 }
 
-static void show_properties(celix_properties_t *embeddedProps, const char *configFile) {
+
+static void celixLauncher_printUsage(char* progName) {
+    printf("Usage:\n  %s [-h|-p] [path/to/runtime/config.properties]\n", basename(progName));
+    printf("Options:\n");
+    printf("\t-h | --help: Show this message.\n");
+    printf("\t-p | --props: Show the embedded and runtime properties for this Celix container and exit.\n");
+    printf("\t-c | --create-bundle-cache: Create the bundle cache for this Celix container and exit.\n");
+    printf("\t--embedded_bundles: Show the embedded bundles for this Celix container and exit.\n");
+    printf("\n");
+}
+
+static void celixLauncher_printProperties(celix_properties_t *embeddedProps, const char *configFile) {
 	const char *key = NULL;
 	celix_properties_t *keys = celix_properties_create(); //only to store the keys
 
@@ -230,7 +221,7 @@ static void show_properties(celix_properties_t *embeddedProps, const char *confi
     printf("\n");
 
 	//combined result
-	combine_properties(embeddedProps, runtimeProps);
+    celixLauncher_combineProperties(embeddedProps, runtimeProps);
 	printf("Resolved (env, runtime and embedded) properties:\n");
 	if (celix_properties_size(keys) == 0) {
 		printf("|- Empty!\n");
@@ -252,7 +243,7 @@ static void show_properties(celix_properties_t *embeddedProps, const char *confi
 	celix_properties_destroy(keys);
 }
 
-static void printEmbeddedBundles() {
+static void celixLauncher_printEmbeddedBundles() {
     celix_array_list_t* embeddedBundles = celix_framework_utils_listEmbeddedBundles();
     printf("Embedded bundles:\n");
     for (int i = 0; i < celix_arrayList_size(embeddedBundles); ++i) {
@@ -266,11 +257,47 @@ static void printEmbeddedBundles() {
     celix_arrayList_destroy(embeddedBundles);
 }
 
-static void combine_properties(celix_properties_t *original, const celix_properties_t *append) {
+static int celixLauncher_createBundleCache(celix_properties_t* embeddedProperties, const char* configFile) {
+    celix_framework_t* fw = NULL;
+    celix_properties_t* config = celixLauncher_createConfig(configFile, embeddedProperties);
+    celix_status_t status = framework_create(&fw, config);
+    if (status != CELIX_SUCCESS) {
+        fprintf(stderr, "Failed to create framework for bundle cache creation\n");
+        return 1;
+    }
+    status = celix_framework_utils_createBundleArchivesCache(fw);
+    status = CELIX_DO_IF(status, framework_destroy(fw));
+    //status = CELIX_DO_IF(status, framework_destroy(fw));
+    if (status != CELIX_SUCCESS) {
+        fprintf(stderr, "Failed to create bundle cache\n");
+        return 1;
+    }
+    return 0;
+}
+
+static void celixLauncher_combineProperties(celix_properties_t *original, const celix_properties_t *append) {
 	if (original != NULL && append != NULL) {
 		const char *key = NULL;
 		CELIX_PROPERTIES_FOR_EACH(append, key) {
 			celix_properties_set(original, key, celix_properties_get(append, key, NULL));
 		}
 	}
+}
+
+static celix_properties_t* celixLauncher_createConfig(const char* configFile, celix_properties_t* embeddedProperties) {
+    if (embeddedProperties == NULL) {
+        embeddedProperties = celix_properties_create();
+    }
+
+    FILE *config = fopen(configFile, "r");
+    if (config != NULL) {
+        celix_properties_t *configProps = celix_properties_loadWithStream(config);
+        fclose(config);
+        if (configProps != NULL) {
+            celixLauncher_combineProperties(embeddedProperties, configProps);
+            celix_properties_destroy(configProps);
+        }
+    }
+
+    return embeddedProperties;
 }
