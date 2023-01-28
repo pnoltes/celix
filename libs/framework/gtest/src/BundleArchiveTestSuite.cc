@@ -141,8 +141,6 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchiveAlwaysUpdatedTest) {
 }
 
 TEST_F(CxxBundleArchiveTestSuite, BundleArchivesCreatedBeforeStarting) {
-    //launch framework with the option to extract bundle archives and with embedded bundle start list
-
     //Given a properties set with 1 bundle configured for start and 1 bundle configured for install
     auto* props = celix_properties_create();
     celix_properties_set(props, CELIX_AUTO_START_0, SIMPLE_TEST_BUNDLE1_LOCATION);
@@ -153,7 +151,6 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchivesCreatedBeforeStarting) {
     auto status = framework_create(&cFw, props);
     EXPECT_EQ(status, CELIX_SUCCESS);
 
-
     //Then the celix_framework_utils_createBundleArchivesCache should extract the bundle archives for the
     //configured bundles
     status = celix_framework_utils_createBundleArchivesCache(cFw);
@@ -161,7 +158,7 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchivesCreatedBeforeStarting) {
     framework_destroy(cFw);
 
     //When I create a new framework, but with no properties
-    auto fw = celix::createFramework();
+    auto fw = celix::createFramework({{CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "false"}});
     //Then there a no bundles installed (because there is no start, install config
     EXPECT_EQ(fw->getFrameworkBundleContext()->listBundleIds().size(), 0);
 

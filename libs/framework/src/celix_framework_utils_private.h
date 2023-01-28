@@ -28,6 +28,13 @@ extern "C" {
 #endif
 
 /**
+ * @brief Resolves path to bundle. Uses the provided pathBuffer if is big enough, otherwise allocates a new buffer.
+ * @note The returned pathBuffer can be part of the provide buffer, when done the result must be freed by calling
+ * celix_utils_freeStringIfNeeded.
+ */
+char* celix_framework_utils_resolveFileBundleUrl(char* pathBuffer, size_t pathBufferSize, celix_framework_t* fw, const char* bundleLocation, bool silent);
+
+/**
  * @brief extracts a bundle for the given cache.
  * @param fw Optional Celix framework (used for logging).
  *           If NULL the result of celix_frameworkLogger_globalLogger() will be used for logging.

@@ -51,7 +51,7 @@ static const char * const EMBEDDED_BUNDLE_END_POSTFIX = "_end";
     }                                                                                                                           \
 } while(0)
 
-static char* celix_framework_utils_resolveFileBundleUrl(celix_framework_t* fw, const char* bundleLocation, bool silent) {
+char* celix_framework_utils_resolveFileBundleUrl(char* pathBuffer, size_t pathBufferSize, celix_framework_t* fw, const char* bundleLocation, bool silent) {
     char *result = NULL;
 
     const char *bundlePath = celix_framework_getConfigProperty(fw, CELIX_BUNDLES_PATH_NAME, CELIX_BUNDLES_PATH_DEFAULT,
@@ -61,13 +61,13 @@ static char* celix_framework_utils_resolveFileBundleUrl(celix_framework_t* fw, c
         if (bundleLocation[0] == '/') {
             //absolute path.
             if (celix_utils_fileExists(bundleLocation)) {
-                result = celix_utils_strdup(bundleLocation);
+                result = celix_utils_writeOrCreateString(pathBuffer, pathBufferSize, "%s", bundleLocation);
             } else if (!silent) {
                 FW_LOG(CELIX_LOG_LEVEL_ERROR, "Bundle location '%s' is not valid, file does not exist.", bundleLocation);
             }
         } else if (celix_utils_fileExists(bundleLocation)) {
             //relative path to existing file.
-            result = celix_utils_strdup(bundleLocation);
+            result = celix_utils_writeOrCreateString(pathBuffer, pathBufferSize, "%s", bundleLocation);
         } else {
             //relative path to a non-existing file, check the bundle paths.
             char *paths = celix_utils_strdup(bundlePath);
@@ -75,13 +75,12 @@ static char* celix_framework_utils_resolveFileBundleUrl(celix_framework_t* fw, c
             char *savePtr = NULL;
 
             for (char *path = strtok_r(paths, sep, &savePtr); path != NULL; path = strtok_r(NULL, sep, &savePtr)){
-                char *absPath = NULL;
-                asprintf(&absPath, "%s/%s", path, bundleLocation);
-                if (celix_utils_fileExists(absPath)) {
-                    result = absPath;
+                char* resolvedPath = celix_utils_writeOrCreateString(pathBuffer, pathBufferSize, "%s/%s", path, bundleLocation);
+                if (celix_utils_fileExists(resolvedPath)) {
+                    result = resolvedPath;
                     break;
                 } else {
-                    free(absPath);
+                    celix_utils_freeStringIfNeeded(pathBuffer, resolvedPath);
                 }
             }
             free(paths);
@@ -128,16 +127,14 @@ static bool celix_framework_utils_extractBundlePath(celix_framework_t *fw, const
     FW_LOG(CELIX_LOG_LEVEL_TRACE, "Extracting bundle url `%s` to dir `%s`", bundlePath, extractPath);
     const char* err = NULL;
 
-    char* resolvedPath = celix_framework_utils_resolveFileBundleUrl(fw, bundlePath, false);
+    char buffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
+    char* resolvedPath = celix_framework_utils_resolveFileBundleUrl(buffer, sizeof(buffer), fw, bundlePath, false);
     assert(resolvedPath != NULL); //should be caught by celix_framework_utils_isBundleUrlValid
-
     celix_status_t status = celix_utils_extractZipFile(resolvedPath, extractPath, &err);
-    if (status == CELIX_SUCCESS) {
-        FW_LOG(CELIX_LOG_LEVEL_TRACE, "Bundle zip `%s` extracted.", resolvedPath);
-    } else {
+    if (status != CELIX_SUCCESS) {
         FW_LOG(CELIX_LOG_LEVEL_ERROR, "Could not extract bundle zip file `%s` to `%s`: %s", resolvedPath, extractPath, err);
     }
-    free(resolvedPath);
+    celix_utils_freeStringIfNeeded(buffer, resolvedPath);
     return status == CELIX_SUCCESS;
 }
 
@@ -203,10 +200,11 @@ bool celix_framework_utils_isBundleUrlValid(celix_framework_t *fw, const char *b
     }
 
     bool valid;
+    char buffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
     if (strncasecmp("file://", trimmedUrl, 7) == 0) {
-        char* loc = celix_framework_utils_resolveFileBundleUrl(fw, trimmedUrl + 7, silent);
+        char* loc = celix_framework_utils_resolveFileBundleUrl(buffer, sizeof(buffer), fw, trimmedUrl + 7, silent);
         valid = loc != NULL;
-        free(loc);
+        celix_utils_freeStringIfNeeded(buffer, loc);
     } else if (strncasecmp(EMBEDDED_URL_SCHEME, trimmedUrl, 11) == 0) {
         valid = celix_framework_utils_isEmbeddedBundleUrlValid(fw, trimmedUrl, silent);
     } else if (strcasestr(trimmedUrl, "://")) {
@@ -215,9 +213,9 @@ bool celix_framework_utils_isBundleUrlValid(celix_framework_t *fw, const char *b
             FW_LOG(CELIX_LOG_LEVEL_ERROR, "Bundle URL '%s' is not a valid url. Scheme is not supported.", bundleURL);
         }
     } else {
-        char* loc = celix_framework_utils_resolveFileBundleUrl(fw, trimmedUrl, silent);
+        char* loc = celix_framework_utils_resolveFileBundleUrl(buffer, sizeof(buffer), fw, trimmedUrl, silent);
         valid = loc != NULL;
-        free(loc);
+        celix_utils_freeStringIfNeeded(buffer, loc);
     }
     free(trimmedUrl);
 

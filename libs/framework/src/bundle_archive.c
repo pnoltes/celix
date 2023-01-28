@@ -89,8 +89,18 @@ static celix_status_t celix_bundleArchive_extractBundle(bundle_archive_t* archiv
         //check if revision dir exists and if it is newer or older than the location zip
         struct timespec modLocation;
         struct timespec modRevision;
-        status = celix_utils_getLastModified(archive->location, &modLocation);
+
+        char buffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
+        char* absLocation = celix_framework_utils_resolveFileBundleUrl(buffer, sizeof(buffer), archive->fw, archive->location, true);
+        if (absLocation == NULL) {
+            status = CELIX_ENOMEM;
+            fw_logCode(archive->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot resolve bundle location '%s' to absolute path. Out of memory", archive->location);
+            return status;
+        }
+        status = celix_utils_getLastModified(absLocation, &modLocation);
         status = CELIX_DO_IF(status, celix_bundleArchive_getLastModified(archive, &modRevision));
+        celix_utils_freeStringIfNeeded(buffer, absLocation);
+
         if (status == CELIX_SUCCESS) {
             //both exist, check if revision is newer then location
             double diff =  celix_difftime(&modLocation, &modRevision);

@@ -355,10 +355,13 @@ array_list_pt module_getDependents(module_pt module) {
 
 celix_status_t celix_module_closeLibraries(celix_module_t* module) {
     celix_status_t status = CELIX_SUCCESS;
+    //TODO enable, does not work because fw destroy calls closeLibraries??? this should be done in stop
+    //celix_bundle_context_t *fwCtx = celix_framework_getFrameworkContext(module->fw);
+    celix_bundle_context_t *fwCtx = NULL;
     celixThreadMutex_lock(&module->handlesLock);
     for (int i = 0; i < celix_arrayList_size(module->libraryHandles); i++) {
         void *handle = celix_arrayList_get(module->libraryHandles, i);
-        celix_libloader_close(handle);
+        celix_libloader_close(fwCtx, handle);
     }
     celix_arrayList_clear(module->libraryHandles);
     module->bundleActivatorHandle = NULL;
@@ -416,6 +419,7 @@ static celix_status_t celix_module_loadLibraryForManifestEntry(celix_module_t* m
 
 static celix_status_t celix_module_loadLibrariesInManifestEntry(celix_module_t* module, const char *librariesIn, const char *activator, bundle_archive_pt archive, void **activatorHandle) {
     celix_status_t status = CELIX_SUCCESS;
+    celix_bundle_context_t* fwCtx = celix_framework_getFrameworkContext(module->fw);
 
     char* last;
     char* libraries = strndup(librariesIn, 1024*10);
@@ -451,8 +455,8 @@ static celix_status_t celix_module_loadLibrariesInManifestEntry(celix_module_t* 
         if ( (status == CELIX_SUCCESS) && (activator != NULL) && (strcmp(trimmedLib, activator) == 0) ) {
             *activatorHandle = handle;
         }
-        else if(handle!=NULL){
-            celix_libloader_close(handle);
+        else if (handle!=NULL) {
+            celix_libloader_close(fwCtx, handle);
         }
 
         token = strtok_r(NULL, ",", &last);
@@ -464,6 +468,7 @@ static celix_status_t celix_module_loadLibrariesInManifestEntry(celix_module_t* 
 
 celix_status_t celix_module_loadLibraries(celix_module_t* module) {
     celix_status_t status = CELIX_SUCCESS;
+    celix_bundle_context_t* fwCtx = celix_framework_getFrameworkContext(module->fw);
 
     celix_library_handle_t* activatorHandle = NULL;
     bundle_archive_pt archive = NULL;
@@ -498,7 +503,7 @@ celix_status_t celix_module_loadLibraries(celix_module_t* module) {
             module->bundleActivatorHandle = activatorHandle;
             celixThreadMutex_unlock(&module->handlesLock);
         } else if (activatorHandle != NULL) {
-            celix_libloader_close(activatorHandle);
+            celix_libloader_close(fwCtx, activatorHandle);
         }
     }
 

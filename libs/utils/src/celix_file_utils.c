@@ -236,7 +236,7 @@ celix_status_t celix_utils_extractZipFile(const char* zipPath, const char* extra
         status = celix_utils_extractZipInternal(zip, extractToDir, errorOut);
         zip_close(zip);
     } else {
-        //note libzip can give more info with zip_error_to_str if needed (but this requires a allocated string buf).
+        //note libzip can give more info with zip_error_to_str if needed (but this requires an allocated string buf).
         status = CELIX_FILE_IO_EXCEPTION;
         *errorOut = ERROR_OPENING_ZIP;
     }
