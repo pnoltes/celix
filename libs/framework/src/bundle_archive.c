@@ -105,19 +105,26 @@ static celix_status_t celix_bundleArchive_extractBundle(bundle_archive_t* archiv
             //both exist, check if revision is newer then location
             double diff =  celix_difftime(&modLocation, &modRevision);
             if (diff < 0) {
-                //location is newer than revision, so remove revision and extract again
-                const char* error;
-                status = celix_utils_deleteDirectory(archive->currentRevisionRoot, &error);
-                if (status != CELIX_SUCCESS) {
-                    fw_logCode(archive->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to remove existing bundle archive revision directory '%s': %s", archive->currentRevisionRoot, error);
-                    return status;
-                }
+                //nop, location is newer than revision, so remove revision and extract again
             } else {
                 //location is older than revision, so don't extract again
                 fw_log(archive->fw->logger, CELIX_LOG_LEVEL_DEBUG, "Reusing existing bundle archive revision directory '%s' for location '%s'", archive->currentRevisionRoot, archive->location);
                 return status;
             }
         }
+    }
+
+    /*
+     * Note always remove the current revision dir. This is needed to remove files that are not present
+     * in the new bundle zip, but it seems this is also needed to ensure that the lib files get a new inode.
+     * If dlopen/dlsym is used with newer files, but with the same inode already used in dlopen/dlsym this leads to
+     * segfaults.
+     */
+    const char* error;
+    status = celix_utils_deleteDirectory(archive->currentRevisionRoot, &error);
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(archive->fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Failed to remove existing bundle archive revision directory '%s': %s", archive->currentRevisionRoot, error);
+        return status;
     }
 
     status = celix_framework_utils_extractBundle(archive->fw, archive->location, archive->currentRevisionRoot);
