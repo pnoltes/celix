@@ -22,9 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <dirent.h>
-#include <fcntl.h>
 #include <sys/errno.h>
 
 #include "celix_constants.h"
@@ -232,9 +230,8 @@ static void celix_bundleCache_updateIdForLocationLookupMap(celix_framework_t* fw
         return;
     }
     char archiveRootBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
-    errno = 0;
     struct dirent* dent = NULL;
-    while (errno == 0 && (dent = readdir(dir)) != NULL) {
+    while ((dent = readdir(dir)) != NULL) {
         if (strncmp(dent->d_name, "bundle", 6) != 0) {
             continue;
         }
@@ -254,10 +251,6 @@ static void celix_bundleCache_updateIdForLocationLookupMap(celix_framework_t* fw
             }
             celix_properties_destroy(props);
         }
-    }
-    if (errno != 0) {
-        fw_log(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_ERROR, "Error reading dir");
-        return;
     }
     closedir(dir);
     celixThreadMutex_unlock(&fw->cache->mutex);

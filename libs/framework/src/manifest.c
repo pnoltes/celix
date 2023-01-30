@@ -179,7 +179,9 @@ celix_status_t manifest_read(manifest_pt manifest, const char *filename) {
 		status = CELIX_FILE_IO_EXCEPTION;
 	}
 
-	framework_logIfError(celix_frameworkLogger_globalLogger(), status, NULL, "Cannot read manifest");
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(celix_frameworkLogger_globalLogger(), CELIX_LOG_LEVEL_ERROR, status, "Cannot read manifest");
+    }
 
 	return status;
 }

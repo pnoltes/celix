@@ -76,6 +76,8 @@ const char* celix_bundleArchive_getPersistentStoreRoot(bundle_archive_t *archive
  *
  * The last modified time is based on the last modified time of the bundle archives MANIFEST.MF file.
  *
+ * If the bundle archive cache directory does not exist, lastModified will be set to 0.
+ *
  * @param[in] archive The bundle archive.
  * @param[out] lastModified The last modified time of the bundle archive.
  * @return CELIX_SUCCESS if the last modified time could be retrieved, CELIX_ILLEGAL_ARGUMENT if the last modified

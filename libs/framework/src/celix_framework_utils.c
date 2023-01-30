@@ -51,7 +51,12 @@ static const char * const EMBEDDED_BUNDLE_END_POSTFIX = "_end";
     }                                                                                                                           \
 } while(0)
 
-char* celix_framework_utils_resolveFileBundleUrl(char* pathBuffer, size_t pathBufferSize, celix_framework_t* fw, const char* bundleLocation, bool silent) {
+/**
+ * @brief Resolves path to bundle. Uses the provided pathBuffer if is big enough, otherwise allocates a new buffer.
+ * @note The returned pathBuffer can be part of the provide buffer, when done the result must be freed by calling
+ * celix_utils_freeStringIfNeeded.
+ */
+static char* celix_framework_utils_resolveFileBundleUrl(char* pathBuffer, size_t pathBufferSize, celix_framework_t* fw, const char* bundleLocation, bool silent) {
     char *result = NULL;
 
     const char *bundlePath = celix_framework_getConfigProperty(fw, CELIX_BUNDLES_PATH_NAME, CELIX_BUNDLES_PATH_DEFAULT,
@@ -121,6 +126,41 @@ static bool celix_framework_utils_isEmbeddedBundleUrlValid(celix_framework_t *fw
     free(endSymbol);
 
     return valid;
+}
+
+static bool celix_framework_utils_isBundlePathNewerThan(celix_framework_t *fw, const char* bundlePath, const struct timespec* time) {
+    struct timespec bundleModTime;
+    char pathBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
+    char* resolvedPath = celix_framework_utils_resolveFileBundleUrl(pathBuffer, sizeof(pathBuffer), fw, bundlePath, true);
+    celix_status_t status = celix_utils_getLastModified(resolvedPath, &bundleModTime);
+    if (status != CELIX_SUCCESS) {
+        fw_logCode(fw->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot get last modified time for bundle %s", resolvedPath);
+        return false;
+    }
+    double diff = celix_difftime(&bundleModTime, time);
+    celix_utils_freeStringIfNeeded(pathBuffer, resolvedPath);
+    return diff < 0.0;
+}
+
+bool celix_framework_utils_isBundleUrlNewerThan(celix_framework_t* fw, const char* bundleURL, const struct timespec* time) {
+    if (time == NULL) {
+        return true;
+    }
+
+    char* trimmedUrl = celix_utils_trim(bundleURL);
+    bool newer;
+    int fileSchemeLen = strlen(FILE_URL_SCHEME);
+    int embeddedSchemeLen = strlen(EMBEDDED_URL_SCHEME);
+    if (strncasecmp(FILE_URL_SCHEME, trimmedUrl, fileSchemeLen) == 0) {
+        newer = celix_framework_utils_isBundlePathNewerThan(fw, trimmedUrl + fileSchemeLen, time); //skip the file:// part
+    } else if (strncasecmp(EMBEDDED_URL_SCHEME, trimmedUrl, embeddedSchemeLen) == 0) {
+        newer = true; //for now embedded zip always considered newer
+    } else {
+        newer = celix_framework_utils_isBundlePathNewerThan(fw, trimmedUrl, time);
+    }
+    free(trimmedUrl);
+
+    return newer;
 }
 
 static bool celix_framework_utils_extractBundlePath(celix_framework_t *fw, const char* bundlePath, const char* extractPath) {
