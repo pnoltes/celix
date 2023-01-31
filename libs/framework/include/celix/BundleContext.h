@@ -477,11 +477,19 @@ namespace celix {
          *
          * @param ctx The bundle context
          * @param bndId The bundle id to start.
+         * @param updatedBundleUrl The optional updated bundle url to the bundle zip file. If empty, the existing
+         *                         bundle url from the bundle cache will be used.
          * @return true if the bundle is found & correctly started or if the bundle is updated async. False if not.
          */
-        bool updateBundle(long bndId) {
-            return celix_bundleContext_updateBundle(cCtx.get(), bndId);
+#if __cplusplus >= 201703L //C++17 or higher
+        bool updateBundle(long bndId, std::string_view updatedBundleUrl = {}) {
+            return celix_bundleContext_updateBundle(cCtx.get(), bndId, updatedBundleUrl.empty() ? nullptr : updatedBundleUrl.data());
         }
+#else
+        bool updateBundle(long bndId, const std::string& updatedBundleUrl = {}) {
+            return celix_bundleContext_updateBundle(cCtx.get(), bndId, updatedBundleUrl.empty() ? nullptr : updatedBundleUrl.data());
+        }
+#endif
 
         /**
          * @brief List the installed and started bundle ids.

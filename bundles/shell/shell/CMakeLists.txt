@@ -50,6 +50,7 @@ if (SHELL)
 	target_include_directories(shell_commands PRIVATE src)
 	target_link_libraries(shell_commands PRIVATE Celix::shell_api Celix::log_helper)
 	celix_deprecated_utils_headers(shell_commands)
+	target_compile_options(shell_commands PRIVATE -Wno-attribute-warning) #ignore warning for updateBundle call
 
     add_celix_bundle(shell
         SYMBOLIC_NAME "apache_celix_c_shell"

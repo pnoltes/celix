@@ -235,5 +235,5 @@ The following framework properties are supported:
 | CELIX_FRAMEWORK_AUTO_START_3                        | ""            | The bundles to install and start after the framework is started. Multiple bundles can be provided separated by a space.                   |
 | CELIX_FRAMEWORK_AUTO_START_4                        | ""            | The bundles to install and start after the framework is started. Multiple bundles can be provided separated by a space.                   |
 | CELIX_FRAMEWORK_AUTO_START_5                        | ""            | The bundles to install and start after the framework is started. Multiple bundles can be provided separated by a space.                   |
-| CELIX_AUTO_INSTALL                                  | ""            | The bundles to install after the framework is started. Multiple bundles can be provided separated by a space.                             |
-
+| CELIX_AUTO_INSTALL                                  | ""            | The bundles to install after the framework is started. Multiple bundles can be provided separated by a space.                             |         
+| CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL              | "info"        | The default active log level for created log services. Possible values are "trace", "debug", "info", "warning", "error" and "fatal".      |

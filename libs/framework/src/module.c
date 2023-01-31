@@ -38,7 +38,7 @@
 #define CELIX_LIBRARY_EXTENSION ".so"
 #elif __APPLE__
 #define CELIX_LIBRARY_PREFIX "lib"
-#define CELIX_LIBRARY_EXTENSION = ".dylib";
+#define CELIX_LIBRARY_EXTENSION ".dylib"
 #elif WIN32
 #define CELIX_LIBRARY_PREFIX ""
 #define CELIX_LIBRARY_EXTENSION = ".dll";

@@ -54,7 +54,19 @@ static int celixLauncher_createBundleCache(celix_properties_t* embeddedPropertie
 
 static framework_t *g_fw = NULL;
 
+
+
 int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_properties_t* packedConfig) {
+    celix_framework_t* framework = NULL;
+    int rc = celixLauncher_launchWithArgv(argc, argv, packedConfig, &framework);
+    if (rc == 0 && framework != NULL) {
+        celixLauncher_waitForShutdown(framework);
+        celixLauncher_destroy(framework);
+    }
+    return rc;
+}
+
+int celixLauncher_launchWithArgv(int argc, char *argv[], celix_properties_t* embeddedConfig, celix_framework_t** frameworkOut) {
 	celix_framework_t* framework = NULL;
 
 
@@ -73,7 +85,7 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 		// Check whether the user wants some help...
 		if (strncmp("-?", opt, strlen("-?")) == 0 || strncmp("-h", opt, strlen("-h")) == 0 || strncmp("--help", opt, strlen("--help")) == 0) {
             celixLauncher_printUsage(argv[0]);
-			celix_properties_destroy(packedConfig);
+			celix_properties_destroy(embeddedConfig);
 			return 0;
 		} else if (strncmp("-p", opt, strlen("-p")) == 0 || strncmp("--props", opt, strlen("--props")) == 0) {
             showProps = true;
@@ -90,24 +102,23 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
         configFile = DEFAULT_CONFIG_FILE;
 	}
 
-	if (packedConfig == NULL) {
-		packedConfig = celix_properties_create();
+	if (embeddedConfig == NULL) {
+        embeddedConfig = celix_properties_create();
 	}
 
 	if (showProps) {
-        celixLauncher_printProperties(packedConfig, configFile);
-		celix_properties_destroy(packedConfig);
+        celixLauncher_printProperties(embeddedConfig, configFile);
+		celix_properties_destroy(embeddedConfig);
 		return 0;
 	}
 
-
     if (createCache) {
-        return celixLauncher_createBundleCache(packedConfig, configFile);
+        return celixLauncher_createBundleCache(embeddedConfig, configFile);
     }
 
     if (showEmbeddedBundles) {
         celixLauncher_printEmbeddedBundles();
-        celix_properties_destroy(packedConfig);
+        celix_properties_destroy(embeddedConfig);
         return 0;
     }
 
@@ -123,11 +134,10 @@ int celixLauncher_launchAndWaitForShutdown(int argc, char *argv[], celix_propert
 	sigaction(SIGUSR2,  &sigact, NULL);
 
 
-	int rc = celixLauncher_launchWithConfigAndProps(configFile, &framework, packedConfig);
+	int rc = celixLauncher_launchWithConfigAndProps(configFile, &framework, embeddedConfig);
 	if (rc == 0) {
 		g_fw = framework;
-		celixLauncher_waitForShutdown(framework);
-		celixLauncher_destroy(framework);
+		*frameworkOut = framework;
 	}
 	return rc;
 }

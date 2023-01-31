@@ -693,81 +693,6 @@ celix_status_t celix_framework_installBundleInternal(celix_framework_t *framewor
   	return status;
 }
 
-celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, const char *inputFile __attribute__((unused))) {
-    //not used -> celix_framework_udpdateBUndle is used.
-    return celix_framework_updateBundle(framework, celix_bundle_getId(bundle));
-    //TODO remove ifdef part of code
-/*
-    fw_log(framework->logger, CELIX_LOG_LEVEL_WARNING, "Update bundle functionality deprecated. Do not use!");
-	celix_status_t status = CELIX_SUCCESS;
-	bundle_state_e oldState;
-	const char *location;
-	bundle_archive_pt archive = NULL;
-	char *error = NULL;
-
-	long bndId = celix_bundle_getId(bundle);
-    celix_framework_bundle_entry_t *entry = celix_framework_bundleEntry_getBundleEntryAndIncreaseUseCount(framework,
-                                                                                                          bndId);
-
-    status = CELIX_DO_IF(status, bundle_getState(bundle, &oldState));
-	if (status == CELIX_SUCCESS) {
-        if (oldState == CELIX_BUNDLE_STATE_ACTIVE) {
-            celix_framework_stopBundle(framework, bndId);
-        }
-	}
-	status = CELIX_DO_IF(status, bundle_getArchive(bundle, &archive));
-	status = CELIX_DO_IF(status, bundleArchive_getLocation(archive, &location));
-
-	status = CELIX_DO_IF(status, bundle_revise(bundle, location, inputFile));
-
-	status = CELIX_DO_IF(status, bundleArchive_setLastModified(archive, time(NULL)));
-	status = CELIX_DO_IF(status, bundle_setState(bundle, CELIX_BUNDLE_STATE_INSTALLED));
-
-	bundle_revision_pt revision = NULL;
-	array_list_pt handles = NULL;
-	status = CELIX_DO_IF(status, bundleArchive_getCurrentRevision(archive, &revision));
-    status = CELIX_DO_IF(status, bundleRevision_getHandles(revision, &handles));
-    if (handles != NULL) {
-        int i;
-	    for (i = celix_arrayList_size(handles) - 1; i >= 0; i--) {
-	        void* handle = arrayList_get(handles, i);
-	        celix_libloader_close(handle);
-	    }
-    }
-
-
-	CELIX_DO_IF(status, fw_fireBundleEvent(framework, OSGI_FRAMEWORK_BUNDLE_EVENT_UNRESOLVED, entry));
-	CELIX_DO_IF(status, fw_fireBundleEvent(framework, OSGI_FRAMEWORK_BUNDLE_EVENT_UPDATED, entry));
-
-    // Refresh packages?
-
-	if (status == CELIX_SUCCESS) {
-	    if (oldState == CELIX_BUNDLE_STATE_ACTIVE) {
-	        status = CELIX_DO_IF(status, celix_framework_startBundle(framework, bndId));
-	    }
-	}
-
-
-    celix_framework_bundleEntry_decreaseUseCount(entry);
-
-	if (status != CELIX_SUCCESS) {
-	    module_pt module = NULL;
-        const char *symbolicName = NULL;
-        long id = 0;
-        bundle_getCurrentModule(bundle, &module);
-        module_getSymbolicName(module, &symbolicName);
-        bundle_getBundleId(bundle, &id);
-        if (error != NULL) {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot update bundle: %s [%ld]; cause: %s", symbolicName, id, error);
-        } else {
-            fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Cannot update bundle: %s [%ld]", symbolicName, id);
-        }
-	}
-
-	return status;
- */
-}
-
 celix_status_t fw_refreshBundle(framework_pt framework, long bndId) {
     celix_status_t status = CELIX_SUCCESS;
     bundle_state_e state;
@@ -1256,7 +1181,6 @@ bundle_pt framework_getBundle(framework_pt framework, const char* location) {
     }
     celixThreadMutex_unlock(&framework->installedBundles.mutex);
 
-
     return bnd;
 }
 
@@ -1560,7 +1484,7 @@ static void *fw_eventDispatcher(void *fw) {
         celixThreadMutex_unlock(&framework->dispatcher.mutex);
     }
 
-    //not active any more, last run for possible request left overs
+    //not active any more, last run for possible request leftovers
     celixThreadMutex_lock(&framework->dispatcher.mutex);
     bool needLastRun = framework->dispatcher.eventQueueSize > 0 || celix_arrayList_size(framework->dispatcher.dynamicEventQueue) > 0;
     celixThreadMutex_unlock(&framework->dispatcher.mutex);
@@ -2383,15 +2307,17 @@ celix_status_t celix_framework_startBundleEntry(celix_framework_t* framework, ce
     return status;
 }
 
-static bool celix_framework_updateBundleInternal(celix_framework_t *fw, long bndId, bool forcedAsync) {
+static bool celix_framework_updateBundleInternal(celix_framework_t *fw, long bndId, const char* updatedBundleUrl, bool forcedAsync) {
+    if (bndId == CELIX_FRAMEWORK_BUNDLE_ID) {
+        fw_log(fw->logger, CELIX_LOG_LEVEL_INFO, "Cannot update framework bundle. Ignore update cmd.");
+        return true;
+    }
+
     bool updated = false;
     celix_framework_bundle_entry_t *bndEntry = celix_framework_bundleEntry_getBundleEntryAndIncreaseUseCount(fw, bndId);
     if (bndEntry != NULL) {
-        celix_bundle_state_e state = celix_bundle_getState(bndEntry->bnd);
-        if (state == CELIX_BUNDLE_STATE_INSTALLED || state == CELIX_BUNDLE_STATE_RESOLVED) {
-            celix_status_t rc = celix_framework_updateBundleOnANonCelixEventThread(fw, bndEntry, forcedAsync);
-            updated = rc == CELIX_SUCCESS;
-        }
+        celix_status_t rc = celix_framework_updateBundleOnANonCelixEventThread(fw, bndEntry, updatedBundleUrl, forcedAsync);
+        updated = rc == CELIX_SUCCESS;
         celix_framework_bundleEntry_decreaseUseCount(bndEntry);
         celix_framework_waitForBundleEvents(fw, bndId);
     }
@@ -2399,7 +2325,7 @@ static bool celix_framework_updateBundleInternal(celix_framework_t *fw, long bnd
 }
 
 
-celix_status_t celix_framework_bundleEntry_refreshBundleEntry(celix_framework_t* framework, celix_framework_bundle_entry_t *entry) {
+celix_status_t celix_framework_bundleEntry_refreshBundleEntry(celix_framework_t* framework, celix_framework_bundle_entry_t *entry, const char* updatedBundleUrl) {
     celix_status_t status = CELIX_SUCCESS;
     celix_bundle_state_e state = celix_bundle_getState(entry->bnd);
     if (state != CELIX_BUNDLE_STATE_RESOLVED) {
@@ -2438,7 +2364,7 @@ celix_status_t celix_framework_bundleEntry_refreshBundleEntry(celix_framework_t*
         return status;
     }
 
-    status = bundleArchive_revise(archive, location, NULL);
+    status = bundleArchive_revise(archive, location, updatedBundleUrl);
     if (status != CELIX_SUCCESS) {
         fw_log(framework->logger, CELIX_LOG_LEVEL_ERROR, "Cannot refresh bundle %s (id=%li), bundle archive revision failed",
                celix_bundle_getSymbolicName(entry->bnd),
@@ -2457,14 +2383,14 @@ celix_status_t celix_framework_bundleEntry_refreshBundleEntry(celix_framework_t*
     return status;
 }
 
-celix_status_t celix_framework_updateBundleEntry(celix_framework_t* framework, celix_framework_bundle_entry_t* bndEntry) {
+celix_status_t celix_framework_updateBundleEntry(celix_framework_t* framework, celix_framework_bundle_entry_t* bndEntry, const char* updatedBundleUrl) {
     celix_status_t status = celix_framework_stopBundleEntry(framework, bndEntry);
     if (status != CELIX_SUCCESS) {
         fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not stop bundle for update");
         return status;
     }
 
-    status = celix_framework_bundleEntry_refreshBundleEntry(framework, bndEntry);
+    status = celix_framework_bundleEntry_refreshBundleEntry(framework, bndEntry, updatedBundleUrl);
     if (status != CELIX_SUCCESS) {
         fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not refresh bundle for update");
         return status;
@@ -2474,15 +2400,17 @@ celix_status_t celix_framework_updateBundleEntry(celix_framework_t* framework, c
     if (status != CELIX_SUCCESS) {
         fw_logCode(framework->logger, CELIX_LOG_LEVEL_ERROR, status, "Could not start bundle after update");
     }
+
+    fw_log(framework->logger, CELIX_LOG_LEVEL_DEBUG, "Update bundle %s done", celix_bundle_getSymbolicName(bndEntry->bnd));
     return status;
 }
 
-bool celix_framework_updateBundle(celix_framework_t *fw, long bndId) {
-    return celix_framework_updateBundleInternal(fw, bndId, false);
+bool celix_framework_updateBundle(celix_framework_t *fw, long bndId, const char* updatedBundleUrl) {
+    return celix_framework_updateBundleInternal(fw, bndId, updatedBundleUrl, false);
 }
 
-void celix_framework_updateBundleAsync(celix_framework_t *fw, long bndId) {
-    celix_framework_updateBundleInternal(fw, bndId, true);
+void celix_framework_updateBundleAsync(celix_framework_t *fw, long bndId, const char* updatedBundleUrl) {
+    celix_framework_updateBundleInternal(fw, bndId, updatedBundleUrl, true);
 }
 
 static celix_array_list_t* celix_framework_listBundlesInternal(celix_framework_t* framework, bool activeOnly) {

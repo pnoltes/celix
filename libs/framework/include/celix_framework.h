@@ -150,9 +150,11 @@ bool celix_framework_uninstallBundle(celix_framework_t *fw, long bndId);
  *
  *  @param fw The Celix framework
  *  @parma bndId the bundle id to update.
+ *  @param updatedBundleUrl The optional updated bundle url to the bundle zip file. If NULL, the existing bundle url
+ *                         from the bundle cache will be used.
  *  @return true if the bundle is correctly updated. False if not.
  */
-bool celix_framework_updateBundle(celix_framework_t *fw, long bndId)
+bool celix_framework_updateBundle(celix_framework_t *fw, long bndId, const char* updatedBundleUrl)
     __attribute((warning("Update bundle is not yet fully supported. Use at your own risk.")));
 
 /**
@@ -200,8 +202,11 @@ long celix_framework_installBundleAsync(celix_framework_t *fw, const char *bundl
  *
  *  @param fw The Celix framework
  *  @parma bndId the bundle id to update.
+ *  @param updatedBundleUrl The optional updated bundle url to the bundle zip file. If NULL, the existing bundle url
+ *                         from the bundle cache will be used.
  */
-void celix_framework_updateBundleAsync(celix_framework_t *fw, long bndId);
+void celix_framework_updateBundleAsync(celix_framework_t *fw, long bndId, const char* updatedBundleUrl)
+    __attribute((warning("Update bundle is not yet fully supported. Use at your own risk.")));
 
 /**
  * @brief Uninstall the bundle with the provided bundle id async. If needed the bundle will be stopped first.

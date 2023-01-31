@@ -1105,8 +1105,8 @@ bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bndId) {
     return celix_framework_startBundle(ctx->framework, bndId);
 }
 
-bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId) {
-    return celix_framework_updateBundle(ctx->framework, bndId);
+bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId, const char* updatedBundleUrl) {
+    return celix_framework_updateBundle(ctx->framework, bndId, updatedBundleUrl);
 }
 
 bool celix_bundleContext_stopBundle(celix_bundle_context_t *ctx, long bndId) {

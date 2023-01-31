@@ -27,7 +27,7 @@
 
 //declare private functions used to test the bundle archive
 extern "C" bundle_archive_t* celix_bundle_getArchive(celix_bundle_t *bundle);
-extern "C" celix_status_t celix_bundleArchive_getLastModified(bundle_archive_pt archive, struct timespec* lastModified);
+extern "C" celix_status_t celix_bundleArchive_getLastModified(bundle_archive_pt archive, bool alreadyLocked, struct timespec* lastModified);
 
 class CxxBundleArchiveTestSuite : public ::testing::Test {
 public:
@@ -61,7 +61,7 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchiveReusedTest) {
         .addOnInstallCallback([&](const celix::Bundle& b) {
             std::lock_guard<std::mutex> lock{m};
             auto *archive = celix_bundle_getArchive(b.getCBundle());
-            EXPECT_EQ(CELIX_SUCCESS, celix_bundleArchive_getLastModified(archive, &installTime));
+            EXPECT_EQ(CELIX_SUCCESS, celix_bundleArchive_getLastModified(archive, false, &installTime));
         }).build();
 
     long bndId1 = ctx->installBundle(SIMPLE_TEST_BUNDLE1_LOCATION);
@@ -115,7 +115,7 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchiveAlwaysUpdatedTest) {
             .addOnInstallCallback([&](const celix::Bundle& b) {
                 std::lock_guard<std::mutex> lock{m};
                 auto *archive = celix_bundle_getArchive(b.getCBundle());
-                EXPECT_EQ(CELIX_SUCCESS, celix_bundleArchive_getLastModified(archive, &installTime));
+                EXPECT_EQ(CELIX_SUCCESS, celix_bundleArchive_getLastModified(archive, false, &installTime));
             }).build();
 
     long bndId1 = ctx->installBundle(SIMPLE_TEST_BUNDLE1_LOCATION);

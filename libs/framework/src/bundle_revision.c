@@ -56,6 +56,13 @@ celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, co
 	return status;
 }
 
+bundle_revision_t* bundleRevision_revise(const bundle_revision_t* rev, const char* updatedBundleUrl) {
+    bundle_revision_pt newRev = NULL;
+    manifest_pt clonedManifest = manifest_clone(rev->manifest);
+    bundleRevision_create(rev->fw, rev->root, updatedBundleUrl, rev->revisionNr+1, clonedManifest, &newRev);
+    return newRev;
+}
+
 celix_status_t bundleRevision_destroy(bundle_revision_pt revision) {
     if (revision != NULL) {
         celix_arrayList_destroy(revision->libraryHandles);
@@ -67,22 +74,22 @@ celix_status_t bundleRevision_destroy(bundle_revision_pt revision) {
 	return CELIX_SUCCESS;
 }
 
-celix_status_t bundleRevision_getNumber(bundle_revision_pt revision, long *revisionNr) {
+celix_status_t bundleRevision_getNumber(const bundle_revision_t* revision, long *revisionNr) {
     *revisionNr = revision->revisionNr;
     return CELIX_SUCCESS;
 }
 
-celix_status_t bundleRevision_getLocation(bundle_revision_pt revision, const char **location) {
+celix_status_t bundleRevision_getLocation(const bundle_revision_t* revision, const char **location) {
     *location = revision->location;
     return CELIX_SUCCESS;
 }
 
-celix_status_t bundleRevision_getRoot(bundle_revision_pt revision, const char **root) {
+celix_status_t bundleRevision_getRoot(const bundle_revision_t* revision, const char **root) {
     *root = revision->root;
     return CELIX_SUCCESS;
 }
 
-celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_pt* manifest) {
+celix_status_t bundleRevision_getManifest(const bundle_revision_t* revision, manifest_pt* manifest) {
     *manifest = revision->manifest;
     return CELIX_SUCCESS;
 }

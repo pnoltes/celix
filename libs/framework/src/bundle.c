@@ -230,8 +230,8 @@ celix_status_t bundle_start(celix_bundle_t* bundle) {
     return celix_framework_startBundle(bundle->framework, celix_bundle_getId(bundle));
 }
 
-celix_status_t bundle_update(bundle_pt bundle, const char *inputFile __attribute__((unused))) {
-    return celix_framework_updateBundle(bundle->framework, celix_bundle_getId(bundle));
+celix_status_t bundle_update(bundle_pt bundle, const char* updatedBundleUrl) {
+    return celix_framework_updateBundle(bundle->framework, celix_bundle_getId(bundle), updatedBundleUrl);
 }
 
 celix_status_t bundle_stop(bundle_pt bundle) {

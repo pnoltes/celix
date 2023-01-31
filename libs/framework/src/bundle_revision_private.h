@@ -61,6 +61,8 @@ struct bundleRevision {
  */
 celix_status_t bundleRevision_create(celix_framework_t* fw, const char *root, const char *location, long revisionNr, manifest_pt manifest, bundle_revision_pt *bundle_revision);
 
+bundle_revision_t* bundleRevision_revise(const bundle_revision_t* revision, const char* updatedBundleUrl);
+
 celix_status_t bundleRevision_destroy(bundle_revision_pt revision);
 
 

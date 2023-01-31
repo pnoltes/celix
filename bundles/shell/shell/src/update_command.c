@@ -52,7 +52,7 @@ bool updateCommand_execute(void *handle, const char *constCommandLine, FILE *out
             } else {
                 fprintf(errStream, "Update bundle is not yet fully supported. Use at your own risk.\n");
                 celix_framework_t* fw = celix_bundleContext_getFramework(ctx);
-                celix_framework_updateBundleAsync(fw, bndId);
+                celix_framework_updateBundleAsync(fw, bndId, NULL);
                 updateSucceeded = true;
             }
             sub = strtok_r(NULL, OSGI_SHELL_COMMAND_SEPARATOR, &savePtr);

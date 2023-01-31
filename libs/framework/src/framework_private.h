@@ -120,6 +120,7 @@ typedef struct celix_framework_bundle_lifecycle_handler {
     celix_framework_t* framework;
     celix_framework_bundle_entry_t* bndEntry;
     long bndId;
+    char* updatedBundleUrl; //only relevant and present for update command
     enum celix_bundle_lifecycle_command command;
     int done; //NOTE atomic -> 0 not done, 1 done (thread can be joined)
 } celix_framework_bundle_lifecycle_handler_t;
@@ -252,8 +253,6 @@ bool celix_framework_getConfigPropertyAsBool(celix_framework_t* framework, const
 
 
 FRAMEWORK_EXPORT celix_status_t celix_framework_installBundleInternal(celix_framework_t *framework, const char *bndLoc, celix_bundle_t **bundleOut);
-
-FRAMEWORK_EXPORT celix_status_t framework_updateBundle(framework_pt framework, bundle_pt bundle, const char* inputFile);
 
 FRAMEWORK_EXPORT celix_status_t fw_registerService(framework_pt framework, service_registration_pt * registration, long bundleId, const char* serviceName, const void* svcObj, properties_pt properties);
 FRAMEWORK_EXPORT celix_status_t fw_registerServiceFactory(framework_pt framework, service_registration_pt * registration, long bundleId, const char* serviceName, service_factory_pt factory, properties_pt properties);
@@ -409,7 +408,7 @@ celix_status_t celix_framework_uninstallBundleOnANonCelixEventThread(celix_frame
  * @param forceSpawnThread If the true, the start bundle will always be done on a spawn thread
  * @return CELIX_SUCCESS of the call went alright.
  */
-celix_status_t celix_framework_updateBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, bool forceSpawnThread);
+celix_status_t celix_framework_updateBundleOnANonCelixEventThread(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, const char* updatedBundleUrl, bool forceSpawnThread);
 
 /**
  * cleanup finished bundle lifecyles threads.
@@ -436,6 +435,6 @@ celix_status_t celix_framework_uninstallBundleEntry(celix_framework_t* fw, celix
 /**
  * Uninstall a bundle. Cannot be called on the Celix event thread.
  */
-celix_status_t celix_framework_updateBundleEntry(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry);
+celix_status_t celix_framework_updateBundleEntry(celix_framework_t* fw, celix_framework_bundle_entry_t* bndEntry, const char* updatedBundleUrl);
 
 #endif /* FRAMEWORK_PRIVATE_H_ */

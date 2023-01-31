@@ -18,7 +18,6 @@
  */
 
 #include <gtest/gtest.h>
-#include <future>
 #include <thread>
 
 #include "celix_launcher.h"
@@ -103,18 +102,14 @@ TEST_F(CelixLauncherTestSuite, LaunchCelixTest) {
     char* arg1 = celix_utils_strdup("programName");
     char* arg2 = celix_utils_strdup("config.properties");
     char* argv[] = {arg1, arg2};
-    auto future = std::async(std::launch::async, [&]() -> int {
-        return celixLauncher_launchAndWaitForShutdown(2, argv, props);
-    });
-    std::this_thread::sleep_for(std::chrono::milliseconds (10)); //let thread start
+    celix_framework_t* fw = nullptr;
+    int rc = celixLauncher_launchWithArgv(2, argv, props, &fw);
+    ASSERT_EQ(rc, 0);
 
-    //Then a celix framework will be launched and stopped with sigterm
-    int count = 0;
-    while (future.wait_for(std::chrono::milliseconds{100}) != std::future_status::ready && count++ < 1000) {
-        raise(SIGTERM);
-        //TODO maybe use void celixLauncher_shutdownFramework(int signal) and move this to a private header
-    }
-    EXPECT_EQ(future.get(), 0);
+    celixLauncher_stop(fw);
+    celixLauncher_waitForShutdown(fw);
+    celixLauncher_destroy(fw);
+
     free(arg1);
     free(arg2);
 }

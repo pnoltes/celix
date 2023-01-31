@@ -53,7 +53,7 @@ extern "C" {
  * 		- CELIX_SUCCESS when no errors are encountered.
  * 		- CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-celix_status_t bundleRevision_getNumber(bundle_revision_pt revision, long *revisionNr);
+celix_status_t bundleRevision_getNumber(const bundle_revision_t* revision, long *revisionNr);
 
 /**
  * Retrieves the location of the given revision.
@@ -65,7 +65,7 @@ celix_status_t bundleRevision_getNumber(bundle_revision_pt revision, long *revis
  * 		- CELIX_SUCCESS when no errors are encountered.
  * 		- CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-celix_status_t bundleRevision_getLocation(bundle_revision_pt revision, const char **location);
+celix_status_t bundleRevision_getLocation(const bundle_revision_t* revision, const char **location);
 
 /**
  * Retrieves the root of the given revision.
@@ -77,7 +77,7 @@ celix_status_t bundleRevision_getLocation(bundle_revision_pt revision, const cha
  * 		- CELIX_SUCCESS when no errors are encountered.
  * 		- CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-celix_status_t bundleRevision_getRoot(bundle_revision_pt revision, const char **root);
+celix_status_t bundleRevision_getRoot(const bundle_revision_t* revision, const char **root);
 
 /**
  * Retrieves the manifest of the given revision.
@@ -89,7 +89,7 @@ celix_status_t bundleRevision_getRoot(bundle_revision_pt revision, const char **
  * 		- CELIX_SUCCESS when no errors are encountered.
  * 		- CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_pt *manifest);
+celix_status_t bundleRevision_getManifest(const bundle_revision_t* revision, manifest_pt *manifest);
 
 /**
  * Retrieves the handles of the installed libraries for this revision.
@@ -101,7 +101,7 @@ celix_status_t bundleRevision_getManifest(bundle_revision_pt revision, manifest_
  *      - CELIX_SUCCESS when no errors are encountered.
  *      - CELIX_ILLEGAL_ARGUMENT If <code>revision</code> is illegal.
  */
-celix_status_t bundleRevision_getHandles(bundle_revision_pt revision, celix_array_list_t **handles)
+celix_status_t bundleRevision_getHandles(const bundle_revision_t* revision, celix_array_list_t **handles)
     __attribute__((deprecated("Deprecated. Library handles are no now handled by the bundle module.")));
 
 #ifdef __cplusplus

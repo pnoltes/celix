@@ -302,13 +302,13 @@ TEST_F(UtilsTestSuite, WriteOrCreateStringTest) {
     //same test, but with long, int and short format args
     //Buffer big enough, write to stack buffer
     char buffer2[64];
-    char* out2 = celix_utils_writeOrCreateString(buffer2, sizeof(buffer2), "long %ld, int %d, short %hd", 1234567890L, 123456789, 12345);
+    char* out2 = celix_utils_writeOrCreateString(buffer2, sizeof(buffer2), "long %ld, int %d, short %hd", 1234567890L, 123456789, (short)12345);
     EXPECT_EQ(buffer2, out2);
     EXPECT_STREQ("long 1234567890, int 123456789, short 12345", out2);
     celix_utils_freeStringIfNeeded(buffer2, out2);
 
     //Buffer not big enough, malloc new string
-    out2 = celix_utils_writeOrCreateString(buffer2, sizeof(buffer2), "long %ld, int %d, short %hd. abc123def456ghi789jkl012mno345pqr678stu901vwx234yz", 1234567890123456789L, 123456789, 12345);
+    out2 = celix_utils_writeOrCreateString(buffer2, sizeof(buffer2), "long %ld, int %d, short %hd. abc123def456ghi789jkl012mno345pqr678stu901vwx234yz", 1234567890123456789L, 123456789, (short)12345);
     EXPECT_NE(buffer2, out2);
     EXPECT_STREQ("long 1234567890123456789, int 123456789, short 12345. abc123def456ghi789jkl012mno345pqr678stu901vwx234yz", out2);
     celix_utils_freeStringIfNeeded(buffer2, out2);

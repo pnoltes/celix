@@ -891,11 +891,11 @@ bool celix_bundleContext_isBundleActive(celix_bundle_context_t *ctx, long bndId)
  * then the function will return after the bundle is started.
  *
  * @param ctx The bundle context
- * @param bundleLoc The bundle location to the bundle zip file.
+ * @param bundleUrl The bundle location to the bundle zip file.
  * @param autoStart If the bundle should also be started.
  * @return the bundleId (>= 0) or < 0 if the bundle could not be installed and possibly started.
  */
-long celix_bundleContext_installBundle(celix_bundle_context_t *ctx, const char *bundleLoc, bool autoStart);
+long celix_bundleContext_installBundle(celix_bundle_context_t *ctx, const char *bundleUrl, bool autoStart);
 
 /**
  * @brief Uninstall the bundle with the provided bundle id. If needed the bundle will be stopped first.
@@ -961,9 +961,11 @@ bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bndId);
  *
  * @param ctx The bundle context
  * @param bndId The bundle id to start.
+ * @param updatedBundleUrl The optional updated bundle url to the bundle zip file. If NULL, the existing bundle url
+ *                         from the bundle cache will be used.
  * @return true if the bundle is found & correctly started. False if not.
  */
-bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId)
+bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId, const char* updatedBundleUrl)
     __attribute((warning("Update bundle is not yet fully supported. Use at your own risk.")));
 
 /**
