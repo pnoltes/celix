@@ -965,8 +965,7 @@ bool celix_bundleContext_startBundle(celix_bundle_context_t *ctx, long bndId);
  *                         from the bundle cache will be used.
  * @return true if the bundle is found & correctly started. False if not.
  */
-bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId, const char* updatedBundleUrl)
-    __attribute((warning("Update bundle is not yet fully supported. Use at your own risk.")));
+bool celix_bundleContext_updateBundle(celix_bundle_context_t *ctx, long bndId, const char* updatedBundleUrl);
 
 /**
  * @brief Returns the bundle symbolic name for the provided bundle id.

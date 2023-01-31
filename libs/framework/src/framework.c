@@ -2312,6 +2312,8 @@ static bool celix_framework_updateBundleInternal(celix_framework_t *fw, long bnd
         return true;
     }
 
+    fw_log(fw->logger, CELIX_LOG_LEVEL_WARNING, "Update bundle is not yet fully supported. Use at your own risk.");
+
     bool updated = false;
     celix_framework_bundle_entry_t *bndEntry = celix_framework_bundleEntry_getBundleEntryAndIncreaseUseCount(fw, bndId);
     if (bndEntry != NULL) {

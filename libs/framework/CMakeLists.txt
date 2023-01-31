@@ -36,7 +36,6 @@ set(SOURCES
         src/celix_framework_utils.c
         src/celix_module_private.h)
 add_library(framework SHARED ${SOURCES})
-target_compile_options(framework PRIVATE -Wno-attribute-warning) #Ignore added warning attribute, these are for downstream users
 set_target_properties(framework PROPERTIES OUTPUT_NAME "celix_framework")
 target_include_directories(framework PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
