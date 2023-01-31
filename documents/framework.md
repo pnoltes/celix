@@ -222,7 +222,6 @@ The following framework properties are supported:
 | Framework Property                                  | Default Value | Description                                                                                                                               |
 |-----------------------------------------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | CELIX_FRAMEWORK_CACHE_DIR                           | ".cache"      | The directory where the Apache Celix framework will store its data.                                                                       |
-| CELIX_FRAMEWORK_CACHE_ALWAYS_UPDATE_BUNDLE_ARCHIVES | "false"       | If true,  the bundle archive always should be cleaned and newly extracted.                                                                |
 | CELIX_FRAMEWORK_CACHE_USE_TMP_DIR                   | "false"       | If true, the Apache Celix framework will use the system temp directory for the cache directory.                                           |
 | CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE           | "false"       | If true, the Apache Celix framework will clean the cache directory on create.                                                             |
 | CELIX_FRAMEWORK_FRAMEWORK_UUID                      | ""            | The UUID of the Apache Celix framework. If not set, a random UUID will be generated.                                                      |

@@ -173,15 +173,6 @@ extern "C" {
 //@deprecated use CELIX_FRAMEWORK_FRAMEWORK_CACHE_DIR
 #define OSGI_FRAMEWORK_FRAMEWORK_STORAGE    "org.osgi.framework.storage"
 
-
-/**
- * @brief Celix framework environment property (named "CELIX_FRAMEWORK_STORAGE_CLEAN") specifying the
- * whether the bundle archive always should be cleaned and newly extracted.
- *
- * Default is false.
- */
-#define CELIX_FRAMEWORK_CACHE_ALWAYS_UPDATE_BUNDLE_ARCHIVES "CELIX_FRAMEWORK_CACHE_ALWAYS_UPDATE_BUNDLE_ARCHIVES"
-
 /**
  * @brief Celix framework environment property (named "CELIX_FRAMEWORK_CACHE_USE_TMP_DIR") specifying the
  * whether to use a tmp directory for the bundle cache dir.

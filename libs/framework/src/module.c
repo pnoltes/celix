@@ -355,9 +355,7 @@ array_list_pt module_getDependents(module_pt module) {
 
 celix_status_t celix_module_closeLibraries(celix_module_t* module) {
     celix_status_t status = CELIX_SUCCESS;
-    //TODO enable, does not work because fw destroy calls closeLibraries??? this should be done in stop
-    //celix_bundle_context_t *fwCtx = celix_framework_getFrameworkContext(module->fw);
-    celix_bundle_context_t *fwCtx = NULL;
+    celix_bundle_context_t *fwCtx = celix_framework_getFrameworkContext(module->fw);
     celixThreadMutex_lock(&module->handlesLock);
     for (int i = 0; i < celix_arrayList_size(module->libraryHandles); i++) {
         void *handle = celix_arrayList_get(module->libraryHandles, i);

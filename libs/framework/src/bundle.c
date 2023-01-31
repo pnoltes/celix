@@ -355,20 +355,8 @@ celix_status_t bundle_isSystemBundle(const_bundle_pt bundle, bool *systemBundle)
 }
 
 celix_status_t bundle_close(const_bundle_pt bundle) {
-	bundle_archive_pt archive = NULL;
-	
-	celix_status_t status;
-
-    bundle_closeModules(bundle);
-    bundle_closeRevisions(bundle);
-    status = bundle_getArchive(bundle, &archive);
-    if (status == CELIX_SUCCESS) {
-		bundleArchive_close(archive);
-    }
-
-	framework_logIfError(bundle->framework->logger, status, NULL, "Failed to close bundle");
-
-    return status;
+    fw_log(bundle->framework->logger, CELIX_LOG_LEVEL_DEBUG, "Usage of bundle_close is deprecated. Called for bundle %s", bundle->symbolicName);
+    return CELIX_SUCCESS;
 }
 
 celix_status_t bundle_closeAndDelete(const_bundle_pt bundle) {

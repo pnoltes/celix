@@ -49,7 +49,6 @@ struct celix_bundle_cache {
     char* cacheDir;
     bool deleteOnDestroy;
     bool deleteOnCreate;
-    bool alwaysUpdateBundleArchives;
 
     celix_thread_mutex_t mutex; //protects below
     celix_string_hash_map_t* locationToBundleIdLookupMap; //key = location, value = bundle id.
@@ -123,10 +122,6 @@ celix_status_t celix_bundleCache_create(celix_framework_t* fw, celix_bundle_cach
         return status;
     }
 
-    cache->alwaysUpdateBundleArchives = celix_framework_getConfigPropertyAsBool(fw,
-        CELIX_FRAMEWORK_CACHE_ALWAYS_UPDATE_BUNDLE_ARCHIVES,
-        CELIX_FRAMEWORK_CACHE_ALWAYS_UPDATE_BUNDLE_ARCHIVES_DEFAULT,
-        NULL);
     bool useTmpDir = celix_bundleCache_useTmpDir(fw);
     cache->deleteOnCreate = celix_bundleCache_cleanOnCreate(fw);
     cache->deleteOnDestroy = useTmpDir; //if tmp dir is used, delete on destroy
@@ -195,7 +190,7 @@ celix_status_t celix_bundleCache_createArchive(celix_framework_t* fw, long id, c
     char archiveRootBuffer[CELIX_DEFAULT_STRING_CREATE_BUFFER_SIZE];
     char *archiveRoot = celix_utils_writeOrCreateString(archiveRootBuffer, sizeof(archiveRootBuffer), CELIX_BUNDLE_ARCHIVE_ROOT_FORMAT, fw->cache->cacheDir, id);
     if (archiveRoot) {
-		status = bundleArchive_create(fw, archiveRoot, id, location, fw->cache->alwaysUpdateBundleArchives, &archive);
+		status = bundleArchive_create(fw, archiveRoot, id, location, &archive);
         if (status != CELIX_SUCCESS) {
             celix_utils_freeStringIfNeeded(archiveRootBuffer, archiveRoot);
             return status;

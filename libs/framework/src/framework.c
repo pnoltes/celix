@@ -1216,18 +1216,17 @@ static void* framework_shutdown(void *framework) {
     for (int i = size-1; i >= 0; --i) { //note loop in reverse order -> stop later installed bundle first
         celix_framework_bundle_entry_t *entry = celix_arrayList_get(stopEntries, i);
 
-        bundle_t *bnd = entry->bnd;
-
         //NOTE possible starvation.
         fw_bundleEntry_waitTillUseCountIs(entry, 1);  //note this function has 1 use count.
 
-        bundle_state_e state;
-        bundle_getState(bnd, &state);
+        bundle_state_e state = celix_bundle_getState(entry->bnd);
         if (state == CELIX_BUNDLE_STATE_ACTIVE || state == CELIX_BUNDLE_STATE_STARTING) {
             celix_framework_stopBundleEntry(fw, entry);
         }
-        bundle_close(bnd);
-        celix_framework_bundleEntry_decreaseUseCount(entry);
+    }
+    for (int i = size-1; i >= 0; --i) { //note loop in reverse order -> uninstall later installed bundle first
+        celix_framework_bundle_entry_t *entry = celix_arrayList_get(stopEntries, i);
+        celix_framework_uninstallBundleEntry(fw, entry);
     }
     celix_arrayList_destroy(stopEntries);
 
