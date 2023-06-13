@@ -33,7 +33,7 @@ celix_get_bundle_file(Celix::rsa_json_rpc RSA_JSON_RPC_BUNDLE_FILE)
 target_compile_definitions(integration_test_rsa_json_rpc PRIVATE -DRSA_JSON_RPC_BUNDLE="${RSA_JSON_RPC_BUNDLE_FILE}")
 
 
-add_test(NAME run_integration_test_rsa_json_rpc COMMAND integration_test_rsa_json_rpc)
+add_celix_test(NAME run_integration_test_rsa_json_rpc COMMAND integration_test_rsa_json_rpc)
 setup_target_for_coverage(integration_test_rsa_json_rpc SCAN_DIR ..)
 
 if (LINKER_WRAP_SUPPORTED)
@@ -66,6 +66,6 @@ if (LINKER_WRAP_SUPPORTED)
 
     target_compile_definitions(unit_test_rsa_json_rpc PRIVATE -DRESOURCES_DIR="${CMAKE_CURRENT_LIST_DIR}/resources")
 
-    add_test(NAME run_unit_test_rsa_json_rpc COMMAND unit_test_rsa_json_rpc)
+    add_celix_test(NAME run_unit_test_rsa_json_rpc COMMAND unit_test_rsa_json_rpc)
     setup_target_for_coverage(unit_test_rsa_json_rpc SCAN_DIR ..)
 endif ()

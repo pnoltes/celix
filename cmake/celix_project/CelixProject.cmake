@@ -130,3 +130,4 @@ endfunction()
 
 include(${CMAKE_CURRENT_LIST_DIR}/ApacheRat.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/CodeCoverage.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/CelixTest.cmake)

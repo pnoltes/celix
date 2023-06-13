@@ -29,7 +29,7 @@ if (LINKER_WRAP_SUPPORTED)
             Celix::sys_shm_ei
             GTest::gtest GTest::gtest_main)
 
-    add_test(NAME run_test_shm_pool COMMAND test_shm_pool)
+    add_celix_test(NAME run_test_shm_pool COMMAND test_shm_pool)
     setup_target_for_coverage(test_shm_pool SCAN_DIR ..)
 endif ()
 

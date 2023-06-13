@@ -22,6 +22,6 @@ add_executable(test_log_helper
 
 target_link_libraries(test_log_helper PRIVATE Celix::log_helper GTest::gtest GTest::gtest_main)
 
-add_test(NAME test_log_helper COMMAND test_log_helper)
+add_celix_test(NAME test_log_helper COMMAND test_log_helper)
 setup_target_for_coverage(test_log_helper SCAN_DIR ..)
 

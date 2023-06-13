@@ -76,7 +76,7 @@ else ()
     target_link_libraries(test_utils PRIVATE -Wl,-sectcreate -Wl,resources -Wl,test_zip -Wl,${TEST_ZIP_FILE})
 endif ()
 
-add_test(NAME test_utils COMMAND test_utils)
+add_celix_test(NAME test_utils COMMAND test_utils)
 setup_target_for_coverage(test_utils SCAN_DIR ..)
 
 
@@ -94,7 +94,7 @@ if (LINKER_WRAP_SUPPORTED)
     add_dependencies(test_utils_with_ei test_utils_resources)
     target_compile_definitions(test_utils_with_ei PRIVATE -DTEST_ZIP_LOCATION=\"${TEST_ZIP_FILE}\")
     target_compile_definitions(test_utils_with_ei PRIVATE -DTEST_A_DIR_LOCATION=\"${CMAKE_CURRENT_SOURCE_DIR}\")
-    add_test(NAME test_utils_with_ei COMMAND test_utils_with_ei)
+    add_celix_test(NAME test_utils_with_ei COMMAND test_utils_with_ei)
     setup_target_for_coverage(test_utils_with_ei SCAN_DIR ..)
 endif ()
 
@@ -105,7 +105,7 @@ if (ENABLE_TESTING_FOR_CXX14)
             ${CELIX_UTIL_TEST_SOURCES_FOR_CXX_HEADERS}
     )
     target_link_libraries(test_utils_cxx_headers_with_cxx14 PRIVATE utils_cut GTest::gtest GTest::gtest_main)
-    add_test(NAME test_utils_cxx_headers_with_cxx14 COMMAND test_utils_cxx_headers_with_cxx14)
+    add_celix_test(NAME test_utils_cxx_headers_with_cxx14 COMMAND test_utils_cxx_headers_with_cxx14)
     setup_target_for_coverage(test_utils_cxx_headers_with_cxx14 SCAN_DIR ..)
 endif ()
 

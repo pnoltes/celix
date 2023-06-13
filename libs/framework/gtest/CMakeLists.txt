@@ -120,7 +120,7 @@ target_compile_definitions(test_framework PRIVATE
         CMP_TEST_BUNDLE_LOC="${CMP_TEST_BUNDLE_LOC}"
         INSTALL_AND_START_BUNDLES_CONFIG_PROPERTIES_FILE="${CMAKE_CURRENT_BINARY_DIR}/install_and_start_bundles.properties"
 )
-add_test(NAME test_framework COMMAND test_framework)
+add_celix_test(NAME test_framework COMMAND test_framework)
 setup_target_for_coverage(test_framework SCAN_DIR ..)
 
 if (LINKER_WRAP_SUPPORTED)
@@ -150,7 +150,7 @@ if (LINKER_WRAP_SUPPORTED)
             GTest::gtest GTest::gtest_main
     )
 
-    add_test(NAME test_framework_with_ei COMMAND test_framework_with_ei)
+    add_celix_test(NAME test_framework_with_ei COMMAND test_framework_with_ei)
     setup_target_for_coverage(test_framework_with_ei SCAN_DIR ..)
 endif ()
 
@@ -167,7 +167,7 @@ if (ENABLE_TESTING_DEPENDENCY_MANAGER_FOR_CXX11)
             )
     celix_deprecated_utils_headers(test_dep_man_with_cxx11)
     celix_deprecated_framework_headers(test_dep_man_with_cxx11)
-    add_test(NAME test_dep_man_with_cxx11 COMMAND test_dep_man_with_cxx11)
+    add_celix_test(NAME test_dep_man_with_cxx11 COMMAND test_dep_man_with_cxx11)
     setup_target_for_coverage(test_dep_man_with_cxx11 SCAN_DIR ..)
 
     #Also to ensure that CELIX_GEN_CXX_BUNDLE_ACTIVATOR still works for C++11 bundle activators with a
@@ -221,6 +221,6 @@ if (ENABLE_TESTING_FOR_CXX14)
             CMP_TEST_BUNDLE_LOC="${CMP_TEST_BUNDLE_LOC}"
             INSTALL_AND_START_BUNDLES_CONFIG_PROPERTIES_FILE="${CMAKE_CURRENT_BINARY_DIR}/install_and_start_bundles.properties"
     )
-    add_test(NAME test_framework_with_cxx14 COMMAND test_framework_with_cxx14)
+    add_celix_test(NAME test_framework_with_cxx14 COMMAND test_framework_with_cxx14)
     setup_target_for_coverage(test_framework_with_cxx14 SCAN_DIR ..)
 endif ()

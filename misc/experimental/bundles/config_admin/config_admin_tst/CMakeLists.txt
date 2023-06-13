@@ -43,5 +43,5 @@ configure_file(config.properties.in config.properties @ONLY)
 
 
 #ADD_TARGET_FOR_TEST(config_admin_test)
-add_test(NAME run_config_admin_test COMMAND config_admin_test)
+add_celix_test(NAME run_config_admin_test COMMAND config_admin_test)
 setup_target_for_coverage(config_admin_test)

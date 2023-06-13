@@ -26,5 +26,5 @@ celix_get_bundle_file(RemoteServiceAdmin REMOTE_SERVICE_ADMIN_BUNDLE_LOCATION)
 target_compile_definitions(test_cxx_remote_service_admin PRIVATE REMOTE_SERVICE_ADMIN_BUNDLE_LOCATION="${REMOTE_SERVICE_ADMIN_BUNDLE_LOCATION}")
 
 
-add_test(NAME test_cxx_remote_service_admin COMMAND test_cxx_remote_service_admin)
+add_celix_test(NAME test_cxx_remote_service_admin COMMAND test_cxx_remote_service_admin)
 setup_target_for_coverage(test_cxx_remote_service_admin SCAN_DIR ..)

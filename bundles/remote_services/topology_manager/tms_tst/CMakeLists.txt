@@ -67,6 +67,6 @@ configure_file("scope3.json" "scope3.json")
 configure_file("scope4.json" "scope4.json")
 
 
-add_test(NAME run_test_tm_scoped COMMAND test_tm_scoped)
+add_celix_test(NAME run_test_tm_scoped COMMAND test_tm_scoped)
 setup_target_for_coverage(test_tm_scoped SCAN_DIR ..)
 

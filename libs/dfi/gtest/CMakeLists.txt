@@ -40,6 +40,6 @@ celix_deprecated_utils_headers(test_dfi)
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/schemas DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY ${CMAKE_CURRENT_LIST_DIR}/descriptors DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
-add_test(NAME run_test_dfi COMMAND test_dfi)
+add_celix_test(NAME run_test_dfi COMMAND test_dfi)
 setup_target_for_coverage(test_dfi SCAN_DIR ..)
 

@@ -62,5 +62,5 @@ target_compile_definitions(test_cxx_remote_services_integration PRIVATE RS_CONSU
 
 
 
-add_test(NAME test_cxx_remote_services_integration COMMAND test_cxx_remote_services_integration)
+add_celix_test(NAME test_cxx_remote_services_integration COMMAND test_cxx_remote_services_integration)
 setup_target_for_coverage(test_cxx_remote_services_integration SCAN_DIR ../..)

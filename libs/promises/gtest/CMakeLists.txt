@@ -22,6 +22,6 @@ add_executable(test_celix_promises
 )
 target_link_libraries(test_celix_promises PRIVATE GTest::gtest GTest::gtest_main Celix::Promises)
 
-add_test(NAME test_celix_promises COMMAND test_celix_promises)
+add_celix_test(NAME test_celix_promises COMMAND test_celix_promises)
 setup_target_for_coverage(test_celix_promises SCAN_DIR ..)
 

@@ -21,6 +21,6 @@ add_executable(test_celix_pushstreams
 target_compile_options(test_celix_pushstreams PRIVATE -std=c++17)
 target_link_libraries(test_celix_pushstreams PRIVATE GTest::gtest GTest::gtest_main Celix::PushStreams)
 
-add_test(NAME test_celix_pushstreams COMMAND test_celix_pushstreams)
+add_celix_test(NAME test_celix_pushstreams COMMAND test_celix_pushstreams)
 setup_target_for_coverage(test_celix_pushstreams SCAN_DIR ..)
 

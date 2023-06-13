@@ -25,6 +25,6 @@ add_celix_bundle_dependencies(test_log_admin Celix::log_admin)
 target_compile_definitions(test_log_admin PRIVATE -DLOG_ADMIN_BUNDLE=\"$<TARGET_PROPERTY:log_admin,BUNDLE_FILE>\")
 
 
-add_test(NAME test_log_admin COMMAND test_log_admin)
+add_celix_test(NAME test_log_admin COMMAND test_log_admin)
 setup_target_for_coverage(test_log_admin SCAN_DIR ..)
 

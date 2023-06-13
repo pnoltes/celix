@@ -25,6 +25,6 @@ target_compile_definitions(test_syslog_writer PRIVATE -DLOG_ADMIN_BUNDLE=\"$<TAR
 target_compile_definitions(test_syslog_writer PRIVATE -DSYSLOG_WRITER_BUNDLE=\"$<TARGET_PROPERTY:syslog_writer,BUNDLE_FILE>\")
 
 
-add_test(NAME test_syslog_writer COMMAND test_syslog_writer)
+add_celix_test(NAME test_syslog_writer COMMAND test_syslog_writer)
 setup_target_for_coverage(test_syslog_writer SCAN_DIR ..)
 

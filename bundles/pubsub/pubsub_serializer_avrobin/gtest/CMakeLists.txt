@@ -31,6 +31,6 @@ add_celix_bundle_dependencies(test_pubsub_serializer_avrobin celix_pubsub_serial
 target_compile_definitions(test_pubsub_serializer_avrobin PRIVATE -DSERIALIZATION_BUNDLE=\"$<TARGET_PROPERTY:celix_pubsub_serializer_avrobin,BUNDLE_FILE>\")
 target_compile_definitions(test_pubsub_serializer_avrobin PRIVATE -DDESCRIPTOR_BUNDLE=\"$<TARGET_PROPERTY:pubsub_avrobin_serialization_descriptor,BUNDLE_FILE>\")
 
-add_test(NAME test_pubsub_serializer_avrobin COMMAND test_pubsub_serializer_avrobin)
+add_celix_test(NAME test_pubsub_serializer_avrobin COMMAND test_pubsub_serializer_avrobin)
 setup_target_for_coverage(test_pubsub_serializer_avrobin SCAN_DIR ..)
 

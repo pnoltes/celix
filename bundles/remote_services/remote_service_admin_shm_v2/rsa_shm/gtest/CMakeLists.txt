@@ -36,7 +36,7 @@ target_compile_definitions(integration_test_rsa_shm PRIVATE -DRSA_SHM_BUNDLE="${
 
 add_celix_bundle_dependencies(integration_test_rsa_shm Celix::rsa_shm)
 
-add_test(NAME run_integration_test_rsa_shm COMMAND integration_test_rsa_shm)
+add_celix_test(NAME run_integration_test_rsa_shm COMMAND integration_test_rsa_shm)
 setup_target_for_coverage(integration_test_rsa_shm SCAN_DIR ..)
 
 if (LINKER_WRAP_SUPPORTED)
@@ -83,6 +83,6 @@ if (LINKER_WRAP_SUPPORTED)
 
     celix_deprecated_utils_headers(unit_test_rsa_shm)
 
-    add_test(NAME run_unit_test_rsa_shm COMMAND unit_test_rsa_shm)
+    add_celix_test(NAME run_unit_test_rsa_shm COMMAND unit_test_rsa_shm)
     setup_target_for_coverage(unit_test_rsa_shm SCAN_DIR ..)
 endif ()

@@ -120,3 +120,10 @@ jobs:
         cd $GITHUB_WORKSPACE/build
         export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH:$(pwd)/utils:$(pwd)/framework:$(pwd)/dfi
         make test ARGS="-V"
+    - name: Test Report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: Test Report
+        path: $GITHUB_WORKSPACE/build/test_reports/*.xml
+        reporter: java-junit

@@ -37,5 +37,5 @@ celix_get_bundle_file(rsa_dfi_utils_test_descriptor DESCRIPTOR_BUNDLE_FILE)
 target_compile_definitions(test_rsa_dfi_utils PRIVATE -DDESCRIPTOR_BUNDLE="${DESCRIPTOR_BUNDLE_FILE}")
 target_compile_definitions(test_rsa_dfi_utils PRIVATE -DDESCRIPTOR_FILE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/descriptors")
 
-add_test(NAME run_test_rsa_dfi_utils COMMAND test_rsa_dfi_utils)
+add_celix_test(NAME run_test_rsa_dfi_utils COMMAND test_rsa_dfi_utils)
 setup_target_for_coverage(test_rsa_dfi_utils SCAN_DIR ..)

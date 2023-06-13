@@ -31,6 +31,6 @@ add_celix_bundle_dependencies(test_pubsub_serializer_json celix_pubsub_serialize
 target_compile_definitions(test_pubsub_serializer_json PRIVATE -DSERIALIZATION_BUNDLE=\"$<TARGET_PROPERTY:celix_pubsub_serializer_json,BUNDLE_FILE>\")
 target_compile_definitions(test_pubsub_serializer_json PRIVATE -DDESCRIPTOR_BUNDLE=\"$<TARGET_PROPERTY:pubsub_json_serialization_descriptor,BUNDLE_FILE>\")
 
-add_test(NAME test_pubsub_serializer_json COMMAND test_pubsub_serializer_json)
+add_celix_test(NAME test_pubsub_serializer_json COMMAND test_pubsub_serializer_json)
 setup_target_for_coverage(test_pubsub_serializer_json SCAN_DIR ..)
 

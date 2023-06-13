@@ -26,7 +26,7 @@ if (CELIX_INSTALL_DEPRECATED_API)
     target_compile_definitions(test_shell PRIVATE CELIX_INSTALL_DEPRECATED_API)
 endif ()
 
-add_test(NAME test_shell COMMAND test_shell)
+add_celix_test(NAME test_shell COMMAND test_shell)
 setup_target_for_coverage(test_shell SCAN_DIR ..)
 
 
@@ -37,6 +37,6 @@ if (CELIX_CXX14)
     celix_target_bundle_set_definition(test_cxx_shell NAME TEST_BUNDLES Celix::ShellCxx)
     target_compile_definitions(test_cxx_shell PRIVATE -DCXX_SHELL)
 
-    add_test(NAME test_cxx_shell COMMAND test_cxx_shell)
+    add_celix_test(NAME test_cxx_shell COMMAND test_cxx_shell)
     setup_target_for_coverage(test_cxx_shell SCAN_DIR ..)
 endif()

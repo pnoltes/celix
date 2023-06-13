@@ -37,7 +37,7 @@ celix_get_bundle_file(Celix::rsa_discovery_zeroconf DISCOVERY_ZEROCONF_BUNDLE_FI
 target_compile_definitions(integration_test_discovery_zeroconf PRIVATE -DDISCOVERY_ZEROCONF_BUNDLE="${DISCOVERY_ZEROCONF_BUNDLE_FILE}")
 
 
-add_test(NAME run_integration_test_discovery_zeroconf COMMAND integration_test_discovery_zeroconf)
+add_celix_test(NAME run_integration_test_discovery_zeroconf COMMAND integration_test_discovery_zeroconf)
 setup_target_for_coverage(integration_test_discovery_zeroconf SCAN_DIR ..)
 
 if (LINKER_WRAP_SUPPORTED)
@@ -67,6 +67,6 @@ if (LINKER_WRAP_SUPPORTED)
     target_compile_definitions(unit_test_discovery_zeroconf PRIVATE -DMDNSD="${DNSSD_LIB_DIRS}/../bin/mdnsd")
 
 
-    add_test(NAME run_unit_test_discovery_zeroconf COMMAND sudo $<TARGET_FILE:unit_test_discovery_zeroconf>)
+    add_celix_test(NAME run_unit_test_discovery_zeroconf COMMAND sudo $<TARGET_FILE:unit_test_discovery_zeroconf>)
     setup_target_for_coverage(unit_test_discovery_zeroconf SCAN_DIR ..)
 endif ()

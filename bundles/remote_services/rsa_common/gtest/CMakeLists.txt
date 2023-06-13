@@ -34,6 +34,6 @@ if (LINKER_WRAP_SUPPORTED)
 
     celix_deprecated_utils_headers(unit_test_rsa_common)
 
-    add_test(NAME run_unit_test_rsa_common COMMAND unit_test_rsa_common)
+    add_celix_test(NAME run_unit_test_rsa_common COMMAND unit_test_rsa_common)
     setup_target_for_coverage(unit_test_rsa_common SCAN_DIR ..)
 endif ()

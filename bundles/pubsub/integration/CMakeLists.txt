@@ -189,11 +189,11 @@ if (PUBSUB_INTEGRATION)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/msg.descriptor ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_udpmc_gtest/META-INF/descriptors/msg.descriptor COPYONLY)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/deadlock.scope.properties ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_udpmc_gtest/META-INF/topics/pub/deadlock.properties COPYONLY)
 
-        add_test(NAME pstm_deadlock_udpmc_test COMMAND pstm_deadlock_udpmc_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_udpmc_test,CONTAINER_LOC>)
+        add_celix_test(NAME pstm_deadlock_udpmc_test COMMAND pstm_deadlock_udpmc_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_udpmc_test,CONTAINER_LOC>)
         setup_target_for_coverage(pstm_deadlock_udpmc_test SCAN_DIR ..)
 
         #TODO fix issues with UDPMC and reanble test again
-        #add_test(NAME pubsub_udpmc_tests COMMAND pubsub_udpmc_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_udpmc_tests,CONTAINER_LOC>)
+        #add_celix_test(NAME pubsub_udpmc_tests COMMAND pubsub_udpmc_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_udpmc_tests,CONTAINER_LOC>)
         #setup_target_for_coverage(pubsub_udpmc_tests SCAN_DIR ..)
     endif()
 
@@ -220,7 +220,7 @@ if (PUBSUB_INTEGRATION)
                 )
         target_link_libraries(pubsub_tcp_v2_wire_v1_tests PRIVATE Celix::pubsub_api Celix::dfi GTest::gtest GTest::gtest_main)
         target_include_directories(pubsub_tcp_v2_wire_v1_tests SYSTEM PRIVATE gtest)
-        add_test(NAME pubsub_tcp_v2_wire_v1_tests COMMAND pubsub_tcp_v2_wire_v1_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_wire_v1_tests,CONTAINER_LOC>)
+        add_celix_test(NAME pubsub_tcp_v2_wire_v1_tests COMMAND pubsub_tcp_v2_wire_v1_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_wire_v1_tests,CONTAINER_LOC>)
         setup_target_for_coverage(pubsub_tcp_v2_wire_v1_tests SCAN_DIR ..)
 
         add_celix_container(pubsub_tcp_v2_wire_v2_tests
@@ -243,7 +243,7 @@ if (PUBSUB_INTEGRATION)
                 )
         target_link_libraries(pubsub_tcp_v2_wire_v2_tests PRIVATE Celix::pubsub_api Celix::dfi GTest::gtest GTest::gtest_main)
         target_include_directories(pubsub_tcp_v2_wire_v2_tests SYSTEM PRIVATE gtest)
-        add_test(NAME pubsub_tcp_v2_wire_v2_tests COMMAND pubsub_tcp_v2_wire_v2_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_wire_v2_tests,CONTAINER_LOC>)
+        add_celix_test(NAME pubsub_tcp_v2_wire_v2_tests COMMAND pubsub_tcp_v2_wire_v2_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_wire_v2_tests,CONTAINER_LOC>)
         setup_target_for_coverage(pubsub_tcp_v2_wire_v2_tests SCAN_DIR ..)
 
         add_celix_container(pubsub_tcp_v2_wire_v2_with_no_scope_tests
@@ -267,7 +267,7 @@ if (PUBSUB_INTEGRATION)
                 )
         target_link_libraries(pubsub_tcp_v2_wire_v2_with_no_scope_tests PRIVATE Celix::pubsub_api Celix::dfi GTest::gtest GTest::gtest_main)
         target_include_directories(pubsub_tcp_v2_wire_v2_with_no_scope_tests SYSTEM PRIVATE gtest)
-        add_test(NAME pubsub_tcp_v2_wire_v2_with_no_scope_tests COMMAND pubsub_tcp_v2_wire_v2_with_no_scope_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_wire_v2_with_no_scope_tests,CONTAINER_LOC>)
+        add_celix_test(NAME pubsub_tcp_v2_wire_v2_with_no_scope_tests COMMAND pubsub_tcp_v2_wire_v2_with_no_scope_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_wire_v2_with_no_scope_tests,CONTAINER_LOC>)
         setup_target_for_coverage(pubsub_tcp_v2_wire_v2_with_no_scope_tests SCAN_DIR ..)
 
         add_celix_container(pubsub_tcp_v2_endpoint_tests
@@ -319,12 +319,12 @@ if (PUBSUB_INTEGRATION)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/msg.descriptor ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_tcp_gtest/META-INF/descriptors/msg.descriptor COPYONLY)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/deadlock.scope.properties ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_tcp_gtest/META-INF/topics/pub/deadlock.properties COPYONLY)
 
-        add_test(NAME pstm_deadlock_tcp_v2_test COMMAND pstm_deadlock_tcp_v2_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_tcp_v2_test,CONTAINER_LOC>)
+        add_celix_test(NAME pstm_deadlock_tcp_v2_test COMMAND pstm_deadlock_tcp_v2_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_tcp_v2_test,CONTAINER_LOC>)
         setup_target_for_coverage(pstm_deadlock_tcp_v2_test SCAN_DIR ..)
 
         #TCP Endpoint test is disabled because the test is not stable when running on Travis
         if (ENABLE_PUBSUB_PSA_TCP_ENDPOINT_TEST)
-            add_test(NAME pubsub_tcp_v2_endpoint_tests COMMAND pubsub_tcp_v2_endpoint_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_endpoint_tests,CONTAINER_LOC>)
+            add_celix_test(NAME pubsub_tcp_v2_endpoint_tests COMMAND pubsub_tcp_v2_endpoint_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_tcp_v2_endpoint_tests,CONTAINER_LOC>)
             setup_target_for_coverage(pubsub_tcp_v2_endpoint_tests SCAN_DIR ..)
         endif()
     endif()
@@ -349,7 +349,7 @@ if (PUBSUB_INTEGRATION)
                 )
         target_link_libraries(pubsub_websocket_v2_tests PRIVATE Celix::pubsub_api Celix::dfi jansson::jansson GTest::gtest GTest::gtest_main civetweb::civetweb)
         target_include_directories(pubsub_websocket_v2_tests SYSTEM PRIVATE gtest)
-        add_test(NAME pubsub_websocket_v2_tests COMMAND pubsub_websocket_v2_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_websocket_v2_tests,CONTAINER_LOC>)
+        add_celix_test(NAME pubsub_websocket_v2_tests COMMAND pubsub_websocket_v2_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_websocket_v2_tests,CONTAINER_LOC>)
         setup_target_for_coverage(pubsub_websocket_v2_tests SCAN_DIR ..)
 
         add_celix_container(pstm_deadlock_websocket_v2_test
@@ -379,7 +379,7 @@ if (PUBSUB_INTEGRATION)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/msg.descriptor ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_websocket_v2_test/META-INF/descriptors/msg.descriptor COPYONLY)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/deadlock.scope.properties ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_websocket_v2_test/META-INF/topics/pub/deadlock.properties COPYONLY)
 
-        add_test(NAME pstm_deadlock_websocket_v2_test COMMAND pstm_deadlock_websocket_v2_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_websocket_v2_test,CONTAINER_LOC>)
+        add_celix_test(NAME pstm_deadlock_websocket_v2_test COMMAND pstm_deadlock_websocket_v2_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_websocket_v2_test,CONTAINER_LOC>)
         setup_target_for_coverage(pstm_deadlock_websocket_v2_test SCAN_DIR ..)
     endif()
 
@@ -406,7 +406,7 @@ if (PUBSUB_INTEGRATION)
 
         target_link_libraries(pubsub_zmq_v2_tests PRIVATE Celix::pubsub_api Celix::dfi ZeroMQ::ZeroMQ czmq::czmq GTest::gtest GTest::gtest_main)
         target_include_directories(pubsub_zmq_v2_tests SYSTEM PRIVATE gtest)
-        add_test(NAME pubsub_zmq_v2_tests COMMAND pubsub_zmq_v2_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_zmq_v2_tests,CONTAINER_LOC>)
+        add_celix_test(NAME pubsub_zmq_v2_tests COMMAND pubsub_zmq_v2_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_zmq_v2_tests,CONTAINER_LOC>)
         setup_target_for_coverage(pubsub_zmq_v2_tests SCAN_DIR ..)
 
         add_celix_container(pubsub_zmq_v2_zerocopy_tests
@@ -432,7 +432,7 @@ if (PUBSUB_INTEGRATION)
         target_link_libraries(pubsub_zmq_v2_zerocopy_tests PRIVATE Celix::pubsub_api Celix::dfi ZeroMQ::ZeroMQ czmq::czmq GTest::gtest GTest::gtest_main)
         target_include_directories(pubsub_zmq_v2_zerocopy_tests SYSTEM PRIVATE gtest)
 
-        add_test(NAME pubsub_zmq_v2_zerocopy_tests COMMAND pubsub_zmq_v2_zerocopy_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_zmq_v2_zerocopy_tests,CONTAINER_LOC>)
+        add_celix_test(NAME pubsub_zmq_v2_zerocopy_tests COMMAND pubsub_zmq_v2_zerocopy_tests WORKING_DIRECTORY $<TARGET_PROPERTY:pubsub_zmq_v2_zerocopy_tests,CONTAINER_LOC>)
         setup_target_for_coverage(pubsub_zmq_v2_zerocopy_tests SCAN_DIR ..)
 
         add_celix_container(pstm_deadlock_zmq_v2_test
@@ -460,7 +460,7 @@ if (PUBSUB_INTEGRATION)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/msg.descriptor ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_zmq_v2_test/META-INF/descriptors/msg.descriptor COPYONLY)
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/meta_data/deadlock.scope.properties ${CMAKE_CURRENT_BINARY_DIR}/pstm_deadlock_zmq_v2_test/META-INF/topics/pub/deadlock.properties COPYONLY)
 
-        add_test(NAME pstm_deadlock_zmq_v2_test COMMAND pstm_deadlock_zmq_v2_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_zmq_v2_test,CONTAINER_LOC>)
+        add_celix_test(NAME pstm_deadlock_zmq_v2_test COMMAND pstm_deadlock_zmq_v2_test WORKING_DIRECTORY $<TARGET_PROPERTY:pstm_deadlock_zmq_v2_test,CONTAINER_LOC>)
         setup_target_for_coverage(pstm_deadlock_zmq_v2_test SCAN_DIR ..)
     endif ()
 
@@ -470,7 +470,7 @@ if (PUBSUB_INTEGRATION)
                 gtest/PubSubTopicAndScopeIntegrationTestSuite.cc
                 )
         target_link_libraries(test_pubsub_topic_and_scope_integration PRIVATE Celix::framework Celix::pubsub_api GTest::gtest GTest::gtest_main)
-        add_test(NAME test_pubsub_topic_and_scope_integration COMMAND test_pubsub_topic_and_scope_integration)
+        add_celix_test(NAME test_pubsub_topic_and_scope_integration COMMAND test_pubsub_topic_and_scope_integration)
         setup_target_for_coverage(test_pubsub_topic_and_scope_integration SCAN_DIR ..)
 
         #configure topology manager and pubsub zmq, json serializer and wire protocol v2 bundles
@@ -513,7 +513,7 @@ if (PUBSUB_INTEGRATION)
                 )
         target_link_libraries(${TEST_TARGET_NAME} PRIVATE Celix::framework Celix::pubsub_api GTest::gtest GTest::gtest_main Celix::pubsub_spi)
         target_include_directories(${TEST_TARGET_NAME} PRIVATE gtest)
-        add_test(NAME ${TEST_TARGET_NAME} COMMAND ${TEST_TARGET_NAME})
+        add_celix_test(NAME ${TEST_TARGET_NAME} COMMAND ${TEST_TARGET_NAME})
         setup_target_for_coverage(${TEST_TARGET_NAME} SCAN_DIR ..)
 
         #configure topology manager and pubsub admin, json serializer and wire protocol bundles

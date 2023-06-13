@@ -75,6 +75,6 @@ add_celix_bundle_dependencies(test_rsa_dfi
         rsa_dfi_tst_bundle
 )
 
-add_test(NAME run_test_rsa_dfi COMMAND test_rsa_dfi)
+add_celix_test(NAME run_test_rsa_dfi COMMAND test_rsa_dfi)
 setup_target_for_coverage(test_rsa_dfi SCAN_DIR ..)
 
