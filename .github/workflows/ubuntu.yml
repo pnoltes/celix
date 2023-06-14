@@ -119,11 +119,11 @@ jobs:
       run: |
         cd ${GITHUB_WORKSPACE}/build
         export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH:$(pwd)/utils:$(pwd)/framework:$(pwd)/dfi
-        make test ARGS="-V"
+        make test_on_ci
     - name: Test Report
-      uses: dorny/test-reporter@v1
+      uses: dorny/test-reporter@v1.6.0
       if: success() || failure()
       with:
-        name: Test Report
+        name: Celix Ubuntu/build-apt/Test Report
         path: build/test_reports/*.xml
         reporter: java-junit
