@@ -252,6 +252,6 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchivesCreatedBeforeStarting) {
 }
 
 TEST_F(CxxBundleArchiveTestSuite, TestFail) {
-    FAIL() < "TestFail";
+    FAIL() << "TestFail";
 }
 
