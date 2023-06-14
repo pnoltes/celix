@@ -137,7 +137,7 @@ function (setup_target_for_coverage)
     		COMMAND ${LCOV_PATH} --directory ${COVERAGE_SCAN_DIR} --capture --output-file ${OUTPUT_FILE}
     		COMMAND ${LCOV_PATH} --remove ${OUTPUT_FILE} '**/mock/*' '**/.conan/*' '**/test/*' '**/gtest/*' '**/tst/*' '**/celix/gen/*' '**/googletest_project/*' '**/glog/*' '/usr/*' --output-file ${OUTPUT_FILE}.cleaned
 
-            #test dependencies, so that test is runned
+            #test dependencies, so that test is build before coverage is run
             DEPENDENCIES ${TEST_TARGET_NAME}
 
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
