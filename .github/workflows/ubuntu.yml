@@ -117,7 +117,7 @@ jobs:
         make -j $(nproc) && make install
     - name: Test
       run: |
-        cd $GITHUB_WORKSPACE/build
+        cd ${GITHUB_WORKSPACE}/build
         export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH:$(pwd)/utils:$(pwd)/framework:$(pwd)/dfi
         make test ARGS="-V"
     - name: Test Report
@@ -125,5 +125,5 @@ jobs:
       if: success() || failure()
       with:
         name: Test Report
-        path: $GITHUB_WORKSPACE/build/test_reports/*.xml
+        path: ${GITHUB_WORKSPACE}/build/test_reports/*.xml
         reporter: java-junit
