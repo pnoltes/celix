@@ -250,3 +250,8 @@ TEST_F(CxxBundleArchiveTestSuite, BundleArchivesCreatedBeforeStarting) {
     //Then the bundle id will be 1, because the bundle archive is already created
     EXPECT_EQ(bndId, 1); // <-- note whitebox knowledge of the bundle id
 }
+
+TEST_F(CxxBundleArchiveTestSuite, TestFail) {
+    FAIL() < "TestFail";
+}
+
