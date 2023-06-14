@@ -125,5 +125,5 @@ jobs:
       if: success() || failure()
       with:
         name: Test Report
-        path: ${GITHUB_WORKSPACE}/build/test_reports/*.xml
+        path: build/test_reports/*.xml
         reporter: java-junit
