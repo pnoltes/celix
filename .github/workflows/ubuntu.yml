@@ -63,7 +63,7 @@ jobs:
         run: |
           cd build
           source activate_run.sh
-          ctest --verbose
+          ctest --verbose --output-on-failure
           source deactivate_run.sh
       - name: Test Installed Celix
         env:
