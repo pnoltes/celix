@@ -30,7 +30,8 @@
 #include "celix_bundle_context.h"
 #include "celix_compiler.h"
 #include "celix_constants.h"
-#include "utils.h"
+#include "celix_utils.h"
+#include "celix_threads.h"
 #include "celix_log_helper.h"
 
 #include "pubsub_listeners.h"
@@ -38,8 +39,7 @@
 #include "pubsub_admin.h"
 #include "celix_cleanup.h"
 
-#define PSTM_PSA_HANDLING_SLEEPTIME_IN_SECONDS       5L
-#define PSTM_PSA_READY_CONDITION_ID                  "psa.ready"
+#define PSTM_PSA_HANDLING_SLEEPTIME_IN_MS       5000L
 
 #ifndef UUID_STR_LEN
 #define UUID_STR_LEN    37
@@ -129,14 +129,18 @@ celix_status_t pubsub_topologyManager_create(celix_bundle_context_t *context, ce
     manager->loghelper = logHelper;
     manager->verbose = celix_bundleContext_getPropertyAsBool(context, PUBSUB_TOPOLOGY_MANAGER_VERBOSE_KEY, PUBSUB_TOPOLOGY_MANAGER_DEFAULT_VERBOSE);
 
-    long handlingThreadSleepTime = celix_bundleContext_getPropertyAsLong(context, PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS_KEY, PSTM_PSA_HANDLING_SLEEPTIME_IN_SECONDS);
-    if ( handlingThreadSleepTime >= 0 ) {
-        manager->handlingThreadSleepTime = (unsigned int)(handlingThreadSleepTime * 1000L);
-    } else {
-        celix_logHelper_warning(manager->loghelper, "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS_KEY is negative, using default value %li", PSTM_PSA_HANDLING_SLEEPTIME_IN_SECONDS);
-        manager->handlingThreadSleepTime = (unsigned int)(PSTM_PSA_HANDLING_SLEEPTIME_IN_SECONDS * 1000L);
+    long handlingThreadSleepTime = celix_bundleContext_getPropertyAsLong(
+        context, PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS_KEY, PSTM_PSA_HANDLING_SLEEPTIME_IN_MS/1000);
+    manager->handlingThreadSleepTime = celix_bundleContext_getPropertyAsLong(
+        context, PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS, handlingThreadSleepTime);
+    if (manager->handlingThreadSleepTime < 0) {
+        celix_logHelper_warning(
+            manager->loghelper,
+            "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS is negative, using default value %li",
+            PSTM_PSA_HANDLING_SLEEPTIME_IN_MS);
+        manager->handlingThreadSleepTime = (unsigned int)(PSTM_PSA_HANDLING_SLEEPTIME_IN_MS);
     }
-    manager->handlingThreadSleepTime = celix_bundleContext_getPropertyAsLong(context, PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS_KEY,  manager->handlingThreadSleepTime);
+
     manager->psaHandling.running = true;
     celixThread_create(&manager->psaHandling.thread, NULL, pstm_psaHandlingThread, manager);
     celixThread_setName(&manager->psaHandling.thread, "PubSub TopologyManager");
@@ -1137,9 +1141,11 @@ static void pstm_readyCheck(pubsub_topology_manager_t* manager) {
 
     //ready -> register psa.ready condition
     celix_properties_t* props = celix_properties_create();
-    celix_properties_set(props, CELIX_CONDITION_ID, PSTM_PSA_READY_CONDITION_ID);
+    celix_properties_set(props, CELIX_CONDITION_ID, PUBSUB_PSA_READY_CONDITION_ID);
     manager->conditions.psaReadySvcId = celix_bundleContext_registerServiceAsync(
         manager->context, &manager->conditions.psaReady, CELIX_CONDITION_SERVICE_NAME, props);
+    celix_logHelper_debug(
+        manager->loghelper, "Registered psa.ready condition with svc id %li", manager->conditions.psaReadySvcId);
 }
 
 

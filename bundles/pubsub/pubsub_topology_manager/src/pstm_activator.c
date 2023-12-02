@@ -17,14 +17,12 @@
  * under the License.
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <celix_bundle_activator.h>
 #include <pubsub_admin.h>
 #include <pubsub_admin_metrics.h>
 #include "celix_log_helper.h"
-#include "hash_map.h"
 #include "pubsub_topology_manager.h"
 #include "pubsub_listeners.h"
 
@@ -129,16 +127,6 @@ static int pstm_start(pstm_activator_t *act, celix_bundle_context_t *ctx) {
         celix_properties_set(props, CELIX_SHELL_COMMAND_DESCRIPTION, "pubsub_topology_info: Overview of Topology information for PubSub");
         act->shellCmdSvcId = celix_bundleContext_registerService(ctx, &act->shellCmdSvc, CELIX_SHELL_COMMAND_SERVICE_NAME, props);
     }
-
-    //TODO add tracker for pubsub_serializer and
-    //1) on remove reset sender/receivers entries
-    //2) on add indicate that topic/senders should be reevaluated.
-
-    /* NOTE: Enable those line in order to remotely expose the topic_info service
-    celix_properties_t *props = celix_properties_create();
-    celix_properties_set(props, OSGI_RSA_SERVICE_EXPORTED_INTERFACES, PUBSUB_TOPIC_INFO_SERVICE);
-    status += bundleContext_registerService(context, (char *) PUBSUB_TOPIC_INFO_SERVICE, activator->topicInfo, props, &activator->topicInfoService);
-    */
 
     return 0;
 }

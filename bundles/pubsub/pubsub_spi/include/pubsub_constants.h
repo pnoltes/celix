@@ -25,23 +25,39 @@
 #define PUBSUB_PROTOCOL_TYPE_KEY    "pubsub.protocol"
 
 /**
- * Endpoints with the system visibility should be discoverable through the complete system
+ * @brief Endpoints with the system visibility should be discoverable through the complete system
  */
 #define PUBSUB_ENDPOINT_SYSTEM_VISIBILITY    "system"
 
 /**
- * Endpoints with the system visibility are discoverable for a single host (i.e. IPC)
+ * @brief Endpoints with the system visibility are discoverable for a single host (i.e. IPC)
  */
 #define PUBSUB_ENDPOINT_HOST_VISIBILITY      "host"
 
 /**
- * Endpoints which are only visible within a single process
+ * @brief Endpoints which are only visible within a single process
  */
 #define PUBSUB_ENDPOINT_LOCAL_VISIBILITY     "local"
 
 /**
- * Default scope, if not scope is specified endpoints are published using this scope
+ * @brief Default scope, if not scope is specified endpoints are published using this scope
  */
 #define PUBSUB_DEFAULT_ENDPOINT_SCOPE        "default"
+
+/**
+ * @brief The "condition.id" value used for the PSA ready condition.
+ *
+ * The PSA ready condition service will be registered by the pubsub topology manager when
+ *  - The framework ready condition service is available
+ *  - There is at least 1 provided subscriber service or 1 requested publisher service
+ *   - All subscribers/publishers are matched with a pubsub admin (PSA).
+ */
+#define PUBSUB_PSA_READY_CONDITION_ID       "psa.ready"
+
+/**
+ * @brief PubSub environment property (named "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS") specifying
+ * max sleep time in milliseconds, before the topology manager handling thread is checking for new work.
+ */
+#define PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS"
 
 #endif /* PUBSUB_CONSTANTS_H_ */
