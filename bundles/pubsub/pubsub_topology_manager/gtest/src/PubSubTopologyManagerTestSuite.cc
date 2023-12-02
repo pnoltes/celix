@@ -29,6 +29,7 @@
 #include "pubsub/publisher.h"
 #include "pubsub/subscriber.h"
 #include "pubsub_admin.h"
+#include "pubsub_constants.h"
 
 class PubSubTopologyManagerTestSuite : public ::testing::Test {
   public:
@@ -36,19 +37,19 @@ class PubSubTopologyManagerTestSuite : public ::testing::Test {
 
     std::string frameworkReadyFilter =
         std::string{"("} + CELIX_CONDITION_ID + "=" + CELIX_CONDITION_ID_FRAMEWORK_READY + ")";
-    std::string psaReadyFilter = std::string{"("} + CELIX_CONDITION_ID + "=" + "psa.ready" +
-                                 ")"; // TODO add pubsub_constants.h to pubsub_api or pubsub_spi
+    std::string psaReadyFilter = std::string{"("} + CELIX_CONDITION_ID + "=" + PUBSUB_PSA_READY_CONDITION_ID +
+                                 ")";
 
     PubSubTopologyManagerTestSuite() = default;
 
     void setupCelixFramework() {
         celix::Properties properties;
-        // TODO get property names from constants
         properties.set("LOGHELPER_ENABLE_STDOUT_FALLBACK", "true");
         properties.set(CELIX_FRAMEWORK_CACHE_DIR, ".cachePstmTestSuite");
-        properties.set("CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL", "trace");
-        properties.set("PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS",
-                       100L); // setting to 100ms to speed up tests
+        properties.set("CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL", "info");
+
+        // setting to 100ms to speed up tests and align with WAIT_TIME_IN_MS
+        properties.set(PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS, 100L);
 
         fw = celix::createFramework(properties);
         ctx = fw->getFrameworkBundleContext();

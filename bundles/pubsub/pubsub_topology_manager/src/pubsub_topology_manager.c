@@ -127,7 +127,6 @@ celix_status_t pubsub_topologyManager_create(celix_bundle_context_t *context, ce
     }
 
     manager->loghelper = logHelper;
-    manager->verbose = celix_bundleContext_getPropertyAsBool(context, PUBSUB_TOPOLOGY_MANAGER_VERBOSE_KEY, PUBSUB_TOPOLOGY_MANAGER_DEFAULT_VERBOSE);
 
     long handlingThreadSleepTime = celix_bundleContext_getPropertyAsLong(
         context, PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS_KEY, PSTM_PSA_HANDLING_SLEEPTIME_IN_MS/1000);
@@ -568,15 +567,13 @@ celix_status_t pubsub_topologyManager_addDiscoveredEndpoint(void *handle, const 
     // 2) if found call addEndpoint of the matching psa
     bool triggerCondition = false;
 
-    if (manager->verbose) {
-        celix_logHelper_trace(manager->loghelper,
-                      "Adding discovered endpoint for topic %s with scope %s [fwUUID=%s, epUUID=%s]\n",
-                      celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_NAME, NULL),
-                      celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_SCOPE, "(null)"),
-                      celix_properties_get(endpoint, PUBSUB_ENDPOINT_FRAMEWORK_UUID, NULL),
-                      uuid);
-    }
 
+    celix_logHelper_trace(manager->loghelper,
+                  "Adding discovered endpoint for topic %s with scope %s [fwUUID=%s, epUUID=%s]\n",
+                  celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_NAME, NULL),
+                  celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_SCOPE, "(null)"),
+                  celix_properties_get(endpoint, PUBSUB_ENDPOINT_FRAMEWORK_UUID, NULL),
+                  uuid);
 
     celixThreadMutex_lock(&manager->discoveredEndpoints.mutex);
     pstm_discovered_endpoint_entry_t *entry = celix_stringHashMap_get(manager->discoveredEndpoints.map, uuid);
@@ -624,14 +621,12 @@ celix_status_t pubsub_topologyManager_removeDiscoveredEndpoint(void *handle, con
     const char *uuid = celix_properties_get(endpoint, PUBSUB_ENDPOINT_UUID, NULL);
     assert(uuid != NULL); //discovery should check if endpoint is valid -> pubsubEndoint_isValid.
 
-    if (manager->verbose) {
-        celix_logHelper_trace(manager->loghelper,
-                      "Removing discovered endpoint for topic %s with scope %s [fwUUID=%s, epUUID=%s]\n",
-                      celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_NAME, "(null)"),
-                      celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_SCOPE, "(null)"),
-                      celix_properties_get(endpoint, PUBSUB_ENDPOINT_FRAMEWORK_UUID, "(null)"),
-                      uuid);
-    }
+    celix_logHelper_trace(manager->loghelper,
+                  "Removing discovered endpoint for topic %s with scope %s [fwUUID=%s, epUUID=%s]\n",
+                  celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_NAME, "(null)"),
+                  celix_properties_get(endpoint, PUBSUB_ENDPOINT_TOPIC_SCOPE, "(null)"),
+                  celix_properties_get(endpoint, PUBSUB_ENDPOINT_FRAMEWORK_UUID, "(null)"),
+                  uuid);
 
     celixThreadMutex_lock(&manager->discoveredEndpoints.mutex);
     pstm_discovered_endpoint_entry_t *entry = celix_stringHashMap_get(manager->discoveredEndpoints.map, uuid);
@@ -685,8 +680,8 @@ static void pstm_teardownTopicSenders(pubsub_topology_manager_t *manager) {
     CELIX_STRING_HASH_MAP_ITERATE(manager->topicSenders.map, iter) {
         pstm_topic_receiver_or_sender_entry_t *entry = iter.value.ptrValue;
         if (entry != NULL && (entry->usageCount <= 0 || entry->matching.needsMatch)) {
-            if (manager->verbose && entry->endpoint != NULL) {
-                celix_logHelper_log(manager->loghelper, CELIX_LOG_LEVEL_DEBUG,
+            if (entry->endpoint != NULL) {
+                celix_logHelper_log(manager->loghelper, CELIX_LOG_LEVEL_TRACE,
                               "Tearing down TopicSender for scope/topic %s/%s\n", entry->scope == NULL ? "(null)" : entry->scope, entry->topic);
             }
             if (entry->endpoint != NULL) {
@@ -758,10 +753,10 @@ static void pstm_teardownTopicReceivers(pubsub_topology_manager_t *manager) {
     CELIX_STRING_HASH_MAP_ITERATE(manager->topicReceivers.map, iter) {
         pstm_topic_receiver_or_sender_entry_t *entry = iter.value.ptrValue;
         if (entry != NULL && (entry->usageCount <= 0 || entry->matching.needsMatch)) {
-            if (manager->verbose && entry->endpoint != NULL) {
+            if (entry->endpoint != NULL) {
                 const char *adminType = celix_properties_get(entry->endpoint, PUBSUB_ENDPOINT_ADMIN_TYPE, "!Error!");
                 const char *serType = celix_properties_get(entry->endpoint, PUBSUB_ENDPOINT_SERIALIZER, "!Error!");
-                celix_logHelper_log(manager->loghelper, CELIX_LOG_LEVEL_DEBUG,
+                celix_logHelper_log(manager->loghelper, CELIX_LOG_LEVEL_TRACE,
                               "Tearing down TopicReceiver for scope/topic %s/%s with psa admin type %s and serializer %s\n",
                               entry->scope == NULL ? "(null)" : entry->scope, entry->topic, adminType, serType);
             }
@@ -1217,10 +1212,6 @@ static celix_status_t pubsub_topologyManager_topology(pubsub_topology_manager_t 
         fprintf(os, "   |- admin type     = %s\n", adminType);
         fprintf(os, "   |- serializer     = %s\n", serType);
         fprintf(os, "   |- protocol       = %s\n", protType);
-        if (manager->verbose) {
-            fprintf(os, "   |- psa svc id     = %li\n", discovered->selectedPsaSvcId);
-            fprintf(os, "   |- usage count    = %i\n", discovered->usageCount);
-        }
     }
     celixThreadMutex_unlock(&manager->discoveredEndpoints.mutex);
     fprintf(os, "\n");
@@ -1245,12 +1236,6 @@ static celix_status_t pubsub_topologyManager_topology(pubsub_topology_manager_t 
         fprintf(os, "   |- admin type  = %s\n", adminType);
         fprintf(os, "   |- serializer  = %s\n", serType);
         fprintf(os, "   |- protocol    = %s\n", protType);
-        if (manager->verbose) {
-            fprintf(os, "   |- psa svc id  = %li\n", entry->matching.selectedPsaSvcId);
-            fprintf(os, "   |- ser svc id  = %li\n", entry->matching.selectedSerializerSvcId);
-            fprintf(os, "   |- prot svc id = %li\n", entry->matching.selectedProtocolSvcId);
-            fprintf(os, "   |- usage count = %i\n", entry->usageCount);
-        }
     }
     celixThreadMutex_unlock(&manager->topicSenders.mutex);
     fprintf(os, "\n");
@@ -1274,12 +1259,6 @@ static celix_status_t pubsub_topologyManager_topology(pubsub_topology_manager_t 
         fprintf(os, "   |- admin type  = %s\n", adminType);
         fprintf(os, "   |- serializer  = %s\n", serType);
         fprintf(os, "   |- protocol    = %s\n", protType);
-        if (manager->verbose) {
-            fprintf(os, "    |- psa svc id  = %li\n", entry->matching.selectedPsaSvcId);
-            fprintf(os, "    |- ser svc id  = %li\n", entry->matching.selectedSerializerSvcId);
-            fprintf(os, "    |- prot svc id = %li\n", entry->matching.selectedProtocolSvcId);
-            fprintf(os, "    |- usage count = %i\n", entry->usageCount);
-        }
     }
     celixThreadMutex_unlock(&manager->topicReceivers.mutex);
     fprintf(os, "\n");
@@ -1299,9 +1278,6 @@ static celix_status_t pubsub_topologyManager_topology(pubsub_topology_manager_t 
                 fprintf(os, "    |- requested config     = %s\n", requestedConfig);
                 fprintf(os, "    |- requested serializer = %s\n", requestedSer);
                 fprintf(os, "    |- requested protocol   = %s\n", requestedProt);
-                if (manager->verbose) {
-                    fprintf(os, "    |- usage count          = %i\n", entry->usageCount);
-                }
             }
         }
         celixThreadMutex_unlock(&manager->topicSenders.mutex);
@@ -1323,9 +1299,6 @@ static celix_status_t pubsub_topologyManager_topology(pubsub_topology_manager_t 
                 fprintf(os, "    |- requested config     = %s\n", requestedConfig);
                 fprintf(os, "    |- requested serializer = %s\n", requestedSer);
                 fprintf(os, "    |- requested protocol   = %s\n", requestedProt);
-                if (manager->verbose) {
-                    fprintf(os, "    |- usage count          = %i\n", entry->usageCount);
-                }
             }
         }
         celixThreadMutex_unlock(&manager->topicReceivers.mutex);

@@ -31,14 +31,10 @@
 #include "celix_string_hash_map.h"
 #include "celix_long_hash_map.h"
 
-#define PUBSUB_TOPOLOGY_MANAGER_VERBOSE_KEY         "PUBSUB_TOPOLOGY_MANAGER_VERBOSE"
-
 /**
  * @deprecated Use PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS instead.
  */
 #define PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS_KEY   "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS"
-
-#define PUBSUB_TOPOLOGY_MANAGER_DEFAULT_VERBOSE     false
 
 typedef struct pubsub_topology_manager {
     celix_bundle_context_t* context;
@@ -96,7 +92,6 @@ typedef struct pubsub_topology_manager {
     celix_log_helper_t* loghelper;
 
     unsigned handlingThreadSleepTime;
-    bool verbose;
 } pubsub_topology_manager_t;
 
 typedef struct pstm_discovered_endpoint_entry {
