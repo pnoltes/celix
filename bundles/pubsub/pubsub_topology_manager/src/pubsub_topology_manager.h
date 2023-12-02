@@ -27,54 +27,69 @@
 #include "pubsub_endpoint.h"
 #include "pubsub/publisher.h"
 #include "pubsub/subscriber.h"
+#include "celix_condition.h"
+#include "celix_string_hash_map.h"
+#include "celix_long_hash_map.h"
 
 #define PUBSUB_TOPOLOGY_MANAGER_VERBOSE_KEY         "PUBSUB_TOPOLOGY_MANAGER_VERBOSE"
 #define PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS_KEY   "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_SECONDS"
 #define PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS_KEY        "PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS"
 #define PUBSUB_TOPOLOGY_MANAGER_DEFAULT_VERBOSE     false
 
-
 typedef struct pubsub_topology_manager {
-    celix_bundle_context_t *context;
+    celix_bundle_context_t* context;
 
     struct {
         celix_thread_mutex_t mutex;
-        hash_map_t *map; //key = svcId, value = pubsub_admin_t*
+        celix_long_hash_map_t* map; // key = svcId, value = pubsub_admin_t*
     } pubsubadmins;
 
     struct {
         celix_thread_mutex_t mutex;
-        hash_map_t *map; //key = uuid , value = pstm_discovered_endpoint_entry_t
+        celix_string_hash_map_t* map; // key = uuid , value = pstm_discovered_endpoint_entry_t
     } discoveredEndpoints;
 
     struct {
         celix_thread_mutex_t mutex;
-        hash_map_t *map; //key = scope/topic key, value = pstm_topic_receiver_or_sender_entry_t*
+        celix_string_hash_map_t* map; // key = scope/topic key, value = pstm_topic_receiver_or_sender_entry_t*
     } topicReceivers;
 
     struct {
         celix_thread_mutex_t mutex;
-        hash_map_t *map; //key = scope/topic key, value = pstm_topic_receiver_or_sender_entry_t*
+        celix_string_hash_map_t* map; // key = scope/topic key, value = pstm_topic_receiver_or_sender_entry_t*
     } topicSenders;
 
     struct {
         celix_thread_mutex_t mutex;
-        celix_array_list_t *list; //<pubsub_announce_endpoint_listener_t*>
+        celix_array_list_t* list; //<pubsub_announce_endpoint_listener_t*>
     } announceEndpointListeners;
 
     struct {
         celix_thread_mutex_t mutex;
-        hash_map_t *map; //key = svcId, value = pubsub_admin_metrics_service_t*
+        celix_long_hash_map_t* map; // key = svcId, value = pubsub_admin_metrics_service_t*
     } psaMetrics;
 
     struct {
+        celix_condition_t psaReady; /**< The condition service instance for psa.ready. psa.ready will be registered when
+                                       a) framework.ready condition is available, b) the is at least 1 pub or sub and c)
+                                       all topic receivers/senders are matched. Once psa.ready is registered it will not
+                                       be revoked (only for bundle stop) */
+        long psaReadySvcId; /**< the service id of the psaReady service. -1 if psa.ready is not yet registered */
+        long frameworkReadyTrackerId;      /**< the tracker id of the frameworkReady service. */
+        celix_thread_mutex_t mutex;        /**< protect frameworkReady */
+        celix_condition_t* frameworkReady; /**< The condition service instance for frameworkReady. NULL if
+                                              framework.ready is not yet available. */
+    } conditions; // note frameworkReadyTrackerId, psaReadySvcId and psaConnectedSvcId do not need to protected, only
+                  // accessed during creation and handling thread.
+
+    struct {
         celix_thread_t thread;
-        celix_thread_mutex_t mutex; //protect running and condition
+        celix_thread_mutex_t mutex; // protect running and condition
         celix_thread_cond_t cond;
         bool running;
     } psaHandling;
 
-    celix_log_helper_t *loghelper;
+    celix_log_helper_t* loghelper;
 
     unsigned handlingThreadSleepTime;
     bool verbose;
