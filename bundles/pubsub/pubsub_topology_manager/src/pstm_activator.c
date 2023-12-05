@@ -123,7 +123,7 @@ static int pstm_start(pstm_activator_t *act, celix_bundle_context_t *ctx) {
         act->shellCmdSvc.executeCommand = pubsub_topologyManager_shellCommand;
         celix_properties_t *props = celix_properties_create();
         celix_properties_set(props, CELIX_SHELL_COMMAND_NAME, "celix::pstm");
-        celix_properties_set(props, CELIX_SHELL_COMMAND_USAGE, "pstm [topology|metrics]"); //TODO add search topic/scope option
+        celix_properties_set(props, CELIX_SHELL_COMMAND_USAGE, "pstm [topology|metrics]");
         celix_properties_set(props, CELIX_SHELL_COMMAND_DESCRIPTION, "pubsub_topology_info: Overview of Topology information for PubSub");
         act->shellCmdSvcId = celix_bundleContext_registerService(ctx, &act->shellCmdSvc, CELIX_SHELL_COMMAND_SERVICE_NAME, props);
     }

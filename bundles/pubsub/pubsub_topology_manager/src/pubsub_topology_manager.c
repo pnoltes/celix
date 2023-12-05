@@ -47,9 +47,9 @@
 
 static void *pstm_psaHandlingThread(void *data);
 static void pstm_setFrameworkReady(void* handle, void *svc);
+static void pstm_updatePsaReady(pubsub_topology_manager_t *manager, bool ready);
 
-static void pstm_destroyEndpointEntryCallback(void* data) {
-    pstm_discovered_endpoint_entry_t *entry = data;
+static void pstm_destroyEndpointEntry(pstm_discovered_endpoint_entry_t *entry) {
     if (entry != NULL) {
         celix_properties_destroy(entry->endpoint);
         free(entry);
@@ -91,13 +91,6 @@ celix_status_t pubsub_topologyManager_create(celix_bundle_context_t *context, ce
     status |= celixThreadMutex_create(&manager->psaMetrics.mutex, NULL);
     status |= celixThreadMutex_create(&manager->psaHandling.mutex, NULL);
     status |= celixThreadCondition_init(&manager->psaHandling.cond, NULL);
-
-    {
-        celix_string_hash_map_create_options_t mapOpts = CELIX_EMPTY_STRING_HASH_MAP_CREATE_OPTIONS;
-        mapOpts.simpleRemovedCallback = pstm_destroyEndpointEntryCallback;
-        manager->discoveredEndpoints.map = celix_stringHashMap_createWithOptions(&mapOpts);
-    }
-
     {
         celix_string_hash_map_create_options_t mapOpts = CELIX_EMPTY_STRING_HASH_MAP_CREATE_OPTIONS;
         mapOpts.simpleRemovedCallback = pstm_destroyTopicReceiverOrSenderEntryCallback;
@@ -105,6 +98,7 @@ celix_status_t pubsub_topologyManager_create(celix_bundle_context_t *context, ce
         manager->topicSenders.map = celix_stringHashMap_createWithOptions(&mapOpts); //note same opts as receivers
     }
 
+    manager->discoveredEndpoints.map = celix_stringHashMap_create();
     manager->announceEndpointListeners.list = celix_arrayList_create();
     manager->pubsubadmins.map = celix_longHashMap_create();
     manager->psaMetrics.map = celix_longHashMap_create();
@@ -170,6 +164,10 @@ celix_status_t pubsub_topologyManager_destroy(pubsub_topology_manager_t *manager
     celixThreadMutex_destroy(&manager->pubsubadmins.mutex);
 
     celixThreadMutex_lock(&manager->discoveredEndpoints.mutex);
+    CELIX_STRING_HASH_MAP_ITERATE(manager->discoveredEndpoints.map, iter) {
+        pstm_discovered_endpoint_entry_t* entry = iter.value.ptrValue;
+        pstm_destroyEndpointEntry(entry);
+    }
     celix_stringHashMap_destroy(manager->discoveredEndpoints.map);
     celixThreadMutex_unlock(&manager->discoveredEndpoints.mutex);
     celixThreadMutex_destroy(&manager->discoveredEndpoints.mutex);
@@ -211,7 +209,6 @@ void pubsub_topologyManager_psaAdded(void *handle, void *svc, const celix_proper
     }
 
     //NOTE new psa, so no endpoints announce yet
-
     //Because this is a new PSA every topic sender/receiver entry needs a rematch.
     //This is needed because the new PSA can be a better match than currently used.
     int needsRematchCount = 0;
@@ -239,7 +236,7 @@ void pubsub_topologyManager_psaAdded(void *handle, void *svc, const celix_proper
             "before publiser/subscriber are started!\n Current topic/sender count is %i",
             needsRematchCount);
         celixThreadMutex_lock(&manager->psaHandling.mutex);
-        celixThreadCondition_broadcast(&manager->psaHandling.cond);
+        celixThreadCondition_broadcast(&manager->psaHandling.cond); //note also rechecks for psa ready
         celixThreadMutex_unlock(&manager->psaHandling.mutex);
     }
 }
@@ -320,7 +317,7 @@ void pubsub_topologyManager_psaRemoved(void *handle, void *svc CELIX_UNUSED, con
     celix_arrayList_destroy(revokedEndpoints);
 
     celixThreadMutex_lock(&manager->psaHandling.mutex);
-    celixThreadCondition_broadcast(&manager->psaHandling.cond);
+    celixThreadCondition_broadcast(&manager->psaHandling.cond); //note also rechecks for psa ready
     celixThreadMutex_unlock(&manager->psaHandling.mutex);
 }
 
@@ -398,7 +395,9 @@ void pubsub_topologyManager_subscriberRemoved(void *handle, void *svc CELIX_UNUS
     celixThreadMutex_unlock(&manager->topicReceivers.mutex);
     free(scopeAndTopicKey);
 
-    //NOTE not waking up psaHandling thread, topic receiver does not need to be removed immediately.
+    celixThreadMutex_lock(&manager->psaHandling.mutex);
+    celixThreadCondition_broadcast(&manager->psaHandling.cond);
+    celixThreadMutex_unlock(&manager->psaHandling.mutex);
 }
 
 void pubsub_topologyManager_pubsubAnnounceEndpointListenerAdded(void *handle, void *svc, const celix_properties_t *props CELIX_UNUSED) {
@@ -552,7 +551,9 @@ void pubsub_topologyManager_publisherTrackerRemoved(void *handle, const celix_se
         free(scopeFromFilter);
     }
 
-    //NOTE not waking up psaHandling thread, topic sender does not need to be removed immediately.
+    celixThreadMutex_lock(&manager->psaHandling.mutex);
+    celixThreadCondition_broadcast(&manager->psaHandling.cond);
+    celixThreadMutex_unlock(&manager->psaHandling.mutex);
 }
 
 celix_status_t pubsub_topologyManager_addDiscoveredEndpoint(void *handle, const celix_properties_t *endpoint) {
@@ -654,6 +655,7 @@ celix_status_t pubsub_topologyManager_removeDiscoveredEndpoint(void *handle, con
             celix_logHelper_log(manager->loghelper, CELIX_LOG_LEVEL_DEBUG, "No selected psa for endpoint %s\n", entry->uuid);
         }
         celix_logHelper_trace(manager->loghelper, "Destroying discovered endpoint entry %s", uuid);
+        pstm_destroyEndpointEntry(entry);
     }
 
     return CELIX_SUCCESS;
@@ -1096,13 +1098,31 @@ static bool pstm_isFrameworkReady(pubsub_topology_manager_t* manager) {
     return manager->conditions.frameworkReady != NULL;
 }
 
-static void pstm_readyCheck(pubsub_topology_manager_t* manager) {
-    if (manager->conditions.psaReadySvcId >= 0) {
-        return; //psa.ready already registered
+static void pstm_updatePsaReady(pubsub_topology_manager_t* manager, bool ready) {
+    celix_auto(celix_mutex_lock_guard_t) lock = celixMutexLockGuard_init(&manager->conditions.mutex);
+    if (ready && manager->conditions.psaReadySvcId < 0) {
+        // register psa.ready condition
+        celix_properties_t* props = celix_properties_create();
+        celix_properties_set(props, CELIX_CONDITION_ID, PUBSUB_PSA_READY_CONDITION_ID);
+        manager->conditions.psaReadySvcId = celix_bundleContext_registerServiceAsync(
+            manager->context, &manager->conditions.psaReady, CELIX_CONDITION_SERVICE_NAME, props);
+        manager->conditions.psaReadyCount += 1;
+        celix_logHelper_debug(manager->loghelper,
+                              "Registered psa.ready condition with svc id %li for the %zu nth time",
+                              manager->conditions.psaReadySvcId,
+                              manager->conditions.psaReadyCount);
+    } else if (!ready && manager->conditions.psaReadySvcId >= 0) {
+        // unregister psa.ready condition
+        celix_bundleContext_unregisterServiceAsync(manager->context, manager->conditions.psaReadySvcId, NULL, NULL);
+        manager->conditions.psaReadySvcId = -1L;
+        celix_logHelper_trace(
+            manager->loghelper, "Unregistered psa.ready condition with svc id %li", manager->conditions.psaReadySvcId);
     }
+}
 
+static bool pstm_isPsaReady(pubsub_topology_manager_t* manager) {
     if (!pstm_isFrameworkReady(manager)) {
-        return; // not ready yet
+        return false; // not ready yet
     }
 
     size_t nrOfTopicSenders;
@@ -1112,7 +1132,7 @@ static void pstm_readyCheck(pubsub_topology_manager_t* manager) {
         CELIX_STRING_HASH_MAP_ITERATE(manager->topicSenders.map, iter) {
             pstm_topic_receiver_or_sender_entry_t* entry = iter.value.ptrValue;
             if (entry->matching.needsMatch) {
-                return; // not ready yet
+                return false; // not ready yet
             }
         }
     }
@@ -1124,23 +1144,17 @@ static void pstm_readyCheck(pubsub_topology_manager_t* manager) {
         CELIX_STRING_HASH_MAP_ITERATE(manager->topicReceivers.map, iter) {
             pstm_topic_receiver_or_sender_entry_t* entry = iter.value.ptrValue;
             if (entry->matching.needsMatch) {
-                return; // not ready yet
+                return false; // not ready yet
             }
         }
     }
 
     if (nrOfTopicSenders == 0 && nrOfTopicReceivers == 0) {
         //no senders and receivers -> not ready yet
-        return;
+        return false;
     }
 
-    //ready -> register psa.ready condition
-    celix_properties_t* props = celix_properties_create();
-    celix_properties_set(props, CELIX_CONDITION_ID, PUBSUB_PSA_READY_CONDITION_ID);
-    manager->conditions.psaReadySvcId = celix_bundleContext_registerServiceAsync(
-        manager->context, &manager->conditions.psaReady, CELIX_CONDITION_SERVICE_NAME, props);
-    celix_logHelper_debug(
-        manager->loghelper, "Registered psa.ready condition with svc id %li", manager->conditions.psaReadySvcId);
+    return true;
 }
 
 
@@ -1162,7 +1176,8 @@ static void *pstm_psaHandlingThread(void *data) {
 
         pstm_findPsaForEndpoints(manager); //trying to find psa and possible set for endpoints with no psa
 
-        pstm_readyCheck(manager);
+        bool ready = pstm_isPsaReady(manager);
+        pstm_updatePsaReady(manager, ready);
 
         celixThreadMutex_lock(&manager->psaHandling.mutex);
         celixThreadCondition_timedwaitRelative(&manager->psaHandling.cond, &manager->psaHandling.mutex, manager->handlingThreadSleepTime  / 1000, (manager->handlingThreadSleepTime  % 1000) * 1000000);
@@ -1189,6 +1204,20 @@ void pubsub_topologyManager_removeMetricsService(void * handle, void *svc, const
 }
 
 static celix_status_t pubsub_topologyManager_topology(pubsub_topology_manager_t *manager, const char *commandLine CELIX_UNUSED, FILE *os, FILE *errorStream CELIX_UNUSED) {
+    fprintf(os, "\n");
+
+    bool fwReady = pstm_isFrameworkReady(manager);
+    bool psaReady = pstm_isPsaReady(manager);
+    celixThreadMutex_lock(&manager->conditions.mutex);
+    long psaReadySvcId = manager->conditions.psaReadySvcId;
+    size_t psaReadyCount = manager->conditions.psaReadyCount;
+    celixThreadMutex_unlock(&manager->conditions.mutex);
+
+    fprintf(os, "General:\n");
+    fprintf(os, "|- Framework ready = %s\n", fwReady ? "true" : "false");
+    fprintf(os, "|- PSA ready       = %s\n", psaReady ? "true" : "false");
+    fprintf(os, "|- PSA ready svcId = %li\n", psaReadySvcId);
+    fprintf(os, "|- PSA ready count = %zu\n", psaReadyCount);
     fprintf(os, "\n");
 
     fprintf(os, "Discovered Endpoints: \n");

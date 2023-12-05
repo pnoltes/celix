@@ -19,7 +19,7 @@ add_executable(test_pubsub_topology_manager
         src/PubSubTopologyManagerTestSuite.cc
 )
 
-target_link_libraries(test_pubsub_topology_manager PRIVATE Celix::framework Celix::pubsub_spi GTest::gtest GTest::gtest_main)
+target_link_libraries(test_pubsub_topology_manager PRIVATE Celix::framework Celix::pubsub_spi Celix::shell_api GTest::gtest GTest::gtest_main)
 celix_target_bundle_set_definition(test_pubsub_topology_manager NAME TEST_BUNDLES Celix::celix_pubsub_topology_manager)
 
 add_test(NAME test_pubsub_topology_manager COMMAND test_pubsub_topology_manager)

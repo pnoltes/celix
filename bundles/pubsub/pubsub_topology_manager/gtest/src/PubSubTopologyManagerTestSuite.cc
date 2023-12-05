@@ -30,6 +30,7 @@
 #include "pubsub/subscriber.h"
 #include "pubsub_admin.h"
 #include "pubsub_constants.h"
+#include "celix_shell_command.h"
 
 class PubSubTopologyManagerTestSuite : public ::testing::Test {
   public:
@@ -39,6 +40,7 @@ class PubSubTopologyManagerTestSuite : public ::testing::Test {
         std::string{"("} + CELIX_CONDITION_ID + "=" + CELIX_CONDITION_ID_FRAMEWORK_READY + ")";
     std::string psaReadyFilter = std::string{"("} + CELIX_CONDITION_ID + "=" + PUBSUB_PSA_READY_CONDITION_ID +
                                  ")";
+    std::string pstmShellCommandFilter = std::string{"("} + CELIX_SHELL_COMMAND_NAME + "=celix::pstm)";
 
     PubSubTopologyManagerTestSuite() = default;
 
@@ -46,10 +48,10 @@ class PubSubTopologyManagerTestSuite : public ::testing::Test {
         celix::Properties properties;
         properties.set("LOGHELPER_ENABLE_STDOUT_FALLBACK", "true");
         properties.set(CELIX_FRAMEWORK_CACHE_DIR, ".cachePstmTestSuite");
-        properties.set("CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL", "info");
+        properties.set("CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL", "debug");
 
         // setting to 100ms to speed up tests and align with WAIT_TIME_IN_MS
-        properties.set(PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS, 100L);
+        properties.set(PUBSUB_TOPOLOGY_MANAGER_HANDLING_THREAD_SLEEPTIME_MS, 25L);
 
         fw = celix::createFramework(properties);
         ctx = fw->getFrameworkBundleContext();
@@ -163,30 +165,7 @@ class PubSubTopologyManagerTestSuite : public ::testing::Test {
                          .build();
     }
 
-    void testPsaReadyWithSubscriber(bool psaMatchesWithSubscribers) {
-        // Given a Celix framework with a pubsub topology manager bundle installed
-        setupCelixFramework();
-
-        // And a pubsub admin service stub is registered. The PSA will match subscribers/publishers based on
-        // psaMatchesWithSubscribers
-        registerPsaStub(psaMatchesWithSubscribers);
-
-        // Then the framework.ready service will become available
-        auto count = ctx->useService<celix_condition_t>()
-                         .setFilter(frameworkReadyFilter)
-                         .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-                         .build();
-        ASSERT_EQ(count, 1);
-
-        // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
-        // requested.
-        count = ctx->useService<celix_condition_t>()
-                    .setFilter(psaReadyFilter)
-                    .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-                    .build();
-        ASSERT_EQ(count, 0);
-
-        // When a subscriber is registered
+    void registerSubscriber() {
         auto sub = std::make_shared<pubsub_subscriber_t>();
         sub->handle = static_cast<void*>(&sub);
         sub->receive = [](void* /*handle*/,
@@ -198,72 +177,87 @@ class PubSubTopologyManagerTestSuite : public ::testing::Test {
             // nop
             return 0;
         };
-        auto reg = ctx->registerService<pubsub_subscriber_t>(sub, PUBSUB_SUBSCRIBER_SERVICE_NAME)
+        subscriberReg = ctx->registerService<pubsub_subscriber_t>(sub, PUBSUB_SUBSCRIBER_SERVICE_NAME)
                        .addProperty(PUBSUB_SUBSCRIBER_TOPIC, "test")
                        .build();
-        ASSERT_GE(reg->getServiceId(), 0);
-
-        if (psaMatchesWithSubscribers) {
-            // Then the psa.ready condition will become available, because the psa matches with the subscriber
-            count = ctx->useService<celix_condition_t>()
-                        .setFilter(psaReadyFilter)
-                        .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-                        .build();
-            ASSERT_EQ(count, 1);
-        } else {
-            // Then the psa.ready condition will not become available, because the psa does not match with the
-            // subscriber
-            count = ctx->useService<celix_condition_t>()
-                        .setFilter(psaReadyFilter)
-                        .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-                        .build();
-            ASSERT_EQ(count, 0);
-        }
+        ASSERT_GE(subscriberReg->getServiceId(), 0);
     }
 
-    void testPsaReadyWithPublisher(bool psaMatchesWithPublishers) {
-        // Given a Celix framework with a pubsub topology manager bundle installed
-        setupCelixFramework();
+    void unregisterSubscriber() {
+        subscriberReg.reset();
+    }
 
-        // And a pubsub admin service stub is registered. The PSA will match subscribers/publishers based on
-        // psaMatchesWithPublishers
-        registerPsaStub(psaMatchesWithPublishers);
+    void unregisterPsaStub() {
+        psaStubReg.reset();
+    }
 
-        // Then the framework.ready service will become available
+    void checkFrameworkReadyBecomesAvailable() {
         auto count = ctx->useService<celix_condition_t>()
                          .setFilter(frameworkReadyFilter)
                          .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
                          .build();
         ASSERT_EQ(count, 1);
+    }
 
-        // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
-        // requested.
-        count = ctx->useService<celix_condition_t>()
-                    .setFilter(psaReadyFilter)
-                    .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-                    .build();
+    void checkPsaReadyBecomesAvailable() {
+        auto count = ctx->useService<celix_condition_t>()
+                         .setFilter(psaReadyFilter)
+                         .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
+                         .build();
+        ASSERT_EQ(count, 1);
+    }
+
+    void checkPsaReadyStaysUnavailable() {
+        auto count = ctx->useService<celix_condition_t>()
+                         .setFilter(psaReadyFilter)
+                         .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
+                         .build();
         ASSERT_EQ(count, 0);
+    }
 
-        // When a publisher is requested (service-on-demand)
-        auto tracker =
-            ctx->trackServices<pubsub_publisher_t>(PUBSUB_PUBLISHER_SERVICE_NAME).setFilter("(topic=test)").build();
-
-        if (psaMatchesWithPublishers) {
-            // Then the psa.ready condition will become available, because the psa matches with the requested publisher
+    void checkPsaReadyBecomesUnavailable() {
+        size_t count = 0;
+        auto now = std::chrono::steady_clock::now();
+        auto waitUntil = now + std::chrono::milliseconds{WAIT_TIME_IN_MS};
+        while (now <= waitUntil) {
             count = ctx->useService<celix_condition_t>()
                         .setFilter(psaReadyFilter)
                         .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
                         .build();
-            ASSERT_EQ(count, 1);
-        } else {
-            // Then the psa.ready condition will not become available, because the psa does not match with the requested
-            // publisher
-            count = ctx->useService<celix_condition_t>()
-                        .setFilter(psaReadyFilter)
-                        .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-                        .build();
-            ASSERT_EQ(count, 0);
+            if (count == 0) {
+                return;
+            }
+            now = std::chrono::steady_clock::now();
         }
+        ASSERT_EQ(count, 0);
+    }
+
+    void requestPublisher() {
+        publisherTracker =
+            ctx->trackServices<pubsub_publisher_t>(PUBSUB_PUBLISHER_SERVICE_NAME).setFilter("(topic=test)").build();
+    }
+
+    void cancelPublisherRequest() {
+        publisherTracker->close();
+        publisherTracker.reset();
+    }
+
+    void checkPsaReadyCommand(bool ready) {
+        auto count = ctx->useService<celix_shell_command_t>(CELIX_SHELL_COMMAND_SERVICE_NAME)
+                    .setFilter(pstmShellCommandFilter)
+                    .addUseCallback([&](auto& cmd) {
+                        char* buf;
+                        size_t bufLen;
+                        FILE* stream = open_memstream(&buf, &bufLen);
+                        cmd.executeCommand(cmd.handle, "pstm", stream, stream);
+                        fclose(stream);
+                        auto checkStr =
+                            ready ? std::string{"PSA ready       = true"} : std::string{"PSA ready       = false"};
+                        ASSERT_TRUE(strstr(buf, checkStr.c_str()) != nullptr)
+                            << "Expected to find '" << checkStr << "' in output, but got " << buf;
+                    })
+                    .build();
+        ASSERT_EQ(count, 1);
     }
 
     std::shared_ptr<celix::Framework> fw{};
@@ -271,47 +265,214 @@ class PubSubTopologyManagerTestSuite : public ::testing::Test {
 
   private:
     std::shared_ptr<celix::ServiceRegistration> psaStubReg{};
+    std::shared_ptr<celix::ServiceRegistration> subscriberReg{};
+    std::shared_ptr<celix::ServiceTracker<pubsub_publisher_t>> publisherTracker{};
 };
 
-TEST_F(PubSubTopologyManagerTestSuite, StartStopTest) {
+TEST_F(PubSubTopologyManagerTestSuite, StartStopTestTest) {
     //Given a Celix framework with a pubsub topology manager bundle installed
     setupCelixFramework();
 
     //Then the framework can safely be stopped with a deadlock or memory leak.
 }
 
-TEST_F(PubSubTopologyManagerTestSuite, PsaNotReadyCheck) {
+TEST_F(PubSubTopologyManagerTestSuite, PsaNotReadyCheckTest) {
     //Given a Celix framework with a pubsub topology manager bundle installed
     setupCelixFramework();
 
     //Then the framework.ready service will become available
-    auto count = ctx->useService<celix_condition_t>()
-            .setFilter(frameworkReadyFilter)
-            .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-            .build();
-    ASSERT_EQ(count, 1);
+    checkFrameworkReadyBecomesAvailable();
+
+    // But the psa.ready condition will not become available
+    checkPsaReadyStaysUnavailable();
+
+    // And the pstm shell command will print psa ready is false
+    checkPsaReadyCommand(false);
+}
+
+TEST_F(PubSubTopologyManagerTestSuite, PsaReadyCheckForSubcriberTest) {
+    //Given a Celix framework with a pubsub topology manager bundle installed
+    setupCelixFramework();
+
+    //Then the framework.ready service will become available
+    checkFrameworkReadyBecomesAvailable();
 
     // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
     // requested.
-    count = ctx->useService<celix_condition_t>()
-            .setFilter(psaReadyFilter)
-            .setTimeout(std::chrono::milliseconds{WAIT_TIME_IN_MS})
-            .build();
-    ASSERT_EQ(count, 0);
+    checkPsaReadyStaysUnavailable();
+
+    // When a subscriber is registered
+    registerSubscriber();
+
+    // And a PSA Stub is registered that matches with the subscriber
+    registerPsaStub(true);
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
+
+    // And the pstm shell command will print psa ready is true
+    checkPsaReadyCommand(true);
 }
 
-TEST_F(PubSubTopologyManagerTestSuite, PsaReadyCheckForSubcriber) {
-    testPsaReadyWithSubscriber(true);
+TEST_F(PubSubTopologyManagerTestSuite, PsaNotReadyCheckForSubcriberTest) {
+    //Given a Celix framework with a pubsub topology manager bundle installed
+    setupCelixFramework();
+
+    //Then the framework.ready service will become available
+    checkFrameworkReadyBecomesAvailable();
+
+    // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
+    // requested.
+    checkPsaReadyStaysUnavailable();
+
+    // When a subscriber is registered
+    registerSubscriber();
+
+    // And a PSA Stub is registered that **will not** match with the subscriber
+    registerPsaStub(false);
+
+    // Then the psa.ready condition will not become available
+    checkPsaReadyStaysUnavailable();
+
+    // And the pstm shell command will print psa ready is false
+    checkPsaReadyCommand(false);
 }
 
-TEST_F(PubSubTopologyManagerTestSuite, PsaNotReadyCheckForSubcriber) {
-    testPsaReadyWithSubscriber(false);
+TEST_F(PubSubTopologyManagerTestSuite, PsaReadyCheckForPublisherTest) {
+    //Given a Celix framework with a pubsub topology manager bundle installed
+    setupCelixFramework();
+
+    //Then the framework.ready service will become available
+    checkFrameworkReadyBecomesAvailable();
+
+    // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
+    // requested.
+    checkPsaReadyStaysUnavailable();
+
+    // When a PSA Stub is registered that matches with the publisher
+    registerPsaStub(true);
+
+    // And a publisher is requested
+    requestPublisher();
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
 }
 
-TEST_F(PubSubTopologyManagerTestSuite, PsaReadyCheckForPublisher) {
-    testPsaReadyWithPublisher(true);
+TEST_F(PubSubTopologyManagerTestSuite, PsaNotReadyCheckForPublisherTest) {
+    //Given a Celix framework with a pubsub topology manager bundle installed
+    setupCelixFramework();
+
+    //Then the framework.ready service will become available
+    checkFrameworkReadyBecomesAvailable();
+
+    // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
+    // requested.
+    checkPsaReadyStaysUnavailable();
+
+    // When a PSA Stub is registered that **will not** match with the publisher
+    registerPsaStub(false);
+
+    // And a publisher is requested
+    requestPublisher();
+
+    // Then the psa.ready condition will not become available
+    checkPsaReadyStaysUnavailable();
 }
 
-TEST_F(PubSubTopologyManagerTestSuite, PsaNotReadyCheckForPublisher) {
-    testPsaReadyWithPublisher(false);
+TEST_F(PubSubTopologyManagerTestSuite, PsaReadyToggleBecauseOfPsaTest) {
+    //Given a Celix framework with a pubsub topology manager bundle installed
+    setupCelixFramework();
+
+    //Then the framework.ready service will become available
+    checkFrameworkReadyBecomesAvailable();
+
+    // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
+    // requested.
+    checkPsaReadyStaysUnavailable();
+
+    // When a publisher is requested
+    requestPublisher();
+
+    // And a PSA Stub is registered that matches with the subscriber
+    registerPsaStub(true);
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
+
+    // When a PSA Stub is removed
+    unregisterPsaStub();
+
+    // Then the psa.ready condition will become unavailable
+    checkPsaReadyBecomesUnavailable();
+
+    // When the PSA Stub is registered again, but now with a PSA that does not match with the subscriber
+    registerPsaStub(false);
+
+    // Then the psa.ready condition will **still** not become available
+    checkPsaReadyStaysUnavailable();
+
+    // When the PSA Stub is registered again, but now with a PSA that match with the publisher
+    unregisterPsaStub();
+    registerPsaStub(true);
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
+}
+
+TEST_F(PubSubTopologyManagerTestSuite, PsaReadyToggleBecauseOfPublisherSubscriberTest) {
+    //Given a Celix framework with a pubsub topology manager bundle installed
+    setupCelixFramework();
+
+    //Then the framework.ready service will become available
+    checkFrameworkReadyBecomesAvailable();
+
+    // But the psa.ready condition will not because available, because there is no subscriber provided or publisher
+    // requested.
+    checkPsaReadyStaysUnavailable();
+
+    // When a PSA Stub is registered that matches with the subscriber
+    registerPsaStub(true);
+
+    // And a subscriber is registered
+    registerSubscriber();
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
+
+    // When a publisher is requested
+    requestPublisher();
+
+    // Then the psa.ready condition will still available
+    checkPsaReadyBecomesAvailable();
+
+    // When the subscriber is unregistered
+    unregisterSubscriber();
+
+    // Then the psa.ready condition will still available (because of the publisher)
+    checkPsaReadyBecomesAvailable();
+
+    // When the publisher request is cancelled
+    cancelPublisherRequest();
+
+    // Then the psa.ready condition will become unavailable
+    checkPsaReadyBecomesUnavailable();
+
+    // When the subscriber is registered again
+    registerSubscriber();
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
+
+    // When the subscriber is unregistered again
+    unregisterSubscriber();
+
+    // Then the psa.ready condition will become unavailable
+    checkPsaReadyBecomesUnavailable();
+
+    // When the publisher is requested again
+    requestPublisher();
+
+    // Then the psa.ready condition will become available
+    checkPsaReadyBecomesAvailable();
 }

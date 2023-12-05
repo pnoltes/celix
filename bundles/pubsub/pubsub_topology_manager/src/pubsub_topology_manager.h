@@ -74,12 +74,14 @@ typedef struct pubsub_topology_manager {
                                        a) framework.ready condition is available, b) the is at least 1 pub or sub and c)
                                        all topic receivers/senders are matched. Once psa.ready is registered it will not
                                        be revoked (only for bundle stop) */
-        long psaReadySvcId; /**< the service id of the psaReady service. -1 if psa.ready is not yet registered */
         long frameworkReadyTrackerId;      /**< the tracker id of the frameworkReady service. */
         celix_thread_mutex_t mutex;        /**< protect frameworkReady */
+        long psaReadySvcId; /**< the service id of the psaReady service. -1 if psa.ready is not yet registered */
+        size_t psaReadyCount; /**< the number of times psa.ready is registered. So number of times psa.ready
+                                 transitioned from false to true. */
         celix_condition_t* frameworkReady; /**< The condition service instance for frameworkReady. NULL if
                                               framework.ready is not yet available. */
-    } conditions; // note frameworkReadyTrackerId, psaReadySvcId and psaConnectedSvcId do not need to protected, only
+    } conditions; // note frameworkReadyTrackerId does not need to protected, only
                   // accessed during creation and handling thread.
 
     struct {
