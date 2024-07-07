@@ -24,7 +24,7 @@
 #include <jansson.h>
 #include <pthread.h>
 
-#include "etcd.h"
+#include "etcdlib.h"
 
 #define ETCD_JSON_NODE                  "node"
 #define ETCD_JSON_PREVNODE              "prevNode"
@@ -46,17 +46,15 @@
 struct etcdlib_struct {
     char *host;
     int port;
-    CURL *curl;
-    pthread_mutex_t mutex;
+    //CURL *curl;
+    //pthread_mutex_t mutex;
+
+    CURLSH* curlShare; //used for get, watch, set and update. Maybe 2 share are needed
 };
 
 typedef enum {
     GET, PUT, DELETE
 } request_t;
-
-#define MAX_GLOBAL_HOSTNAME 128
-static char g_etcdlib_host[MAX_GLOBAL_HOSTNAME];
-static etcdlib_t g_etcdlib;
 
 struct MemoryStruct {
     char *memory;
@@ -65,42 +63,8 @@ struct MemoryStruct {
     size_t headerSize;
 };
 
-/**
- * Static function declarations
- */
 static int
-performRequest(CURL **curl, pthread_mutex_t *mutex, char *url, request_t request, void *reqData, void *repData);
-static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp);
-/**
- * External function definition
- */
-
-
-/**
- * etcd_init
- */
-int etcd_init(const char *server, int port, int flags) {
-    int status = 0;
-    int needed = snprintf(g_etcdlib_host, MAX_GLOBAL_HOSTNAME, "%s", server);
-    if (needed > MAX_GLOBAL_HOSTNAME) {
-        fprintf(stderr, "Cannot init global etcdlib with '%s'. hostname len exceeds max (%i)\n", server,
-                MAX_GLOBAL_HOSTNAME);
-        g_etcdlib.host = NULL;
-        g_etcdlib.port = 0;
-    } else {
-        g_etcdlib.host = g_etcdlib_host;
-        g_etcdlib.port = port;
-    }
-    g_etcdlib.curl = NULL;
-    pthread_mutex_init(&g_etcdlib.mutex, NULL);
-
-    if ((flags & ETCDLIB_NO_CURL_INITIALIZATION) == 0) {
-        //NO_CURL_INITIALIZATION flag not set
-        status = curl_global_init(CURL_GLOBAL_ALL);
-    }
-
-    return status;
-}
+etcdlib_performRequest(char* url, request_t request, void* reqData, void* repData, CURL** curl);
 
 etcdlib_t *etcdlib_create(const char *server, int port, int flags) {
     if ((flags & ETCDLIB_NO_CURL_INITIALIZATION) == 0) {
@@ -109,42 +73,60 @@ etcdlib_t *etcdlib_create(const char *server, int port, int flags) {
     }
 
     etcdlib_t *lib = malloc(sizeof(*lib));
-    lib->host = strndup(server, 1024 * 1024 * 10);
+    char* h = strndup(server, 1024 * 1024 * 10);
+    if (!lib || !h) {
+        fprintf(stderr, "etcdlib: ENOMEM\n");
+        return NULL;
+    }
+    lib->host = h;
     lib->port = port;
-    lib->curl = NULL;
-    pthread_mutex_init(&lib->mutex, NULL);
+
+    lib->curlShare = curl_share_init();
+    if (!lib->curlShare) {
+        fprintf(stderr, "Failed to create CURLSH object\n");
+        free(lib->host);
+        free(lib);
+        return NULL;
+    }
+
+    CURLSHcode code1 = curl_share_setopt(lib->curlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+    CURLSHcode code2 = curl_share_setopt(lib->curlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+    CURLSHcode code3 = curl_share_setopt(lib->curlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+    CURLSHcode code4 = curl_share_setopt(lib->curlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE);
+
+    if (code1 != CURLSHE_OK || code2 != CURLSHE_OK || code3 != CURLSHE_OK || code4 != CURLSHE_OK ) {
+        fprintf(stderr, "Failed to set CURLSH options\n");
+        curl_share_cleanup(lib->curlShare);
+        free(lib->host);
+        free(lib);
+    }
 
     return lib;
 }
 
 void etcdlib_destroy(etcdlib_t *etcdlib) {
-    if (etcdlib != NULL) {
+    if (etcdlib) {
         free(etcdlib->host);
-        if (etcdlib->curl != NULL) {
-            curl_easy_cleanup(etcdlib->curl);
-            etcdlib->curl = NULL;
-        }
-        pthread_mutex_destroy(&etcdlib->mutex);
+        curl_share_cleanup(etcdlib->curlShare);
+        free(etcdlib);
     }
-    free(etcdlib);
 }
 
-const char *etcdlib_host(etcdlib_t *etcdlib) {
-    return etcdlib->host;
+static long long etcd_get_current_index(const char *headerData) {
+    long long index = -1;
+    char *indexStr = strstr(headerData, ETCD_HEADER_INDEX);
+    indexStr += strlen(ETCD_HEADER_INDEX);
+
+    if (sscanf(indexStr, "%lld\n", &index) == 1) {
+    } else {
+        index = -1;
+    }
+    return index;
 }
 
-int etcdlib_port(etcdlib_t *etcdlib) {
-    return etcdlib->port;
-}
-
-int etcd_get(const char *key, char **value, int *modifiedIndex) {
-    return etcdlib_get(&g_etcdlib, key, value, modifiedIndex);
-}
-
-int etcdlib_get(etcdlib_t *etcdlib, const char *key, char **value, int *modifiedIndex) {
+int etcdlib_get(etcdlib_t *etcdlib, const char *key, char **value, long long *index) {
     json_t *js_root = NULL;
     json_t *js_node = NULL;
-    json_t *js_index = NULL;
     json_t *js_value = NULL;
     json_t *js_modifiedIndex = NULL;
     json_error_t error;
@@ -159,7 +141,8 @@ int etcdlib_get(etcdlib_t *etcdlib, const char *key, char **value, int *modified
     int retVal = ETCDLIB_RC_ERROR;
     char *url;
     asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->host, etcdlib->port, key);
-    res = performRequest(&etcdlib->curl, &etcdlib->mutex, url, GET, NULL, (void *) &reply);
+    CURL* curl = NULL;
+    res = etcdlib_performRequest(url, GET, NULL, (void *) &reply, &curl);
     free(url);
 
     if (res == CURLE_OK) {
@@ -167,27 +150,23 @@ int etcdlib_get(etcdlib_t *etcdlib, const char *key, char **value, int *modified
 
         if (js_root != NULL) {
             js_node = json_object_get(js_root, ETCD_JSON_NODE);
-            js_index = json_object_get(js_root, ETCD_JSON_INDEX);
         }
         if (js_node != NULL) {
             js_value = json_object_get(js_node, ETCD_JSON_VALUE);
             js_modifiedIndex = json_object_get(js_node, ETCD_JSON_MODIFIEDINDEX);
 
             if (js_modifiedIndex != NULL && js_value != NULL) {
-                if (modifiedIndex) {
-                    *modifiedIndex = json_integer_value(js_modifiedIndex);
+                if (index) {
+                    *index = etcd_get_current_index(reply.header);
                 }
                 *value = strdup(json_string_value(js_value));
                 retVal = ETCDLIB_RC_OK;
             }
-        } else if ((modifiedIndex != NULL) && (js_index != NULL)) {
-            // Error occurred, retrieve the index of ETCD from the error code
-            *modifiedIndex = json_integer_value(js_index);
-            retVal = ETCDLIB_RC_OK;
         }
         if (js_root != NULL) {
             json_decref(js_root);
         }
+        curl_easy_cleanup(curl);
     } else if (res == CURLE_OPERATION_TIMEDOUT) {
         //timeout
         retVal = ETCDLIB_RC_TIMEOUT;
@@ -250,23 +229,6 @@ etcd_get_recursive_values(json_t *js_root, etcdlib_key_value_callback callback, 
     return (*mod_index > 0 ? 0 : 1);
 }
 
-static long long etcd_get_current_index(const char *headerData) {
-    long long index = -1;
-    char *indexStr = strstr(headerData, ETCD_HEADER_INDEX);
-    indexStr += strlen(ETCD_HEADER_INDEX);
-
-    if (sscanf(indexStr, "%lld\n", &index) == 1) {
-    } else {
-        index = -1;
-    }
-    return index;
-}
-
-int
-etcd_get_directory(const char *directory, etcdlib_key_value_callback callback, void *arg, long long *modifiedIndex) {
-    return etcdlib_get_directory(&g_etcdlib, directory, callback, arg, modifiedIndex);
-}
-
 int etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory, etcdlib_key_value_callback callback, void *arg,
                           long long *modifiedIndex) {
 
@@ -288,7 +250,8 @@ int etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory, etcdlib_key
 
     asprintf(&url, "http://%s:%d/v2/keys/%s?recursive=true", etcdlib->host, etcdlib->port, directory);
 
-    res = performRequest(&etcdlib->curl, &etcdlib->mutex, url, GET, NULL, (void *) &reply);
+    CURL* curl = NULL;
+    res = etcdlib_performRequest(url, GET, NULL, (void *) &reply, &curl);
     free(url);
     if (res == CURLE_OK) {
         js_root = json_loads(reply.memory, 0, &error);
@@ -332,10 +295,6 @@ int etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory, etcdlib_key
     return retVal;
 }
 
-int etcd_set(const char *key, const char *value, int ttl, bool prevExist) {
-    return etcdlib_set(&g_etcdlib, key, value, ttl, prevExist);
-}
-
 int etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *value, int ttl, bool prevExist) {
 
     json_error_t error;
@@ -371,7 +330,8 @@ int etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *value, int ttl,
         requestPtr += snprintf(requestPtr, req_len - (requestPtr - request), ";prevExist=true");
     }
 
-    res = performRequest(&etcdlib->curl, &etcdlib->mutex, url, PUT, request, (void *) &reply);
+    CURL* curl = NULL;
+    res = etcdlib_performRequest(url, PUT, request, (void *) &reply, &curl);
     if (url) {
         free(url);
     }
@@ -402,10 +362,6 @@ int etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *value, int ttl,
     return retVal;
 }
 
-int etcd_refresh(const char *key, int ttl) {
-    return etcdlib_refresh(&g_etcdlib, key, ttl);
-}
-
 int etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
     int retVal = ETCDLIB_RC_ERROR;
     char *url;
@@ -428,7 +384,8 @@ int etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
     asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->host, etcdlib->port, key);
     snprintf(request, req_len, "ttl=%d;prevExists=true;refresh=true", ttl);
 
-    res = performRequest(&etcdlib->curl, &etcdlib->mutex, url, PUT, request, (void *) &reply);
+    CURL* curl = NULL;
+    res = etcdlib_performRequest(url, PUT, request, (void *) &reply, &curl);
     if (url) {
         free(url);
     }
@@ -459,10 +416,6 @@ int etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
     return retVal;
 }
 
-int etcd_set_with_check(const char *key, const char *value, int ttl, bool always_write) {
-    return etcdlib_set_with_check(&g_etcdlib, key, value, ttl, always_write);
-}
-
 int etcdlib_set_with_check(etcdlib_t *etcdlib, const char *key, const char *value, int ttl, bool always_write) {
     char *etcd_value;
     int result = 0;
@@ -482,11 +435,6 @@ int etcdlib_set_with_check(etcdlib_t *etcdlib, const char *key, const char *valu
         result = etcdlib_set(etcdlib, key, value, ttl, false);
     }
     return result;
-}
-
-int etcd_watch(const char *key, long long index, char **action, char **prevValue, char **value, char **rkey,
-               long long *modifiedIndex) {
-    return etcdlib_watch(&g_etcdlib, key, index, action, prevValue, value, rkey, modifiedIndex);
 }
 
 int etcdlib_watch(etcdlib_t *etcdlib, const char *key, long long index, char **action, char **prevValue, char **value,
@@ -521,12 +469,14 @@ int etcdlib_watch(etcdlib_t *etcdlib, const char *key, long long index, char **a
     // don't use shared curl/mutex for watch, that will lock everything.
     CURL *curl = NULL;
 
-    res = performRequest(&curl, NULL, url, GET, NULL, (void *) &reply);
+    res = etcdlib_performRequest(url, GET, NULL, (void *) &reply, &curl);
 
     curl_easy_cleanup(curl);
 
-    if (url)
+    if (url) {
         free(url);
+    }
+
     if (res == CURLE_OK) {
         js_root = json_loads(reply.memory, 0, &error);
 
@@ -576,8 +526,12 @@ int etcdlib_watch(etcdlib_t *etcdlib, const char *key, long long index, char **a
         }
 
     } else if (res == CURLE_OPERATION_TIMEDOUT) {
-        //ignore timeout
+        // ignore timeout
         retVal = ETCDLIB_RC_TIMEOUT;
+    } else if (res == CURLE_AUTH_ERROR) {
+        // AUTH_ERROR, 401, for etcd means that the provided watch index event is cleared and no longer available.
+        // This means that a watch is no longer possible and a new etcdlib_get -> etcdlib_watch setup needs to be done
+        retVal = ETCDLIB_RC_EVENT_CLEARED;
     } else {
         fprintf(stderr, "Got curl error: %s\n", curl_easy_strerror(res));
         retVal = ETCDLIB_RC_ERROR;
@@ -586,11 +540,6 @@ int etcdlib_watch(etcdlib_t *etcdlib, const char *key, long long index, char **a
     free(reply.memory);
 
     return retVal;
-}
-
-
-int etcd_del(const char *key) {
-    return etcdlib_del(&g_etcdlib, key);
 }
 
 int etcdlib_del(etcdlib_t *etcdlib, const char *key) {
@@ -608,8 +557,9 @@ int etcdlib_del(etcdlib_t *etcdlib, const char *key) {
     reply.header = NULL; /* will be grown as needed by the realloc above */
     reply.headerSize = 0; /* no data at this point */
 
+    CURL* curl = NULL;
     asprintf(&url, "http://%s:%d/v2/keys/%s?recursive=true", etcdlib->host, etcdlib->port, key);
-    res = performRequest(&etcdlib->curl, &etcdlib->mutex, url, DELETE, NULL, (void *) &reply);
+    res = etcdlib_performRequest(url, DELETE, NULL, (void *) &reply, &curl);
     free(url);
 
     if (res == CURLE_OK) {
@@ -632,10 +582,9 @@ int etcdlib_del(etcdlib_t *etcdlib, const char *key) {
     return retVal;
 }
 
-
-static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+static size_t etcdlib_writeMemoryCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t realsize = size * nmemb;
-    struct MemoryStruct *mem = (struct MemoryStruct *) userp;
+    struct MemoryStruct* mem = (struct MemoryStruct*)userp;
 
     void* newMem = realloc(mem->memory, mem->memorySize + realsize + 1);
     if (newMem == NULL) {
@@ -651,9 +600,9 @@ static size_t WriteMemoryCallback(void *contents, size_t size, size_t nmemb, voi
     return realsize;
 }
 
-static size_t WriteHeaderCallback(void *contents, size_t size, size_t nmemb, void *userp) {
+static size_t etcdlib_writeHeaderCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     size_t realsize = size * nmemb;
-    struct MemoryStruct *mem = (struct MemoryStruct *) userp;
+    struct MemoryStruct* mem = (struct MemoryStruct*)userp;
 
     void* newHeader = realloc(mem->header, mem->headerSize + realsize + 1);
     if (newHeader == NULL) {
@@ -670,29 +619,28 @@ static size_t WriteHeaderCallback(void *contents, size_t size, size_t nmemb, voi
     return realsize;
 }
 
-static int
-performRequest(CURL **curl, pthread_mutex_t *mutex, char *url, request_t request, void *reqData, void *repData) {
-    CURLcode res = 0;
-    if (mutex != NULL) {
-        pthread_mutex_lock(mutex);
-    }
-    if (*curl == NULL) {
+static int etcdlib_performRequest(char* url, request_t request, void* reqData, void* repData, CURL** curl) {
+    if (!curl) {
         *curl = curl_easy_init();
-    } else {
-        curl_easy_reset(*curl);
+        if (!*curl) {
+            fprintf(stderr, "Cannot setup curl\n");
+            return ETCDLIB_RC_ERROR;
+        }
     }
+
+    CURLcode res = 0;
 
     curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(*curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
     curl_easy_setopt(*curl, CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECT_TIMEOUT);
     curl_easy_setopt(*curl, CURLOPT_FOLLOWLOCATION, 1L);
-    //curl_easy_setopt(*curl, CURLOPT_VERBOSE, 1L);
+    // curl_easy_setopt(*curl, CURLOPT_VERBOSE, 1L);
     curl_easy_setopt(*curl, CURLOPT_URL, url);
-    curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+    curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, etcdlib_writeMemoryCallback);
     curl_easy_setopt(*curl, CURLOPT_WRITEDATA, repData);
-    if (((struct MemoryStruct *) repData)->header) {
+    if (((struct MemoryStruct*)repData)->header) {
         curl_easy_setopt(*curl, CURLOPT_HEADERDATA, repData);
-        curl_easy_setopt(*curl, CURLOPT_HEADERFUNCTION, WriteHeaderCallback);
+        curl_easy_setopt(*curl, CURLOPT_HEADERFUNCTION, etcdlib_writeHeaderCallback);
     }
 
     if (request == PUT) {
@@ -708,14 +656,11 @@ performRequest(CURL **curl, pthread_mutex_t *mutex, char *url, request_t request
     res = curl_easy_perform(*curl);
 
     if (res != CURLE_OK && res != CURLE_OPERATION_TIMEDOUT) {
-        const char *m = request == GET ? "GET" : request == PUT ? "PUT" : request == DELETE ? "DELETE" : "?";
+        const char* m = request == GET ? "GET" : request == PUT ? "PUT" : request == DELETE ? "DELETE" : "?";
         fprintf(stderr, "[etclib] Curl error for %s @ %s: %s\n", url, m, curl_easy_strerror(res));
 
         curl_easy_cleanup(*curl);
-        *curl = NULL;
-    }
-    if (mutex != NULL) {
-        pthread_mutex_unlock(mutex);
+        curl = NULL;
     }
 
     return res;

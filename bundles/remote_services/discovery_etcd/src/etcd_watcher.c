@@ -28,7 +28,7 @@
 #include "discovery.h"
 #include "discovery_impl.h"
 
-#include "etcd.h"
+#include "etcdlib.h"
 #include "etcd_watcher.h"
 
 #include "endpoint_discovery_poller.h"
@@ -135,7 +135,7 @@ static celix_status_t etcdWatcher_addOwnFramework(etcd_watcher_t *watcher)
     char localNodePath[MAX_LOCALNODE_LENGTH];
     char *value = NULL;
  	char url[MAX_VALUE_LENGTH];
-    int modIndex;
+    long long int modIndex;
     char* endpoints = NULL;
 
 	celix_bundle_context_t *context = watcher->discovery->context;
@@ -218,46 +218,57 @@ static celix_status_t etcdWatcher_removeEntry(etcd_watcher_t *watcher, char* key
 
 }
 
-
 /*
  * performs (blocking) etcd_watch calls to check for
  * changing discovery endpoint information within etcd.
  */
 static void* etcdWatcher_run(void* data) {
-	etcd_watcher_t *watcher = (etcd_watcher_t *) data;
-	time_t timeBeforeWatch = time(NULL);
-	char rootPath[MAX_ROOTNODE_LENGTH];
-	long long highestModified = 0;
+    etcd_watcher_t* watcher = (etcd_watcher_t*)data;
+    time_t timeBeforeWatch = time(NULL);
+    char rootPath[MAX_ROOTNODE_LENGTH];
+    long long highestModified = 0;
 
-	celix_bundle_context_t *context = watcher->discovery->context;
+    celix_bundle_context_t* context = watcher->discovery->context;
 
-	etcdWatcher_addAlreadyExistingWatchpoints(watcher, watcher->discovery, &highestModified);
-	etcdWatcher_getRootPath(context, rootPath);
+    etcdWatcher_addAlreadyExistingWatchpoints(watcher, watcher->discovery, &highestModified);
+    etcdWatcher_getRootPath(context, rootPath);
 
-	while (watcher->running) {
+    while (watcher->running) {
+        char* rkey = NULL;
+        char* value = NULL;
+        char* preValue = NULL;
+        char* action = NULL;
+        long long modIndex;
 
-		char *rkey = NULL;
-		char *value = NULL;
-		char *preValue = NULL;
-		char *action = NULL;
-		long long modIndex;
+        int etcdRc = etcdlib_watch(
+            watcher->etcdlib, rootPath, highestModified + 1, &action, &preValue, &value, &rkey, &modIndex);
+        if (etcdRc == 0 && action != NULL) {
+            if (strcmp(action, "set") == 0) {
+                etcdWatcher_addEntry(watcher, rkey, value);
+            } else if (strcmp(action, "delete") == 0) {
+                etcdWatcher_removeEntry(watcher, rkey, value);
+            } else if (strcmp(action, "expire") == 0) {
+                etcdWatcher_removeEntry(watcher, rkey, value);
+            } else if (strcmp(action, "update") == 0) {
+                etcdWatcher_addEntry(watcher, rkey, value);
+            } else {
+                celix_logHelper_error(*watcher->loghelper, "Unexpected action: %s", action);
+            }
 
-        if (etcdlib_watch(watcher->etcdlib, rootPath, highestModified + 1, &action, &preValue, &value, &rkey, &modIndex) == 0 && action != NULL) {
-			if (strcmp(action, "set") == 0) {
-				etcdWatcher_addEntry(watcher, rkey, value);
-			} else if (strcmp(action, "delete") == 0) {
-				etcdWatcher_removeEntry(watcher, rkey, value);
-			} else if (strcmp(action, "expire") == 0) {
-				etcdWatcher_removeEntry(watcher, rkey, value);
-			} else if (strcmp(action, "update") == 0) {
-				etcdWatcher_addEntry(watcher, rkey, value);
-			} else {
-				celix_logHelper_log(*watcher->loghelper, CELIX_LOG_LEVEL_INFO, "Unexpected action: %s", action);
-			}
+            highestModified = modIndex;
+        } else if (etcdRc == ETCDLIB_RC_EVENT_CLEARED) {
+            celix_logHelper_error(
+                *watcher->loghelper, "Got event cleared for remote service etcd watch for index %lli", modIndex);
 
-			highestModified = modIndex;
-        } else if (time(NULL) - timeBeforeWatch <= (watcher->ttl / 4)) {
-			sleep(watcher->ttl / 4);
+            //Note, to recover from an event cleared return a new etcdlib_get followed by etcdlib_watch is needed.
+            celix_logHelper_error(
+                *watcher->loghelper, "ETCD remote services currently does _not_ support a etcd event cleared result");
+        } else if (etcdRc == ETCDLIB_RC_TIMEOUT) {
+            // nop, timeout on long poll
+        } else {
+            celix_logHelper_error(*watcher->loghelper, "Error on etcd watch\n");
+            celix_logHelper_logTssErrors(*watcher->loghelper, CELIX_LOG_LEVEL_ERROR);
+            sleep(watcher->ttl / 4);
         }
 
         FREE_MEM(action);
@@ -265,14 +276,14 @@ static void* etcdWatcher_run(void* data) {
         FREE_MEM(preValue);
         FREE_MEM(rkey);
 
-		// update own framework uuid
-		if (time(NULL) - timeBeforeWatch > (watcher->ttl / 4)) {
-			etcdWatcher_addOwnFramework(watcher);
-			timeBeforeWatch = time(NULL);
-		}
-	}
+        // update own framework uuid
+        if (time(NULL) - timeBeforeWatch > (watcher->ttl / 4)) {
+            etcdWatcher_addOwnFramework(watcher);
+            timeBeforeWatch = time(NULL);
+        }
+    }
 
-	return NULL;
+    return NULL;
 }
 
 /*

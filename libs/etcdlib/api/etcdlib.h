@@ -43,9 +43,10 @@ extern "C"
 #define ETCDLIB_ACTION_DELETE   "delete"
 #define ETCDLIB_ACTION_EXPIRE   "expire"
 
-#define ETCDLIB_RC_OK           0
-#define ETCDLIB_RC_ERROR        1
-#define ETCDLIB_RC_TIMEOUT      2
+#define ETCDLIB_RC_OK               0
+#define ETCDLIB_RC_ERROR            1
+#define ETCDLIB_RC_TIMEOUT          2
+#define ETCDLIB_RC_EVENT_CLEARED    3
 
 typedef struct etcdlib_struct etcdlib_t; //opaque struct
 
@@ -81,10 +82,10 @@ ETCDLIB_EXPORT int etcdlib_port(etcdlib_t *etcdlib);
  * @param const etcdlib_t* etcdlib. The ETCD-LIB instance (contains hostname and port info).
  * @param const char* key. The Etcd-key (Note: a leading '/' should be avoided).
  * @param char** value. The allocated memory contains the Etcd-value. The caller is responsible for freeing this memory.
- * @param int* modifiedIndex. If not NULL the Etcd-index of the last modified value.
+ * @param[out] int* etcdIndex. If not NULL the Etcd-index of the last modified value (etcd wide).
  * @return 0 on success, non zero otherwise
  */
-ETCDLIB_EXPORT int etcdlib_get(etcdlib_t *etcdlib, const char* key, char** value, int* modifiedIndex);
+ETCDLIB_EXPORT int etcdlib_get(etcdlib_t *etcdlib, const char* key, char** value, long long* index);
 
 /**
  * @desc Retrieve the contents of a directory. For every found key/value pair the given callback function is called.
@@ -92,10 +93,10 @@ ETCDLIB_EXPORT int etcdlib_get(etcdlib_t *etcdlib, const char* key, char** value
  * @param const char* directory. The Etcd-directory which has to be searched for keys
  * @param etcdlib_key_value_callback callback. Callback function which is called for every found key
  * @param void *arg. Argument is passed to the callback function
- * @param int* modifiedIndex. If not NULL the Etcd-index of the last modified value.
+ * @param[out] int* modifiedIndex. If not NULL the Etcd-index of the last modified value (etcd wide).
  * @return 0 on success, non zero otherwise
  */
-ETCDLIB_EXPORT int etcdlib_get_directory(etcdlib_t *etcdlib, const char* directory, etcdlib_key_value_callback callback, void *arg, long long* modifiedIndex);
+ETCDLIB_EXPORT int etcdlib_get_directory(etcdlib_t *etcdlib, const char* directory, etcdlib_key_value_callback callback, void *arg, long long* index);
 
 /**
  * @desc Setting an Etcd-key/value
