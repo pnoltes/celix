@@ -25,14 +25,22 @@
 
 extern "C" {
     CURLcode __wrap_curl_global_init(int flags) {
+        //no-op global init
         (void)flags;
         return CURLE_OK;
+    }
+
+    CURLMcode __wrap_curl_multi_perform(CURLM* curlMulti, int* runningHandles) {
+        //no-op multi perform
+        (void)curlMulti;
+        (void)runningHandles;
+        return CURLM_OK;
     }
 
     const char* g_etcdlibMockedReplyData = nullptr;
     const char* g_etcdlibMockedReplyHeader = nullptr;
 
-    CURLcode __wrap_curl_easy_perform(CURL* curl) {
+    static CURLcode setMockedReplyData(CURL* curl) {
         etcdlib_reply_data_t* data;
         CURLcode cc = curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char**)&data);
         if (cc != CURLE_OK) {
@@ -43,6 +51,36 @@ extern "C" {
             data->header = g_etcdlibMockedReplyHeader ? strdup(g_etcdlibMockedReplyHeader) : nullptr;
         }
         return CURLE_OK;
+    }
+
+    CURLcode __wrap_curl_easy_perform(CURL* curl) {
+        return setMockedReplyData(curl);
+    }
+
+    CURL* g_etcdlibMockedCurlMultiHandle = nullptr;
+
+    CURLMcode __wrap_curl_multi_add_handle(CURLM* multiHandle, CURL* easyHandle) {
+        (void)multiHandle;
+        g_etcdlibMockedCurlMultiHandle = easyHandle;
+        (void)setMockedReplyData(easyHandle);
+        return CURLM_OK;
+    }
+
+    CURLMcode __wrap_curl_multi_remove_handle(CURLM* multiHandle, CURL* easyHandle) {
+        //no-op multi remove handle
+        (void)multiHandle;
+        (void)easyHandle;
+        return CURLM_OK;
+    }
+
+    CURLMsg* __wrap_curl_multi_info_read(CURLM* multiHandle, int* msgsInQueue) {
+        static CURLMsg msg;
+        (void)multiHandle;
+        *msgsInQueue = 0;
+        msg.msg = CURLMSG_DONE;
+        msg.data.result = CURLE_OK;
+        msg.easy_handle = g_etcdlibMockedCurlMultiHandle;
+        return &msg;
     }
 }
 
@@ -72,7 +110,7 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryTest) {
     ASSERT_EQ(ETCDLIB_RC_OK, res.rc);
 
     //When preparing a curl easy handle mocked reply and header
-    g_etcdlibMockedReplyData = R"({"node": {"value": "test", "modifiedIndex": 1}})";
+    g_etcdlibMockedReplyData = R"({"node": {"value": "test"}})";
     g_etcdlibMockedReplyHeader = R"(HTTP/1.1 200 OK; Content-Type: application/json; X-Etcd-Index: 1)";
 
     //Then etcdlib_get should return the value and the index
@@ -82,4 +120,25 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryTest) {
     ASSERT_EQ(ETCDLIB_RC_OK, rc);
     ASSERT_STREQ("test", value);
     ASSERT_EQ(1, index);
+}
+
+TEST_F(EtcdlibMockTestSuite, GetEtcdEntryWithCurlMultiTest) {
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_create_options_t opts = {};
+    opts.useMultiCurl = true;
+    etcdlib_autoptr_t etcdlib = nullptr;
+    etcdlib_result_t res = etcdlib_createWithOptions(&opts, &etcdlib);
+    ASSERT_EQ(ETCDLIB_RC_OK, res.rc);
+
+    //When preparing a curl easy handle mocked reply and header
+    g_etcdlibMockedReplyData = R"({"node": {"value": "test2"}})";
+    g_etcdlibMockedReplyHeader = R"(HTTP/1.1 200 OK; Content-Type: application/json; X-Etcd-Index: 2)";
+
+    //Then etcdlib_get should return the value and the index
+    char* value = nullptr;
+    long long index;
+    int rc = etcdlib_get(etcdlib, "/test", &value, &index);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    ASSERT_STREQ("test2", value);
+    ASSERT_EQ(2, index);
 }

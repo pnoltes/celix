@@ -38,6 +38,10 @@ if (EI_TESTS)
     target_link_options(test_etcdlib_mock PRIVATE
             LINKER:--wrap,curl_global_init
             LINKER:--wrap,curl_easy_perform
+            LINKER:--wrap,curl_multi_perform
+            LINKER:--wrap,curl_multi_info_read
+            LINKER:--wrap,curl_multi_remove_handle
+            LINKER:--wrap,curl_multi_add_handle
     )
 
     add_test(NAME test_etcdlib_mock COMMAND test_etcdlib_mock)

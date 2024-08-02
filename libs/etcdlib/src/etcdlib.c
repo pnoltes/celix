@@ -762,7 +762,7 @@ static int etcdlib_performRequest(etcdlib_t* lib,
     }
 
     if (lib->curlMulti) {
-        curl_multi_add_handle(lib->curlMulti, curl);
+        curl_multi_add_handle(lib->curlMulti, curl);  //TODO handle return code
         int running;
         CURLMcode mc = curl_multi_perform(lib->curlMulti, &running);
         if (mc == CURLM_OK) {
@@ -814,7 +814,7 @@ static CURLcode etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
         }
         CURLMsg* msg = curl_multi_info_read(lib->curlMulti, &running);
         if (msg && (msg->msg == CURLMSG_DONE) && (msg->easy_handle == curl)) {
-            curl_multi_remove_handle(lib->curlMulti, curl);
+            curl_multi_remove_handle(lib->curlMulti, curl); //TODO handle return code
             res = msg->data.result;
             break;
         } else if (msg && (msg->msg == CURLMSG_DONE)) {
