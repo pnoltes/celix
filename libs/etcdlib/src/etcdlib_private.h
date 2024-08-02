@@ -15,21 +15,26 @@
 *  KIND, either express or implied.  See the License for the
 * specific language governing permissions and limitations
 * under the License.
- */
+*/
 
-#include <cstdio>
-#include <curl/curl.h>
-#include <gtest/gtest.h>
+#ifndef ETCDLIB_PRIVATE_H_
+#define ETCDLIB_PRIVATE_H_
 
-int main(int argc, char **argv) {
-    printf("initializing curl\n");
-    curl_global_init(CURL_GLOBAL_ALL);
+#include <stddef.h>
 
-    testing::InitGoogleTest(&argc, argv);
-    int rc = RUN_ALL_TESTS();
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-    printf("cleaning up curl\n");
-    curl_global_cleanup();
+typedef struct {
+    char *memory;
+    char *header;
+    size_t memorySize;
+    size_t headerSize;
+} etcdlib_reply_data_t;
 
-    return rc;
+#ifdef __cplusplus
 }
+#endif
+
+#endif /* ETCDLIB_PRIVATE_H_ */

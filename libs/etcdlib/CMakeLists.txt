@@ -46,7 +46,7 @@ if (CELIX_ETCDLIB OR ETCDLIB_STANDALONE)
     find_package(CURL REQUIRED)
     find_package(jansson REQUIRED)
 
-    add_library(etcdlib SHARED src/etcd.c)
+    add_library(etcdlib SHARED src/etcdlib.c)
     target_include_directories(etcdlib PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/api>)
     target_include_directories(etcdlib PRIVATE src)
     set_target_properties(etcdlib
@@ -63,7 +63,7 @@ if (CELIX_ETCDLIB OR ETCDLIB_STANDALONE)
     target_include_directories(etcdlib PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/celix/gen/includes/etcdlib>)
 
 
-    add_library(etcdlib_static STATIC src/etcd.c)
+    add_library(etcdlib_static STATIC src/etcdlib.c)
     target_include_directories(etcdlib_static PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/api>)
     target_include_directories(etcdlib_static PRIVATE src)
     target_include_directories(etcdlib_static PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/celix/gen/includes/etcdlib>)

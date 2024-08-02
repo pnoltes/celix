@@ -15,15 +15,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if (EI_TESTS) #Note EI_TEST is used, but the actual setup is a curl stub using linker --wrap
-    add_executable(test_etcdlib
+add_executable(test_etcdlib
+        src/main.cc
+        src/EtcdlibTestSuite.cc
+)
+
+target_link_libraries(test_etcdlib PRIVATE etcdlib_static GTest::gtest)
+target_include_directories(test_etcdlib PRIVATE ../src)
+
+add_test(NAME test_etcdlib COMMAND test_etcdlib)
+setup_target_for_coverage(test_etcdlib SCAN_DIR ..)
+
+
+if (EI_TESTS)
+    add_executable(test_etcdlib_mock
             src/main.cc
-            src/EtcdlibTestSuite.cc
+            src/EtcdlibMockTestSuite.cc
     )
 
-    target_link_libraries(test_etcdlib PRIVATE etcdlib_static GTest::gtest)
-    target_include_directories(test_etcdlib PRIVATE ../src)
+    target_link_libraries(test_etcdlib_mock PRIVATE etcdlib_static GTest::gtest)
+    target_include_directories(test_etcdlib_mock PRIVATE ../src)
+    target_link_options(test_etcdlib_mock PRIVATE
+            LINKER:--wrap,curl_global_init
+            LINKER:--wrap,curl_easy_perform
+    )
 
-    add_test(NAME test_etcdlib COMMAND test_etcdlib)
-    setup_target_for_coverage(test_etcdlib SCAN_DIR ..)
+    add_test(NAME test_etcdlib_mock COMMAND test_etcdlib_mock)
+    setup_target_for_coverage(test_etcdlib_mock SCAN_DIR ..)
 endif ()

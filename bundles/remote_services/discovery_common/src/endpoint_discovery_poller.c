@@ -334,14 +334,14 @@ static void* endpointDiscoveryPoller_performPeriodicPoll(void* data) {
     return NULL;
 }
 
-struct MemoryStruct {
+struct etcdlib_reply {
 	char *memory;
 	size_t size;
 };
 
 static size_t endpointDiscoveryPoller_writeMemory(void *contents, size_t size, size_t nmemb, void *memoryPtr) {
 	size_t realsize = size * nmemb;
-	struct MemoryStruct *mem = (struct MemoryStruct *)memoryPtr;
+	struct etcdlib_reply*mem = (struct etcdlib_reply*)memoryPtr;
 
     void* newMem = realloc(mem->memory, mem->size + realsize + 1);
     if (newMem == NULL) {
@@ -364,7 +364,7 @@ static celix_status_t endpointDiscoveryPoller_getEndpoints(endpoint_discovery_po
 	CURL *curl = NULL;
 	CURLcode res = CURLE_OK;
 
-	struct MemoryStruct chunk;
+	struct etcdlib_reply chunk;
 	chunk.memory = malloc(1);
 	chunk.size = 0;
 
