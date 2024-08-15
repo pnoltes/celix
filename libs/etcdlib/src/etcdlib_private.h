@@ -26,6 +26,10 @@
 extern "C" {
 #endif
 
+/** Internal error flags, used to distinguish between curl, curl_multi and etcdlib errors */
+#define ETCDLIB_INTERNAL_CURLCODE_FLAG 0x80000000
+#define ETCDLIB_INTERNAL_CURLMCODE_FLAG 0x40000000
+
 typedef struct {
     char *memory;
     char *header;

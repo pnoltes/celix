@@ -20,6 +20,9 @@
 #include <gtest/gtest.h>
 
 #include "etcdlib.h"
+#include "etcdlib_private.h"
+
+#include <curl/curl.h>
 
 class EtcdlibTestSuite : public ::testing::Test {};
 
@@ -60,17 +63,35 @@ TEST_F(EtcdlibTestSuite, EtcdlibAutoPtrTest) {
 TEST_F(EtcdlibTestSuite, CreateWithOptionsTest) {
     etcdlib_create_options_t opts{};
     etcdlib_autoptr_t lib1 = nullptr;
-    etcdlib_result_t res = etcdlib_createWithOptions(&opts, &lib1);
-    ASSERT_EQ(res.rc, ETCDLIB_RC_OK);
+    auto rc = etcdlib_createWithOptions(&opts, &lib1);
+    ASSERT_EQ(rc, ETCDLIB_RC_OK);
     ASSERT_NE(lib1, nullptr);
 
     opts.useMultiCurl = true;
     opts.server = "foo";
     opts.port = 1234;
     etcdlib_autoptr_t lib2 = nullptr;
-    res = etcdlib_createWithOptions(&opts, &lib2);
-    ASSERT_EQ(res.rc, ETCDLIB_RC_OK);
+    rc = etcdlib_createWithOptions(&opts, &lib2);
+    ASSERT_EQ(rc, ETCDLIB_RC_OK);
     ASSERT_NE(lib2, nullptr);
     EXPECT_STREQ(etcdlib_host(lib2), "foo");
     EXPECT_EQ(etcdlib_port(lib2), 1234);
+}
+
+TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_OK), "ETCDLIB OK");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_TIMEOUT), "ETCDLIB Timeout");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_CLEARED), "ETCDLIB Event Cleared");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ENOMEM), "ETCDLIB Out of memory or maximum number of curl handles reached");
+    EXPECT_STREQ(etcdlib_strerror(42), "ETCDLIB Unknown error");
+
+    //curlcode error
+    const char* error = etcdlib_strerror(ETCDLIB_INTERNAL_CURLCODE_FLAG | CURLE_OPERATION_TIMEDOUT);
+    EXPECT_TRUE(error != nullptr);
+    EXPECT_TRUE(strcasecmp(error, "timeout"));
+
+    //curlmcode error
+    error = etcdlib_strerror(ETCDLIB_INTERNAL_CURLMCODE_FLAG | CURLM_BAD_SOCKET);
+    EXPECT_TRUE(error != nullptr);
+    EXPECT_TRUE(strcasecmp(error, "socker"));
 }

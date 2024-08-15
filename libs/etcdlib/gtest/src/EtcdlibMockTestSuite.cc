@@ -22,6 +22,8 @@
 #include "etcdlib.h"
 #include "etcdlib_private.h"
 #include <curl/curl.h>
+#include <mutex>
+#include <queue>
 
 extern "C" {
     CURLcode __wrap_curl_global_init(int flags) {
@@ -40,15 +42,15 @@ extern "C" {
     const char* g_etcdlibMockedReplyData = nullptr;
     const char* g_etcdlibMockedReplyHeader = nullptr;
 
-    static CURLcode setMockedReplyData(CURL* curl) {
+    static auto setMockedReplyData(CURL* curl) -> CURLcode {
         etcdlib_reply_data_t* data;
-        CURLcode cc = curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char**)&data);
-        if (cc != CURLE_OK) {
-            return cc;
+        const CURLcode code = curl_easy_getinfo(curl, CURLINFO_PRIVATE, (char**)&data);
+        if (code != CURLE_OK) {
+            return code;
         }
-        if (data) {
-            data->memory = g_etcdlibMockedReplyData ? strdup(g_etcdlibMockedReplyData) : nullptr;
-            data->header = g_etcdlibMockedReplyHeader ? strdup(g_etcdlibMockedReplyHeader) : nullptr;
+        if (data != nullptr) {
+            data->memory = (g_etcdlibMockedReplyData != nullptr) ? strdup(g_etcdlibMockedReplyData) : nullptr;
+            data->header = (g_etcdlibMockedReplyHeader != nullptr) ? strdup(g_etcdlibMockedReplyHeader) : nullptr;
         }
         return CURLE_OK;
     }
@@ -57,11 +59,13 @@ extern "C" {
         return setMockedReplyData(curl);
     }
 
-    CURL* g_etcdlibMockedCurlMultiHandle = nullptr;
+    std::mutex g_etcdlibMockedCurlMultiHandleMutex{};
+    std::queue<CURL*> g_etcdlibMockedCurlHandles{};
 
     CURLMcode __wrap_curl_multi_add_handle(CURLM* multiHandle, CURL* easyHandle) {
         (void)multiHandle;
-        g_etcdlibMockedCurlMultiHandle = easyHandle;
+        const std::lock_guard lck(g_etcdlibMockedCurlMultiHandleMutex);
+        g_etcdlibMockedCurlHandles.push(easyHandle);
         (void)setMockedReplyData(easyHandle);
         return CURLM_OK;
     }
@@ -74,12 +78,18 @@ extern "C" {
     }
 
     CURLMsg* __wrap_curl_multi_info_read(CURLM* multiHandle, int* msgsInQueue) {
+        //TODO add a way to hold the info_read, so that a overfill of the completed handles can be tested
+        const std::lock_guard lck(g_etcdlibMockedCurlMultiHandleMutex);
         static CURLMsg msg;
         (void)multiHandle;
-        *msgsInQueue = 0;
+        *msgsInQueue = (int)g_etcdlibMockedCurlHandles.size();
+        if (g_etcdlibMockedCurlHandles.empty()) {
+            return nullptr;
+        }
         msg.msg = CURLMSG_DONE;
         msg.data.result = CURLE_OK;
-        msg.easy_handle = g_etcdlibMockedCurlMultiHandle;
+        msg.easy_handle = g_etcdlibMockedCurlHandles.front();
+        g_etcdlibMockedCurlHandles.pop();
         return &msg;
     }
 }
@@ -104,10 +114,10 @@ TEST_F(EtcdlibMockTestSuite, CreateWithCurlGlobalInitTest) {
 
 TEST_F(EtcdlibMockTestSuite, GetEtcdEntryTest) {
     //Given an etcdlib instance with no curl multi handle
-    etcdlib_create_options_t opts = {};
+    const etcdlib_create_options_t opts = {};
     etcdlib_autoptr_t etcdlib = nullptr;
-    etcdlib_result_t res = etcdlib_createWithOptions(&opts, &etcdlib);
-    ASSERT_EQ(ETCDLIB_RC_OK, res.rc);
+    auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
 
     //When preparing a curl easy handle mocked reply and header
     g_etcdlibMockedReplyData = R"({"node": {"value": "test"}})";
@@ -116,7 +126,7 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryTest) {
     //Then etcdlib_get should return the value and the index
     char* value = nullptr;
     long long index;
-    int rc = etcdlib_get(etcdlib, "/test", &value, &index);
+    rc = etcdlib_get(etcdlib, "/test", &value, &index);
     ASSERT_EQ(ETCDLIB_RC_OK, rc);
     ASSERT_STREQ("test", value);
     ASSERT_EQ(1, index);
@@ -127,8 +137,8 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryWithCurlMultiTest) {
     etcdlib_create_options_t opts = {};
     opts.useMultiCurl = true;
     etcdlib_autoptr_t etcdlib = nullptr;
-    etcdlib_result_t res = etcdlib_createWithOptions(&opts, &etcdlib);
-    ASSERT_EQ(ETCDLIB_RC_OK, res.rc);
+    auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
 
     //When preparing a curl easy handle mocked reply and header
     g_etcdlibMockedReplyData = R"({"node": {"value": "test2"}})";
@@ -137,7 +147,7 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryWithCurlMultiTest) {
     //Then etcdlib_get should return the value and the index
     char* value = nullptr;
     long long index;
-    int rc = etcdlib_get(etcdlib, "/test", &value, &index);
+    rc = etcdlib_get(etcdlib, "/test", &value, &index);
     ASSERT_EQ(ETCDLIB_RC_OK, rc);
     ASSERT_STREQ("test2", value);
     ASSERT_EQ(2, index);
