@@ -26,14 +26,21 @@
 #include <queue>
 
 extern "C" {
+
+    size_t g_curlGlobalInitCount = 0;
+
     CURLcode __wrap_curl_global_init(int flags) {
         //no-op global init
+        g_curlGlobalInitCount += 1;
         (void)flags;
         return CURLE_OK;
     }
 
+    size_t g_curlMultiPerformCount = 0;
+
     CURLMcode __wrap_curl_multi_perform(CURLM* curlMulti, int* runningHandles) {
         //no-op multi perform
+        g_curlMultiPerformCount += 1;
         (void)curlMulti;
         (void)runningHandles;
         return CURLM_OK;
@@ -55,7 +62,10 @@ extern "C" {
         return CURLE_OK;
     }
 
+    size_t g_curlEasyPerformCount = 0;
+
     CURLcode __wrap_curl_easy_perform(CURL* curl) {
+        g_curlEasyPerformCount += 1;
         return setMockedReplyData(curl);
     }
 
@@ -100,6 +110,9 @@ extern "C" {
 class EtcdlibMockTestSuite : public ::testing::Test {
 public:
     EtcdlibMockTestSuite() {
+        g_curlGlobalInitCount = 0;
+        g_curlMultiPerformCount = 0;
+        g_curlEasyPerformCount = 0;
         g_etcdlibMockedReplyData = nullptr;
         g_etcdlibMockedReplyHeader = nullptr;
     }
@@ -108,7 +121,9 @@ public:
 };
 
 TEST_F(EtcdlibMockTestSuite, CreateWithCurlGlobalInitTest) {
+    EXPECT_EQ(g_curlGlobalInitCount, 0);
     etcdlib_autoptr_t etcd = etcdlib_create("localhost", 2379, 0);
+    EXPECT_EQ(g_curlGlobalInitCount, 1);
     ASSERT_TRUE(etcd != nullptr);
 }
 
@@ -130,6 +145,12 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryTest) {
     ASSERT_EQ(ETCDLIB_RC_OK, rc);
     ASSERT_STREQ("test", value);
     ASSERT_EQ(1, index);
+
+    //And curl_easy_perform has been called
+    EXPECT_EQ(g_curlEasyPerformCount, 1);
+
+    //And curl_multi_perform is not called
+    EXPECT_EQ(g_curlMultiPerformCount, 0);
 }
 
 TEST_F(EtcdlibMockTestSuite, GetEtcdEntryWithCurlMultiTest) {
@@ -151,4 +172,10 @@ TEST_F(EtcdlibMockTestSuite, GetEtcdEntryWithCurlMultiTest) {
     ASSERT_EQ(ETCDLIB_RC_OK, rc);
     ASSERT_STREQ("test2", value);
     ASSERT_EQ(2, index);
+
+    //And curl_multi_perform has been called
+    EXPECT_EQ(g_curlMultiPerformCount, 1);
+
+    //And curl_easy_perform is not called
+    EXPECT_EQ(g_curlEasyPerformCount, 0);
 }

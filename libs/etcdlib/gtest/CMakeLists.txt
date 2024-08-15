@@ -20,7 +20,7 @@ add_executable(test_etcdlib
         src/EtcdlibTestSuite.cc
 )
 
-target_link_libraries(test_etcdlib PRIVATE etcdlib_static GTest::gtest)
+target_link_libraries(test_etcdlib PRIVATE CURL::libcurl etcdlib_static GTest::gtest)
 target_include_directories(test_etcdlib PRIVATE ../src)
 
 add_test(NAME test_etcdlib COMMAND test_etcdlib)
