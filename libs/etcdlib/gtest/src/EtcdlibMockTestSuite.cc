@@ -74,7 +74,7 @@ extern "C" {
 
     CURLMcode __wrap_curl_multi_add_handle(CURLM* multiHandle, CURL* easyHandle) {
         (void)multiHandle;
-        const std::lock_guard lck(g_etcdlibMockedCurlMultiHandleMutex);
+        const std::lock_guard<std::mutex> lck(g_etcdlibMockedCurlMultiHandleMutex);
         g_etcdlibMockedCurlHandles.push(easyHandle);
         (void)setMockedReplyData(easyHandle);
         return CURLM_OK;
@@ -89,7 +89,7 @@ extern "C" {
 
     CURLMsg* __wrap_curl_multi_info_read(CURLM* multiHandle, int* msgsInQueue) {
         //TODO add a way to hold the info_read, so that a overfill of the completed handles can be tested
-        const std::lock_guard lck(g_etcdlibMockedCurlMultiHandleMutex);
+        const std::lock_guard<std::mutex> lck(g_etcdlibMockedCurlMultiHandleMutex);
         static CURLMsg msg;
         (void)multiHandle;
         *msgsInQueue = (int)g_etcdlibMockedCurlHandles.size();
