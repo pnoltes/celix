@@ -21,13 +21,13 @@
 #include "etcdlib_private.h"
 
 #include <assert.h>
-#include <curl/curl.h>
-#include <jansson.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <curl/curl.h>
+#include <jansson.h>
 
 #define ETCD_JSON_NODE                  "node"
 #define ETCD_JSON_PREVNODE              "prevNode"
@@ -62,7 +62,7 @@ struct etcdlib {
 
     CURLM* curlMulti;
     bool curlMultiRunning; //atomic flag, only used if curlMulti is not NULL
-    pthread_mutex_t curlMutex; //protects entries, only used if curlMulti is not NULL
+    pthread_mutex_t curlMutex; //protects completedCurlEntries, only used if curlMulti is not NULL
     etcdlib_completed_curl_entry_t* completedCurlEntries; //only used if curlMulti is not NULL
     size_t completedCurlEntriesSize; //only used if curlMulti is not NULL
 };
@@ -743,9 +743,7 @@ static size_t etcdlib_writeHeaderCallback(void* contents, size_t size, size_t nm
 
     void* newHeader = realloc(mem->header, mem->headerSize + realsize + 1);
     if (newHeader == NULL) {
-        /* out of memory! */
-        fprintf(stderr, "[ETCDLIB] Error: not enough header-memory (realloc returned NULL)\n");
-        return 0;
+        return 0; /* out of memory! */
     }
     mem->header = newHeader;
 
@@ -792,7 +790,7 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* lib,
 
     etcdlib_status_t rc = ETCDLIB_RC_OK;
     if (lib->curlMulti) {
-        CURLMcode mc = curl_multi_add_handle(lib->curlMulti, curl); // TODO handle return code
+        CURLMcode mc = curl_multi_add_handle(lib->curlMulti, curl);
         curl_multi_strerror(mc);
         if (mc != CURLM_OK) {
             rc = ETCDLIB_INTERNAL_CURLMCODE_FLAG | mc;
@@ -847,23 +845,16 @@ static etcdlib_status_t etcdlib_addCompletedCurlEntry(etcdlib_t* lib, CURL* curl
     bool added = etcdlib_addCompletedCurlEntryToList(lib, curl, res);
     if (!added) {
         // no free entry found, try to expand the array
-        int maxEntries;
         int newSize = lib->completedCurlEntriesSize * 2;
-        bool increase = true;
+        newSize = newSize > ETCDLIB_MAX_COMPLETED_CURL_ENTRIES ? ETCDLIB_MAX_COMPLETED_CURL_ENTRIES : newSize;
         if (lib->completedCurlEntriesSize >= ETCDLIB_MAX_COMPLETED_CURL_ENTRIES) {
-            increase = false; // max entries reached
             rc = ETCDLIB_INTERNAL_RC_MAX_ENTRIES_REACHED;
-        } else if (newSize > ETCDLIB_MAX_COMPLETED_CURL_ENTRIES) {
-            maxEntries = ETCDLIB_MAX_COMPLETED_CURL_ENTRIES;
         } else {
-            maxEntries = newSize;
-        }
-        if (increase) {
             etcdlib_completed_curl_entry_t* newEntries =
-                realloc(lib->completedCurlEntries, maxEntries * sizeof(*newEntries));
+                realloc(lib->completedCurlEntries, newSize * sizeof(*newEntries));
             if (newEntries) {
                 lib->completedCurlEntries = newEntries;
-                lib->completedCurlEntriesSize = maxEntries;
+                lib->completedCurlEntriesSize = newSize;
                 added = etcdlib_addCompletedCurlEntryToList(lib, curl, res);
             } else {
                 rc = ETCDLIB_RC_ENOMEM;

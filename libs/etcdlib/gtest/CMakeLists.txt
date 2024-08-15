@@ -33,7 +33,7 @@ if (EI_TESTS)
             src/EtcdlibMockTestSuite.cc
     )
 
-    target_link_libraries(test_etcdlib_mock PRIVATE etcdlib_static GTest::gtest)
+    target_link_libraries(test_etcdlib_mock PRIVATE CURL::libcurl etcdlib_static GTest::gtest)
     target_include_directories(test_etcdlib_mock PRIVATE ../src)
     target_link_options(test_etcdlib_mock PRIVATE
             LINKER:--wrap,curl_global_init
