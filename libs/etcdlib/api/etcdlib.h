@@ -51,7 +51,7 @@ extern "C" {
 #define ETCDLIB_RC_OK 0
 #define ETCDLIB_RC_TIMEOUT 3
 #define ETCDLIB_RC_EVENT_CLEARED 4
-#define ETCDLIB_RC_INVALID_RESPONSE 5
+#define ETCDLIB_RC_INVALID_RESPONSE_CONTENT 5
 #define ETCDLIB_RC_ENOMEM 6
 
 /**
@@ -148,7 +148,8 @@ ETCDLIB_EXPORT int etcdlib_port(etcdlib_t* etcdlib);
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key The Etcd-key (Note: a leading '/' should be avoided).
  * @param[out] value The allocated memory contains the Etcd-value. The caller is responsible for freeing this memory.
- * @param[out] index If not NULL the Etcd-index of the last modified value (etcd wide).
+ * @param[out] index If not NULL, the Etcd-index of the last modified value (etcd wide) or -1 if an etcd index header
+ * was not found in the HTTP response.
  * @return 0 on success, non-zero otherwise
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key, char** value, long long* index);

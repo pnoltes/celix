@@ -42,7 +42,6 @@
 
 #define ETCD_HEADER_INDEX               "X-Etcd-Index: "
 
-#define MAX_OVERHEAD_LENGTH             64
 #define DEFAULT_CURL_TIMEOUT            10
 #define DEFAULT_CURL_CONNECT_TIMEOUT    10
 
@@ -156,6 +155,8 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
             free(lib->completedCurlEntries);
             return ETCDLIB_RC_ENOMEM;
         }
+    } else {
+        //TODO setup and use curlshare, in most cases this is enough and curlmulti is not needed
     }
 
     *etcdlib = etcdlib_steal_ptr(lib);
@@ -196,14 +197,18 @@ void etcdlib_cleanup(etcdlib_t** etcdlib) {
     }
 }
 
-const char* etcdlib_strerror(int error) {
-    if (error & ETCDLIB_INTERNAL_CURLCODE_FLAG) {
-        return curl_easy_strerror(error & ~ETCDLIB_INTERNAL_CURLCODE_FLAG);
-    } else if (error & ETCDLIB_INTERNAL_CURLMCODE_FLAG) {
-        return curl_multi_strerror(error & ~ETCDLIB_INTERNAL_CURLMCODE_FLAG);
+const char* etcdlib_strerror(int status) {
+    if (status & ETCDLIB_INTERNAL_CURLCODE_FLAG) {
+        return curl_easy_strerror(status & ~ETCDLIB_INTERNAL_CURLCODE_FLAG);
+    }
+    if (status & ETCDLIB_INTERNAL_CURLMCODE_FLAG) {
+        return curl_multi_strerror(status & ~ETCDLIB_INTERNAL_CURLMCODE_FLAG);
+    }
+    if (status & ETCDLIB_INTERNAL_HTTPCODE_FLAG) {
+        return "HTTP error"; //TODO improve error code for HTTP errors
     }
 
-    switch (error) {
+    switch (status) {
     case ETCDLIB_RC_OK:
         return "ETCDLIB OK";
     case ETCDLIB_RC_TIMEOUT:
@@ -212,7 +217,7 @@ const char* etcdlib_strerror(int error) {
         return "ETCDLIB Event Cleared";
     case ETCDLIB_RC_ENOMEM:
         return "ETCDLIB Out of memory or maximum number of curl handles reached";
-    case ETCDLIB_RC_INVALID_RESPONSE:
+    case ETCDLIB_RC_INVALID_RESPONSE_CONTENT:
         return "ETCDLIB Content of response is invalid (not JSON, missing required fields or missing header)";
     default:
         return "ETCDLIB Unknown error";
@@ -232,7 +237,10 @@ static long long etcd_get_current_index(const char *headerData) {
     if (headerData == NULL) {
         return index;
     }
-    char *indexStr = strstr(headerData, ETCD_HEADER_INDEX);
+    char* indexStr = strstr(headerData, ETCD_HEADER_INDEX);
+    if (!indexStr) {
+        return -1;
+    }
     indexStr += strlen(ETCD_HEADER_INDEX);
 
     char *endptr;
@@ -243,39 +251,49 @@ static long long etcd_get_current_index(const char *headerData) {
     return index;
 }
 
-etcdlib_status_t etcdlib_get(etcdlib_t *etcdlib, const char *key, char **value, long long *index) {
+etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key, char** value, long long* index) {
     *value = NULL;
-    json_t *js_root = NULL;
-    json_t *js_node = NULL;
-    json_t *js_value = NULL;
+    if (index) {
+        *index = -1;
+    }
+    json_t* js_root = NULL;
+    json_t* js_node = NULL;
+    json_t* js_value = NULL;
     json_error_t error;
     etcdlib_reply_data_t reply;
 
-    reply.memory = malloc(1); /* will be grown as needed by the realloc above */
-    reply.memorySize = 0; /* no data at this point */
-    reply.header = malloc(1); /* will be grown as needed by the realloc above */
-    reply.headerSize = 0; /* no data at this point */
-
-    etcdlib_autofree char *url;
+    etcdlib_autofree char* url;
     asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->server, etcdlib->port, key);
     if (!url) {
         return ETCDLIB_RC_ENOMEM;
     }
 
-    CURL* curl;
-    CURLcode code = etcdlib_performRequest(etcdlib, url, GET, NULL, (void*)&reply, &curl);
+    reply.memory = malloc(1); /* will be grown as needed by the realloc above */
+    reply.memory[0] = '\0';
+    reply.memorySize = 0;     /* no data at this point */
+    reply.header = malloc(1); /* will be grown as needed by the realloc above */
+    reply.header[0] = '\0';
+    reply.headerSize = 0;     /* no data at this point */
+    if (!reply.memory || !reply.header) {
+        return ETCDLIB_RC_ENOMEM;
+    }
 
-    int rc = ETCDLIB_RC_OK;
-    if (code == CURLE_OK) {
-        rc = ETCDLIB_RC_INVALID_RESPONSE;
+    CURL* curl;
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib, url, GET, NULL, (void*)&reply, &curl);
+
+    if (rc == ETCDLIB_RC_OK) {
+        rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         js_root = json_loads(reply.memory, 0, &error);
 
-        if (!js_root) {
-            rc = ETCDLIB_RC_ENOMEM;
-        } else if (js_root != NULL) {
-            js_node = json_object_get(js_root, ETCD_JSON_NODE);
+        if (js_root == NULL) {
+            enum json_error_code jsonError = json_error_code(&error);
+            curl_easy_cleanup(curl);
+            free(reply.header);
+            free(reply.memory);
+            return jsonError == json_error_out_of_memory ? ETCDLIB_RC_ENOMEM : ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         }
 
+        js_node = json_object_get(js_root, ETCD_JSON_NODE);
         if (js_node != NULL) {
             js_value = json_object_get(js_node, ETCD_JSON_VALUE);
             if (js_value != NULL) {
@@ -284,26 +302,22 @@ etcdlib_status_t etcdlib_get(etcdlib_t *etcdlib, const char *key, char **value, 
                 }
                 *value = strdup(json_string_value(js_value));
                 if (!*value) {
-                    rc = ETCDLIB_RC_ENOMEM;
-                } else {
-                    rc = ETCDLIB_RC_OK;
+                    curl_easy_cleanup(curl);
+                    free(reply.header);
+                    free(reply.memory);
+                    return ETCDLIB_RC_ENOMEM;
                 }
+                rc = ETCDLIB_RC_OK;
             }
         }
-        if (js_root != NULL) {
-            json_decref(js_root);
-        }
-    } else if (code == CURLE_OPERATION_TIMEDOUT) {
-        //timeout
-        rc = ETCDLIB_RC_TIMEOUT;
+        json_decref(js_root);
     } else {
-        rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
+        //TODO maybe extract curl timeout so that ETCDLIB_RC_TIMEOUT can be returned
+        //nop
     }
     curl_easy_cleanup(curl);
-
-    if (reply.memory) {
-        free(reply.memory);
-    }
+    free(reply.header);
+    free(reply.memory);
     return rc;
 }
 
@@ -325,7 +339,7 @@ etcd_get_recursive_values(json_t *js_root, etcdlib_key_value_callback callback, 
                     }
                 } else {
                     //No index found for key
-                    return ETCDLIB_RC_INVALID_RESPONSE;
+                    return ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
                 }
 
                 if (json_object_get(js_object, ETCD_JSON_NODES)) {
@@ -345,15 +359,15 @@ etcd_get_recursive_values(json_t *js_root, etcdlib_key_value_callback callback, 
             }
         } else {
             //mis-formatted JSON. nodes element is not an array
-            return ETCDLIB_RC_INVALID_RESPONSE;
+            return ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         }
     } else {
         //nodes element not found
-        return ETCDLIB_RC_INVALID_RESPONSE;
+        return ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
     }
 
     if (*mod_index < 0) {
-        return ETCDLIB_RC_INVALID_RESPONSE;
+        return ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
     }
 
     return ETCDLIB_RC_OK;
@@ -377,7 +391,6 @@ etcdlib_status_t etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory
     reply.header = header; /* will be grown as needed by the realloc above */
     reply.headerSize = 0; /* no data at this point */
 
-    etcdlib_status_t rc = ETCDLIB_RC_OK;
     etcdlib_autofree char *url = NULL;
 
     asprintf(&url, "http://%s:%d/v2/keys/%s?recursive=true", etcdlib->server, etcdlib->port, directory);
@@ -386,9 +399,10 @@ etcdlib_status_t etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory
     }
 
     CURL* curl = NULL;
-    CURLcode code = etcdlib_performRequest(etcdlib->curlMulti, url, GET, NULL, (void *) &reply, &curl);
-    if (code == CURLE_OK) {
-        rc = ETCDLIB_RC_INVALID_RESPONSE;
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib->curlMulti, url, GET, NULL, (void*)&reply, &curl);
+
+    if (rc == ETCDLIB_RC_OK) {
+        rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         js_root = json_loads(reply.memory, 0, &error);
 
         if (js_root) {
@@ -417,26 +431,25 @@ etcdlib_status_t etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory
         if (js_root != NULL) {
             json_decref(js_root);
         }
-    } else if (code == CURLE_OPERATION_TIMEDOUT) {
-        rc = ETCDLIB_RC_TIMEOUT;
     } else {
-        rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
+        //nop
+        //TODO special handling of timeout error code and/or CURLE_OPERATION_TIMEDOUT -> too many updates for used index
     }
     curl_easy_cleanup(curl);
 
     return rc;
 }
 
-etcdlib_status_t etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *value, int ttl, bool prevExist) {
-
+etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl, bool prevExist) {
     json_error_t error;
-    json_t *js_root = NULL;
-    json_t *js_node = NULL;
-    json_t *js_value = NULL;
-    etcdlib_autofree char *url = NULL;
-    size_t req_len = strlen(value) + MAX_OVERHEAD_LENGTH;
-    char request[req_len];
-    char *requestPtr = request;
+    json_t* jsRoot = NULL;
+    const json_t* jsNode = NULL;
+    const json_t* jsValue = NULL;
+    char requestBuffer[512];
+
+    etcdlib_autofree char* url = NULL;
+    etcdlib_autofree char* requestAutoFree = NULL;
+    const char* request = NULL;
     etcdlib_reply_data_t reply;
 
     /* Skip leading '/', etcd cannot handle this. */
@@ -444,50 +457,60 @@ etcdlib_status_t etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *va
         key++;
     }
 
-    etcdlib_autofree char *memory = malloc(1);
-    reply.memory = memory; /* will be grown as needed by the realloc above */
-    reply.memorySize = 0; /* no data at this point */
-    reply.header = NULL; /* will be grown as needed by the realloc above */
-    reply.headerSize = 0; /* no data at this point */
+    reply.memory = malloc(1); /* will be grown as needed by the realloc above */
+    reply.memory[0] = '\0';
+    reply.memorySize = 0;  /* no data at this point */
+    reply.header = NULL;   /* will be grown as needed by the realloc above */
+    reply.headerSize = 0;  /* no data at this point */
 
     asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->server, etcdlib->port, key);
     if (!url) {
         return ETCDLIB_RC_ENOMEM;
     }
 
-    requestPtr += snprintf(requestPtr, req_len, "value=%s", value);
+    char ttlStr[24];
+    ttlStr[0] = '\0';
     if (ttl > 0) {
-        requestPtr += snprintf(requestPtr, req_len - (requestPtr - request), ";ttl=%d", ttl);
+        (void)snprintf(ttlStr, sizeof(ttlStr), ";ttl=%d", ttl);
     }
 
+    const char* prevExistStr = "";
     if (prevExist) {
-        requestPtr += snprintf(requestPtr, req_len - (requestPtr - request), ";prevExist=true");
+        prevExistStr = ";prevExist=true";
+    }
+
+    const int needed = snprintf(requestBuffer, sizeof(requestBuffer), "value=%s%s%s", value, ttlStr, prevExistStr);
+    request = requestBuffer;
+    if (needed >= sizeof(requestBuffer)) {
+        const int written = asprintf(&requestAutoFree, "value=%s%s%s", value, ttlStr, prevExistStr);
+        if (written < 0) {
+            free(reply.memory);
+            return ETCDLIB_RC_ENOMEM;
+        }
+        request = requestAutoFree;
     }
 
     CURL* curl = NULL;
-    CURLcode code = etcdlib_performRequest(etcdlib->curlMulti, url, PUT, request, (void *) &reply, &curl);
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib, url, PUT, request, &reply, &curl);
 
-    etcdlib_status_t rc = ETCDLIB_RC_OK;
-    if (code == CURLE_OK) {
-        rc = ETCDLIB_RC_INVALID_RESPONSE;
-        js_root = json_loads(reply.memory, 0, &error);
+    if (rc == ETCDLIB_RC_OK) {
+        rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
+        jsRoot = json_loads(reply.memory, 0, &error);
 
-        if (js_root != NULL) {
-            js_node = json_object_get(js_root, ETCD_JSON_NODE);
+        if (jsRoot != NULL) {
+            jsNode = json_object_get(jsRoot, ETCD_JSON_NODE);
         }
-        if (js_node != NULL) {
-            js_value = json_object_get(js_node, ETCD_JSON_VALUE);
+        if (jsNode != NULL) {
+            jsValue = json_object_get(jsNode, ETCD_JSON_VALUE);
         }
-        if (js_value != NULL && json_is_string(js_value)) {
-            if (strcmp(json_string_value(js_value), value) == 0) {
+        if (jsValue != NULL && json_is_string(jsValue)) {
+            if (strcmp(json_string_value(jsValue), value) == 0) {
                 rc = ETCDLIB_RC_OK;
             }
         }
-        if (js_root != NULL) {
-            json_decref(js_root);
+        if (jsRoot != NULL) {
+            json_decref(jsRoot);
         }
-    } else {
-        rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
     }
     curl_easy_cleanup(curl);
 
@@ -495,10 +518,11 @@ etcdlib_status_t etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *va
 }
 
 etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
+    char buffer[512];
     etcdlib_autofree char *url = NULL;
-    size_t req_len = MAX_OVERHEAD_LENGTH;
-    char request[req_len];
+    etcdlib_autofree char *requestAutoFree = NULL;
     etcdlib_reply_data_t reply;
+    const char* request = NULL;
 
     /* Skip leading '/', etcd cannot handle this. */
     while (*key == '/') {
@@ -511,28 +535,40 @@ etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
     reply.header = NULL; /* will be grown as needed by the realloc above */
     reply.headerSize = 0; /* no data at this point */
 
-    asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->server, etcdlib->port, key);
-    if (!url) {
+    char ttlStr[24];
+    (void)snprintf(ttlStr, sizeof(ttlStr), ";tll=%d", ttl);
+
+    int written = asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->server, etcdlib->port, key);
+    if (written < 0) {
         return ETCDLIB_RC_ENOMEM;
     }
-    snprintf(request, req_len, "ttl=%d;prevExists=true;refresh=true", ttl);
+
+    int needed = snprintf(buffer, sizeof(buffer), "prevExists=true;refresh=true%s", ttlStr);
+    request = buffer;
+    if (needed >= sizeof(buffer)) {
+        written = asprintf(&requestAutoFree, "prevExists=true;refresh=true%s", ttlStr);
+        if (written < 0) {
+            return ETCDLIB_RC_ENOMEM;
+        }
+        request = requestAutoFree;
+    }
 
     CURL* curl = NULL;
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib, url, PUT, request, (void *) &reply, &curl);
 
     if (rc == ETCDLIB_RC_OK && reply.memory != NULL) {
-        rc = ETCDLIB_RC_INVALID_RESPONSE;
+        rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         json_error_t error;
         json_t *root = NULL;
         if (reply.memory) {
             root = json_loads(reply.memory, 0, &error);
         }
         if (root) {
-            json_t *errorCode = json_object_get(root, ETCD_JSON_ERRORCODE);
+            const json_t* errorCode = json_object_get(root, ETCD_JSON_ERRORCODE);
             if (errorCode == NULL) {
                 rc = ETCDLIB_RC_OK;
             } else {
-                rc = ETCDLIB_RC_INVALID_RESPONSE; //TODO improve error code for ETCD_JSON_ERRORCODE (check etcd doc)
+                rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT; //TODO improve error code for ETCD_JSON_ERRORCODE (check etcd doc)
             }
             json_decref(root);
         }
@@ -594,12 +630,11 @@ etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
         return ETCDLIB_RC_ENOMEM;
     }
 
-    CURL *curl = NULL;
-    CURLcode code = etcdlib_performRequest(etcdlib->curlMulti, url, GET, NULL, (void *) &reply, &curl);
+    CURL* curl = NULL;
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib->curlMulti, url, GET, NULL, (void*)&reply, &curl);
 
-    etcdlib_status_t rc = ETCDLIB_RC_OK;
-    if (code == CURLE_OK) {
-        rc = ETCDLIB_RC_INVALID_RESPONSE;
+    if (rc == ETCDLIB_RC_OK) {
+        rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         js_root = json_loads(reply.memory, 0, &error);
 
         if (js_root) {
@@ -656,14 +691,15 @@ etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
         if (js_root != NULL) {
             json_decref(js_root);
         }
-    } else if (code == CURLE_OPERATION_TIMEDOUT) {
-        rc = ETCDLIB_RC_TIMEOUT;
-    } else if (code == CURLE_AUTH_ERROR) {
-        // AUTH_ERROR, 401, for etcd means that the provided watch index event is cleared and no longer available.
-        // This means that a watch is no longer possible and a new etcdlib_get -> etcdlib_watch setup needs to be done
-        rc = ETCDLIB_RC_EVENT_CLEARED;
-    } else {
-        rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
+    } else if (etcdlib_isStatusHttpError(rc)) {
+        if (etcdlib_getHttpCodeFromStatus(rc) == 401) {
+            // AUTH_ERROR, 401, for etcd means that the provided watch index event is cleared and no longer available.
+            // This means that a watch is no longer possible and a new etcdlib_get -> etcdlib_watch setup needs to be done
+            rc = ETCDLIB_RC_EVENT_CLEARED;
+        } else {
+            //nop
+            //TODO maybe extract curl code for timeout to return ETCDLIB_RC_TIMEOUT
+        }
     }
     curl_easy_cleanup(curl);
 
@@ -696,10 +732,10 @@ etcdlib_status_t etcdlib_del(etcdlib_t *etcdlib, const char *key) {
     if (!url) {
         return ETCDLIB_RC_ENOMEM;
     }
-    const CURLcode code = etcdlib_performRequest(etcdlib->curlMulti, url, DELETE, NULL, (void *) &reply, &curl);
 
-    etcdlib_status_t rc = ETCDLIB_RC_OK;
-    if (code == CURLE_OK) {
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib->curlMulti, url, DELETE, NULL, (void*)&reply, &curl);
+
+    if (rc == ETCDLIB_RC_OK) {
         js_root = json_loads(reply.memory, 0, &error);
         if (js_root != NULL) {
             js_node = json_object_get(js_root, ETCD_JSON_NODE);
@@ -712,8 +748,6 @@ etcdlib_status_t etcdlib_del(etcdlib_t *etcdlib, const char *key) {
         if (js_root != NULL) {
             json_decref(js_root);
         }
-    } else {
-        rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
     }
     curl_easy_cleanup(curl);
 
@@ -772,7 +806,7 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* lib,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, etcdlib_writeMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, replyData);
-    curl_easy_setopt(curl, CURLOPT_PRIVATE, replyData); // note used for testing purposes (mocking reply data)
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L); // fail on HTTP error codes outside 200-399
     if (replyData->header) {
         curl_easy_setopt(curl, CURLOPT_HEADERDATA, replyData);
         curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, etcdlib_writeHeaderCallback);
@@ -789,9 +823,8 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* lib,
     }
 
     etcdlib_status_t rc = ETCDLIB_RC_OK;
-    if (lib->curlMulti) {
+    if (lib->curlMulti != NULL) {
         CURLMcode mc = curl_multi_add_handle(lib->curlMulti, curl);
-        curl_multi_strerror(mc);
         if (mc != CURLM_OK) {
             rc = ETCDLIB_INTERNAL_CURLMCODE_FLAG | mc;
         } else {
@@ -804,8 +837,12 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* lib,
             }
         }
     } else {
-        CURLcode code = curl_easy_perform(curl);
-        if (code != CURLE_OK) {
+        const CURLcode code = curl_easy_perform(curl);
+        if (code == CURLE_HTTP_RETURNED_ERROR) {
+            long httpCode;
+            (void)curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+            rc = ETCDLIB_INTERNAL_HTTPCODE_FLAG | httpCode;
+        } else if (code != CURLE_OK) {
             rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
         }
     }
@@ -871,7 +908,7 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
     int nrOfHandlesRunning;
     bool etcdlibRunning;
     do {
-        etcdlib_completed_curl_entry_t entry = etcdlib_removeCompletedCurlEntry(lib, curl);
+        const etcdlib_completed_curl_entry_t entry = etcdlib_removeCompletedCurlEntry(lib, curl);
         if (entry.curl) {
             code = entry.res;
             break;
@@ -881,7 +918,8 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
             curl_multi_remove_handle(lib->curlMulti, curl); //TODO handle return code
             code = msg->data.result;
             break;
-        } else if (msg && (msg->msg == CURLMSG_DONE)) {
+        }
+        if (msg && (msg->msg == CURLMSG_DONE)) {
             //found another, non-matching, completed curl, add it to the completedCurlEntries
             curl_multi_remove_handle(lib->curlMulti, msg->easy_handle); //TODO handle return code
             rc = etcdlib_addCompletedCurlEntry(lib, msg->easy_handle, msg->data.result);
@@ -891,13 +929,31 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
             }
         } else {
             //no completed curl found, wait for more events
-            curl_multi_poll(lib->curlMulti, NULL, 0, 1000, NULL); //TODO handle return code
+            int running;
+            rc = curl_multi_perform(lib->curlMulti, &running);
         }
         etcdlibRunning = __atomic_load_n(&lib->curlMultiRunning, __ATOMIC_ACQUIRE);
-    } while (nrOfHandlesRunning > 0 && etcdlibRunning && rc == ETCDLIB_RC_OK);
+    } while (etcdlibRunning && rc == ETCDLIB_RC_OK);
 
     if (rc == ETCDLIB_RC_OK && code != CURLE_OK) {
-        rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
+        if (code == CURLE_HTTP_RETURNED_ERROR) {
+            long httpCode;
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+            rc = ETCDLIB_INTERNAL_HTTPCODE_FLAG | httpCode;
+        } else {
+            rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
+        }
     }
     return rc;
+}
+
+bool etcdlib_isStatusHttpError(etcdlib_status_t status) {
+    return status & ETCDLIB_INTERNAL_HTTPCODE_FLAG;
+}
+
+int etcdlib_getHttpCodeFromStatus(etcdlib_status_t status) {
+    if (status & ETCDLIB_INTERNAL_HTTPCODE_FLAG) {
+        return status & ~ETCDLIB_INTERNAL_HTTPCODE_FLAG;
+    }
+    return 0;
 }

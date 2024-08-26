@@ -51,8 +51,8 @@ if (CELIX_ETCDLIB OR ETCDLIB_STANDALONE)
     target_include_directories(etcdlib PRIVATE src)
     set_target_properties(etcdlib
             PROPERTIES
-                VERSION 1.2.0
-                SOVERSION 1
+                VERSION 2.0.0
+                SOVERSION 2
                 C_VISIBILITY_PRESET hidden
     )
     target_link_libraries(etcdlib PRIVATE CURL::libcurl jansson::jansson ${CELIX_OPTIONAL_EXTRA_LIBS})

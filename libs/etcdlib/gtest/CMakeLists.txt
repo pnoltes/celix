@@ -28,22 +28,24 @@ setup_target_for_coverage(test_etcdlib SCAN_DIR ..)
 
 
 if (EI_TESTS)
-    add_executable(test_etcdlib_mock
+    find_package(civetweb REQUIRED) #TODO maybe make QUIET (optional)
+    add_executable(test_etcdlib_stub
             src/main.cc
+            src/EtcdlibStubTestSuite.cc
+    )
+    target_link_libraries(test_etcdlib_stub PRIVATE CURL::libcurl etcdlib_static GTest::gtest civetweb::civetweb)
+    target_include_directories(test_etcdlib_stub PRIVATE ../src)
+    add_test(NAME test_etcdlib_stub COMMAND test_etcdlib_stub)
+    setup_target_for_coverage(test_etcdlib_stub SCAN_DIR ..)
+
+    add_executable(test_etcdlib_mock
             src/EtcdlibMockTestSuite.cc
     )
-
-    target_link_libraries(test_etcdlib_mock PRIVATE CURL::libcurl etcdlib_static GTest::gtest)
+    target_link_libraries(test_etcdlib_mock PRIVATE CURL::libcurl etcdlib_static GTest::gtest GTest::gtest_main)
     target_include_directories(test_etcdlib_mock PRIVATE ../src)
     target_link_options(test_etcdlib_mock PRIVATE
             LINKER:--wrap,curl_global_init
-            LINKER:--wrap,curl_easy_perform
-            LINKER:--wrap,curl_multi_perform
-            LINKER:--wrap,curl_multi_info_read
-            LINKER:--wrap,curl_multi_remove_handle
-            LINKER:--wrap,curl_multi_add_handle
     )
-
     add_test(NAME test_etcdlib_mock COMMAND test_etcdlib_mock)
     setup_target_for_coverage(test_etcdlib_mock SCAN_DIR ..)
 endif ()
