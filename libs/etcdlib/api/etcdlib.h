@@ -187,20 +187,6 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key,
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* key, int ttl);
 
 /**
- * @brief Setting an Etcd-key/value and checks if there is a different previous value
- * @param etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param key The Etcd-key (Note: a leading '/' should be avoided)
- * @param value The Etcd-value
- * @param ttl If non-zero this is used as the TTL value
- * @param alwaysWrite If true the value is written, if false only when the given value is equal to the value in
- * etcd.
- * @return 0 on success, non zero otherwise
- */
-//TODO maybe remove or make this a atomic on etcd server side
-//ETCDLIB_EXPORT etcdlib_status_t
-//etcdlib_set_with_check(etcdlib_t* etcdlib, const char* key, const char* value, int ttl, bool alwaysWrite);
-
-/**
  * @brief Deleting an Etcd-key
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)

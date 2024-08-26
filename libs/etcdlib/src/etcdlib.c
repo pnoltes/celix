@@ -529,28 +529,29 @@ etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
         key++;
     }
 
-    etcdlib_autofree char *memory = malloc(1);
-    reply.memory = memory; /* will be grown as needed by the realloc above */
-    reply.memorySize = 0; /* no data at this point */
-    reply.header = NULL; /* will be grown as needed by the realloc above */
-    reply.headerSize = 0; /* no data at this point */
-
-    char ttlStr[24];
-    (void)snprintf(ttlStr, sizeof(ttlStr), ";tll=%d", ttl);
-
     int written = asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->server, etcdlib->port, key);
     if (written < 0) {
         return ETCDLIB_RC_ENOMEM;
     }
 
-    int needed = snprintf(buffer, sizeof(buffer), "prevExists=true;refresh=true%s", ttlStr);
+    const int needed = snprintf(buffer, sizeof(buffer), "prevExist=true;refresh=true;ttl=%d", ttl);
     request = buffer;
     if (needed >= sizeof(buffer)) {
-        written = asprintf(&requestAutoFree, "prevExists=true;refresh=true%s", ttlStr);
+        written = asprintf(&requestAutoFree, "prevExist=true;refresh=true;ttl=%d", ttl);
         if (written < 0) {
             return ETCDLIB_RC_ENOMEM;
         }
         request = requestAutoFree;
+    }
+
+
+    reply.memory = malloc(1); /* will be grown as needed by the realloc above */
+    reply.memory[0] = '\0';
+    reply.memorySize = 0; /* no data at this point */
+    reply.header = NULL; /* will be grown as needed by the realloc above */
+    reply.headerSize = 0; /* no data at this point */
+    if (!reply.memory) {
+        return ETCDLIB_RC_ENOMEM;
     }
 
     CURL* curl = NULL;
@@ -564,6 +565,7 @@ etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
             root = json_loads(reply.memory, 0, &error);
         }
         if (root) {
+            //TODO retrieve and check action. And maybe make a function that check a json root for node, value, action, etc.
             const json_t* errorCode = json_object_get(root, ETCD_JSON_ERRORCODE);
             if (errorCode == NULL) {
                 rc = ETCDLIB_RC_OK;
@@ -575,8 +577,9 @@ etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
     } else {
         rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | rc;
     }
-    curl_easy_cleanup(curl);
 
+    curl_easy_cleanup(curl);
+    free(reply.memory);
     return rc;
 }
 
@@ -605,16 +608,6 @@ etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
     etcdlib_autofree char* prevValue = NULL;
     etcdlib_autofree char* value = NULL;
     etcdlib_autofree char* rkey = NULL;
-    etcdlib_autofree char* memory = malloc(1);
-
-    if (!memory) {
-        return ETCDLIB_RC_ENOMEM;
-    }
-
-    reply.memory = memory; /* will be grown as needed by the realloc above */
-    reply.memorySize = 0; /* no data at this point */
-    reply.header = NULL; /* will be grown as needed by the realloc above */
-    reply.headerSize = 0; /* no data at this point */
 
     if (index != 0) {
         asprintf(&url,
@@ -630,8 +623,17 @@ etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
         return ETCDLIB_RC_ENOMEM;
     }
 
+    reply.memory = malloc(1); /* will be grown as needed by the realloc above */
+    reply.memory[0] = '\0';
+    reply.memorySize = 0; /* no data at this point */
+    reply.header = NULL; /* will be grown as needed by the realloc above */
+    reply.headerSize = 0; /* no data at this point */
+    if (!reply.memory) {
+        return ETCDLIB_RC_ENOMEM;
+    }
+
     CURL* curl = NULL;
-    etcdlib_status_t rc = etcdlib_performRequest(etcdlib->curlMulti, url, GET, NULL, (void*)&reply, &curl);
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib, url, GET, NULL, (void*)&reply, &curl);
 
     if (rc == ETCDLIB_RC_OK) {
         rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
@@ -721,21 +723,27 @@ etcdlib_status_t etcdlib_del(etcdlib_t *etcdlib, const char *key) {
     etcdlib_autofree char *url = NULL;
     etcdlib_reply_data_t reply;
 
-    etcdlib_autofree char *memory = malloc(1);
-    reply.memory = memory; /* will be grown as needed by the realloc above */
-    reply.memorySize = 0; /* no data at this point */
-    reply.header = NULL; /* will be grown as needed by the realloc above */
-    reply.headerSize = 0; /* no data at this point */
-
     CURL* curl = NULL;
     asprintf(&url, "http://%s:%d/v2/keys/%s?recursive=true", etcdlib->server, etcdlib->port, key);
     if (!url) {
         return ETCDLIB_RC_ENOMEM;
     }
 
-    etcdlib_status_t rc = etcdlib_performRequest(etcdlib->curlMulti, url, DELETE, NULL, (void*)&reply, &curl);
+    //TODO move to function initReply and freeReply with an argument whether to initialize memory and header.
+    reply.memory = malloc(1); /* will be grown as needed by the realloc above */
+    reply.memory[0] = '\0';
+    reply.memorySize = 0; /* no data at this point */
+    reply.header = NULL; /* will be grown as needed by the realloc above */
+    reply.headerSize = 0; /* no data at this point */
+    if (!reply.memory) {
+        return ETCDLIB_RC_ENOMEM;
+    }
+
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib, url, DELETE, NULL, (void*)&reply, &curl);
 
     if (rc == ETCDLIB_RC_OK) {
+        rc = ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
+        //TODO check for action=delete and maybe add a function that checks for action, node, value, etc.
         js_root = json_loads(reply.memory, 0, &error);
         if (js_root != NULL) {
             js_node = json_object_get(js_root, ETCD_JSON_NODE);
@@ -749,8 +757,9 @@ etcdlib_status_t etcdlib_del(etcdlib_t *etcdlib, const char *key) {
             json_decref(js_root);
         }
     }
-    curl_easy_cleanup(curl);
 
+    free(reply.memory);
+    curl_easy_cleanup(curl);
     return rc;
 }
 

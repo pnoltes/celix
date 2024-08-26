@@ -165,6 +165,271 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         return etcdlib;
     }
 
+    static void getEtcdEntryTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "GET";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->replyData = R"({"node": {"value": "test"}})";
+            mgTestCtx->replyEtcdIndex = "1";
+        }
+
+        //Then etcdlib_get should return the value and the index
+        char* value = nullptr;
+        long long index;
+        auto rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        ASSERT_STREQ("test", value);
+        ASSERT_EQ(1, index);
+        free(value);
+
+        //When preparing an etcd stubbed reply without an X-Etcd-Index header
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyEtcdIndex = "";
+        }
+
+        //Then etcdlib_get should return the value and a -1 index
+        rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        ASSERT_STREQ("test", value);
+        ASSERT_EQ(-1, index);
+        free(value);
+    }
+
+    static void getEtcdEntryParallelTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "GET";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->replyData = R"({"node": {"value": "test"}})";
+            mgTestCtx->replyEtcdIndex = "1";
+            mgTestCtx->msSleep = 1;
+        }
+
+        //Then 1000x etcdlib_get should return the value and the index
+        for (int i = 0; i < 1000; ++i) {
+            char* value = nullptr;
+            long long index;
+            auto rc = etcdlib_get(etcdlib, "test", &value, &index);
+            ASSERT_EQ(ETCDLIB_RC_OK, rc);
+            ASSERT_STREQ("test", value);
+            ASSERT_EQ(1, index);
+            free(value);
+        }
+    }
+
+    static void getEtcdEntryWithServerFailureTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed error reply leading to a 405 error
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->httpErrorCode = 405;
+        }
+
+        //Then etcdlib_get should return an error
+        char* value = nullptr;
+        long long index;
+        auto rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_NE(rc, 0);
+        ASSERT_TRUE(ETCDLIB_INTERNAL_HTTPCODE_FLAG & rc);
+        ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 405);
+        ASSERT_EQ(value, nullptr);
+        ASSERT_EQ(index, -1);
+
+        //When preparing an etcd stubbed error reply leading to a 404 error
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->httpErrorCode = 404;
+        }
+
+        //Then etcdlib_get should return an error
+        rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_NE(rc, 0);
+        ASSERT_TRUE(ETCDLIB_INTERNAL_HTTPCODE_FLAG & rc);
+        ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 404);
+        ASSERT_EQ(value, nullptr);
+        ASSERT_EQ(index, -1);
+
+        //When preparing an etcd stubbed reply with an invalid etcd index
+        {
+            mgTestCtx->clear();
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "GET";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->replyData = R"({"node": {"value": "test"}})";
+            mgTestCtx->replyEtcdIndex = "not-a-number";
+        }
+
+        //Then etcdlib_get should return an ok, but a -1 index
+        rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_EQ(rc, ETCDLIB_RC_OK);
+        ASSERT_STREQ(value, "test");
+        ASSERT_EQ(index, -1);
+        free(value);
+    }
+
+    static void getEtcdEntryWithInvalidContentTest(etcdlib_t* etcdlib) {
+        //When preparing a stubbed reply non-etcd reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "GET";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->replyData = "plain text response. i.e. a reply of a non-etcd server";
+            mgTestCtx->replyMineType = "text/plain";
+            mgTestCtx->replyEtcdIndex = "1";
+        }
+
+        //Then etcdlib_get should return an invalid content error
+        char* value = nullptr;
+        long long index;
+        auto rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
+        ASSERT_EQ(value, nullptr);
+        ASSERT_EQ(index, -1);
+
+        //When preparing a stubbed reply with invalid json
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = R"({"node": {}})"; // missing value
+            mgTestCtx->replyMineType = "application/json";
+        }
+
+        //Then etcdlib_get should return an invalid content error
+        rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
+        ASSERT_EQ(value, nullptr);
+        ASSERT_EQ(index, -1);
+
+        // When preparing a stubbed reply with invalid json
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = "{}"; // missing node (and value)
+            mgTestCtx->replyMineType = "application/json";
+        }
+
+        // Then etcdlib_get should return an invalid content error
+        rc = etcdlib_get(etcdlib, "test", &value, &index);
+        ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
+        ASSERT_EQ(value, nullptr);
+        ASSERT_EQ(index, -1);
+    }
+
+    static void setEtcdEntryTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "PUT";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->expectedData = "value=myValue";
+            mgTestCtx->replyData = R"({"node": {"value": "myValue"}})";
+        }
+
+        //Then etcdlib_set should return ok
+        auto rc = etcdlib_set(etcdlib, "test", "myValue", 0, false);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+        //When preparing an etcd stubbed reply, including a ttl and prevExist
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedData = "value=myValue;ttl=10;prevExist=true";
+        }
+
+        //Then etcdlib_set should return ok
+        rc = etcdlib_set(etcdlib, "test", "myValue", 10, true);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+        //When preparing an etcd stubbed reply, including a ttl
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedData = "value=myValue;ttl=10";
+        }
+
+        //Then etcdlib_set should return ok
+        rc = etcdlib_set(etcdlib, "test", "myValue", 10, false);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+        //When preparing an etcd stubbed reply, including a prevExists
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedData = "value=myValue;prevExist=true";
+        }
+
+        //Then etcdlib_set should return ok
+        rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    }
+
+    static void setEtcdEntryWithInvalidReplyTest(etcdlib_t* etcdlib) {
+        //When preparing a stubbed reply non-etcd reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "PUT";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->replyData = "plain text response. i.e. a reply of a non-etcd server";
+            mgTestCtx->replyMineType = "text/plain";
+            mgTestCtx->replyEtcdIndex = "1";
+        }
+
+        //Then etcdlib_set should return an invalid content error
+        auto rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
+        EXPECT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
+
+        //When preparing a stubbed reply with invalid json
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = R"({"node": {}})"; // missing value
+            mgTestCtx->replyMineType = "application/json";
+        }
+
+        //Then etcdlib_set should return an invalid content error
+        rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
+        EXPECT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
+
+        // When preparing a stubbed reply with invalid json
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = "{}"; // missing node (and value)
+            mgTestCtx->replyMineType = "application/json";
+        }
+
+        //Then etcdlib_set should return an invalid content error
+        rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
+        EXPECT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
+    }
+
+    static void refreshEtcdEntryTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "PUT";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->expectedData = "prevExist=true;refresh=true;ttl=10";
+            mgTestCtx->replyData =
+                R"({"action":"update","node":{"key":"/test","value":"val1","ttl":1,"modifiedIndex":1,"createdIndex":1},"prevNode":{"key":"/test","value":"val1","ttl":10,"modifiedIndex":2,"createdIndex":1}})";
+        }
+
+        //Then etcdlib_refresh should return ok
+        auto rc = etcdlib_refresh(etcdlib, "test", 10);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    }
+
+    static void deleteEtcdEntryTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "DELETE";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->replyData =
+                R"({"action":"delete","node":{"createdIndex":1,"key":"/test","modifiedIndex":2},"prevNode":{"createdIndex":1,"key":"/test","value":"val1","modifiedIndex":1}})";
+        }
+
+        //Then etcdlib_refresh should return ok
+        auto rc = etcdlib_del(etcdlib, "test");
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    }
+
   protected:
     static std::shared_ptr<mg_context> mgCtx;
     static std::unique_ptr<MgTestContext> mgTestCtx;
@@ -177,291 +442,100 @@ TEST_F(EtcdlibStubTestSuite, GetEtcdEntryTest) {
     //Given an etcdlib instance
     etcdlib_autoptr_t etcdlib = createEtcdlib();
     EXPECT_NE(etcdlib, nullptr);
+    getEtcdEntryTest(etcdlib);
 
-    //When preparing an etcd stubbed reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "GET";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->replyData = R"({"node": {"value": "test"}})";
-        mgTestCtx->replyEtcdIndex = "1";
-    }
-
-    //Then etcdlib_get should return the value and the index
-    char* value = nullptr;
-    long long index;
-    auto rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
-    ASSERT_STREQ("test", value);
-    ASSERT_EQ(1, index);
-    free(value);
-
-    //When preparing an etcd stubbed reply without an X-Etcd-Index header
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->replyEtcdIndex = "";
-    }
-
-    //Then etcdlib_get should return the value and a -1 index
-    rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
-    ASSERT_STREQ("test", value);
-    ASSERT_EQ(-1, index);
-    free(value);
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    getEtcdEntryTest(etcdlib2);
 }
 
-TEST_F(EtcdlibStubTestSuite, GetParrallelEtcdEntryTest) {
+TEST_F(EtcdlibStubTestSuite, GetEtcdEntryParrallelTest) {
     //Given an etcdlib instance
     etcdlib_autoptr_t etcdlib = createEtcdlib();
     EXPECT_NE(etcdlib, nullptr);
+    getEtcdEntryParallelTest(etcdlib);
 
-    //When preparing an etcd stubbed reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "GET";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->replyData = R"({"node": {"value": "test"}})";
-        mgTestCtx->replyEtcdIndex = "1";
-        mgTestCtx->msSleep = 1;
-    }
-
-    //Then 1000x etcdlib_get should return the value and the index
-    for (int i = 0; i < 1000; ++i) {
-        char* value = nullptr;
-        long long index;
-        auto rc = etcdlib_get(etcdlib, "test", &value, &index);
-        ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_STREQ("test", value);
-        ASSERT_EQ(1, index);
-        free(value);
-    }
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    getEtcdEntryParallelTest(etcdlib2);
 }
 
 TEST_F(EtcdlibStubTestSuite, GetEtcdEntryWithServerFailureTest) {
     //Given an etcdlib instance
     etcdlib_autoptr_t etcdlib = createEtcdlib();
     EXPECT_NE(etcdlib, nullptr);
+    getEtcdEntryWithServerFailureTest(etcdlib);
 
-    //When preparing an etcd stubbed error reply leading to a 405 error
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->httpErrorCode = 405;
-    }
-
-    //Then etcdlib_get should return an error
-    char* value = nullptr;
-    long long index;
-    auto rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_NE(rc, 0);
-    ASSERT_TRUE(ETCDLIB_INTERNAL_HTTPCODE_FLAG & rc);
-    ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 405);
-    ASSERT_EQ(value, nullptr);
-    ASSERT_EQ(index, -1);
-
-    //When preparing an etcd stubbed error reply leading to a 404 error
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->httpErrorCode = 404;
-    }
-
-    //Then etcdlib_get should return an error
-    rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_NE(rc, 0);
-    ASSERT_TRUE(ETCDLIB_INTERNAL_HTTPCODE_FLAG & rc);
-    ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 404);
-    ASSERT_EQ(value, nullptr);
-    ASSERT_EQ(index, -1);
-
-    //When preparing an etcd stubbed reply with an invalid etcd index
-    {
-        mgTestCtx->clear();
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "GET";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->replyData = R"({"node": {"value": "test"}})";
-        mgTestCtx->replyEtcdIndex = "not-a-number";
-    }
-
-    //Then etcdlib_get should return an ok, but a -1 index
-    rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(rc, ETCDLIB_RC_OK);
-    ASSERT_STREQ(value, "test");
-    ASSERT_EQ(index, -1);
-    free(value);
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    getEtcdEntryWithServerFailureTest(etcdlib2);
 }
 
 TEST_F(EtcdlibStubTestSuite, GetEtcdEntryWithInvalidContentTest) {
     //Given an etcdlib instance
     etcdlib_autoptr_t etcdlib = createEtcdlib();
     EXPECT_NE(etcdlib, nullptr);
+    getEtcdEntryWithInvalidContentTest(etcdlib);
 
-    //When preparing a stubbed reply non-etcd reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "GET";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->replyData = "plain text response. i.e. a reply of a non-etcd server";
-        mgTestCtx->replyMineType = "text/plain";
-        mgTestCtx->replyEtcdIndex = "1";
-    }
-
-    //Then etcdlib_get should return an invalid content error
-    char* value = nullptr;
-    long long index;
-    auto rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
-    ASSERT_EQ(value, nullptr);
-    ASSERT_EQ(index, -1);
-
-    //When preparing a stubbed reply with invalid json
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->replyData = R"({"node": {}})"; // missing value
-        mgTestCtx->replyMineType = "application/json";
-    }
-
-    //Then etcdlib_get should return an invalid content error
-    rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
-    ASSERT_EQ(value, nullptr);
-    ASSERT_EQ(index, -1);
-
-    // When preparing a stubbed reply with invalid json
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->replyData = "{}"; // missing node (and value)
-        mgTestCtx->replyMineType = "application/json";
-    }
-
-    // Then etcdlib_get should return an invalid content error
-    rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
-    ASSERT_EQ(value, nullptr);
-    ASSERT_EQ(index, -1);
-}
-
-TEST_F(EtcdlibStubTestSuite, GetEtcdEntryWithCurlMultiTest) {
     //Given an etcdlib instance with curl multi handle
-    etcdlib_autoptr_t etcdlib = createEtcdlibWithCurlMulti();
-    EXPECT_NE(etcdlib, nullptr);
-
-    //When preparing an etcd stubbed reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "GET";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->replyData = R"({"node": {"value": "test"}})";
-        mgTestCtx->replyEtcdIndex = "2";
-    }
-    //Then etcdlib_get should return the value and the index
-    char* value = nullptr;
-    long long index;
-    auto rc = etcdlib_get(etcdlib, "test", &value, &index);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
-    ASSERT_STREQ("test", value);
-    ASSERT_EQ(2, index);
-    free(value);
-}
-
-TEST_F(EtcdlibStubTestSuite, GetParralelEtcdEntryWithCurlMultiTest) {
-    //Given an etcdlib instance with curl multi handle
-    etcdlib_autoptr_t etcdlib = createEtcdlibWithCurlMulti();
-    EXPECT_NE(etcdlib, nullptr);
-
-    //When preparing an etcd stubbed reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "GET";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->replyData = R"({"node": {"value": "test"}})";
-        mgTestCtx->replyEtcdIndex = "2";
-        mgTestCtx->msSleep = 1;
-    }
-
-    //Then 1000x etcdlib_get calls should return the value and the index
-    for (int i = 0; i < 1000; ++i) {
-        char* value = nullptr;
-        long long index;
-        auto rc = etcdlib_get(etcdlib, "test", &value, &index);
-        ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_STREQ("test", value);
-        ASSERT_EQ(2, index);
-        free(value);
-    }
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    getEtcdEntryWithInvalidContentTest(etcdlib2);
 }
 
 TEST_F(EtcdlibStubTestSuite, SetEtcdEntryTest) {
     //Given an etcdlib instance
     etcdlib_autoptr_t etcdlib = createEtcdlib();
     EXPECT_NE(etcdlib, nullptr);
+    setEtcdEntryTest(etcdlib);
 
-    //When preparing an etcd stubbed reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "PUT";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->expectedData = "value=myValue";
-        mgTestCtx->replyData = R"({"node": {"value": "myValue"}})";
-    }
-
-    //Then etcdlib_set should return ok
-    auto rc = etcdlib_set(etcdlib, "test", "myValue", 0, false);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
-
-    //When preparing an etcd stubbed reply, including a ttl and prevExist
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedData = "value=myValue;ttl=10;prevExist=true";
-    }
-
-    //Then etcdlib_set should return ok
-    rc = etcdlib_set(etcdlib, "test", "myValue", 10, true);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
-
-    //When preparing an etcd stubbed reply, including a ttl
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedData = "value=myValue;ttl=10";
-    }
-
-    //Then etcdlib_set should return ok
-    rc = etcdlib_set(etcdlib, "test", "myValue", 10, false);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
-
-    //When preparing an etcd stubbed reply, including a prevExists
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedData = "value=myValue;prevExist=true";
-    }
-
-    //Then etcdlib_set should return ok
-    rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    setEtcdEntryTest(etcdlib2);
 }
 
-TEST_F(EtcdlibStubTestSuite, SetEtcdEntryWithMultiCurlTest) {
-    //Given an etcdlib instance using multi curl
-    etcdlib_autoptr_t etcdlib = createEtcdlibWithCurlMulti();
+TEST_F(EtcdlibStubTestSuite, SetEtcdEntryWithInvalidReplyTest) {
+    //Given an etcdlib instance
+    etcdlib_autoptr_t etcdlib = createEtcdlib();
     EXPECT_NE(etcdlib, nullptr);
+    setEtcdEntryWithInvalidReplyTest(etcdlib);
 
-    //When preparing an etcd stubbed reply
-    {
-        const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-        mgTestCtx->expectedMethod = "PUT";
-        mgTestCtx->expectedUrl = "/v2/keys/test";
-        mgTestCtx->expectedData = "value=myValue";
-        mgTestCtx->replyData = R"({"node": {"value": "myValue"}})";
-    }
-
-    //Then etcdlib_set should return ok
-    auto rc = etcdlib_set(etcdlib, "test", "myValue", 0, false);
-    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    setEtcdEntryWithInvalidReplyTest(etcdlib2);
 }
 
-//TODO test set with an invalid reply data (not json, missing node, missing value
+TEST_F(EtcdlibStubTestSuite, RefreshEtcdEntryTest) {
+    //Given an etcdlib instance
+    etcdlib_autoptr_t etcdlib = createEtcdlib();
+    EXPECT_NE(etcdlib, nullptr);
+    refreshEtcdEntryTest(etcdlib);
 
-//TODO test refresh
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    refreshEtcdEntryTest(etcdlib2);
+}
 
-//TODO test delete
+//TODO test refresh with invalid content reply
+
+TEST_F(EtcdlibStubTestSuite, DeleteEtcdEntryTest) {
+    //Given an etcdlib instance
+    etcdlib_autoptr_t etcdlib = createEtcdlib();
+    EXPECT_NE(etcdlib, nullptr);
+    deleteEtcdEntryTest(etcdlib);
+
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    deleteEtcdEntryTest(etcdlib2);
+}
+
+//TODO test delete with invalid content reply
 
 //TODO test watch
