@@ -114,19 +114,20 @@ static void add_node(const char *key, const char *value, void* arg) {
  * returns the modifiedIndex of the last modified
  * discovery endpoint (see etcd documentation).
  */
-static celix_status_t etcdWatcher_addAlreadyExistingWatchpoints(etcd_watcher_t *watcher, discovery_t *discovery, long long* highestModified) {
-	celix_status_t status = CELIX_SUCCESS;
+static celix_status_t
+etcdWatcher_addAlreadyExistingWatchpoints(etcd_watcher_t* watcher, discovery_t* discovery, long long* highestModified) {
+    celix_status_t status = CELIX_SUCCESS;
 
-	char rootPath[MAX_ROOTNODE_LENGTH];
-	status = etcdWatcher_getRootPath(discovery->context, rootPath);
+    char rootPath[MAX_ROOTNODE_LENGTH];
+    status = etcdWatcher_getRootPath(discovery->context, rootPath);
 
-	if (status == CELIX_SUCCESS) {
-		if(etcdlib_get_directory(watcher->etcdlib, rootPath, add_node, discovery, highestModified)) {
-			    status = CELIX_ILLEGAL_ARGUMENT;
-		}
-	}
+    if (status == CELIX_SUCCESS) {
+        if (etcdlib_getDir(watcher->etcdlib, rootPath, add_node, discovery, highestModified)) {
+            status = CELIX_ILLEGAL_ARGUMENT;
+        }
+    }
 
-	return status;
+    return status;
 }
 
 

@@ -23,8 +23,30 @@
 #include "etcdlib_private.h"
 
 #include <curl/curl.h>
+#include <jansson.h>
 
-class EtcdlibTestSuite : public ::testing::Test {};
+class EtcdlibTestSuite : public ::testing::Test {
+public:
+    EtcdlibTestSuite() = default;
+    ~EtcdlibTestSuite() noexcept override = default;
+
+    static void logMessage(void* data, const char* fmt, ...) {
+        auto* count = static_cast<std::atomic<int>*>(data);
+        const int c = count->fetch_add(1);
+
+        (void)fprintf(stderr, "Error message nr %i: ", c);
+
+        va_list args;
+        va_start(args, fmt);
+        (void)vfprintf(stderr, fmt, args);
+        va_end(args);
+        (void)fprintf(stderr, "\n");
+    }
+
+    static std::atomic<int> errorMessageCount;
+};
+
+std::atomic<int> EtcdlibTestSuite::errorMessageCount{0};
 
 TEST_F(EtcdlibTestSuite, CreateDestroyTest) {
     auto* lib = etcdlib_create("localhost", 2379, ETCDLIB_NO_CURL_INITIALIZATION);
@@ -83,6 +105,7 @@ TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_TIMEOUT), "ETCDLIB Timeout");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_CLEARED), "ETCDLIB Event Cleared");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ENOMEM), "ETCDLIB Out of memory or maximum number of curl handles reached");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ETCD_ERROR), "ETCDLIB Etcd error");
     EXPECT_STREQ(etcdlib_strerror(42), "ETCDLIB Unknown error");
 
     //curlcode error
@@ -94,4 +117,78 @@ TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
     error = etcdlib_strerror(ETCDLIB_INTERNAL_CURLMCODE_FLAG | CURLM_BAD_SOCKET);
     EXPECT_TRUE(error != nullptr);
     EXPECT_TRUE(strcasecmp(error, "socker"));
+}
+
+TEST_F(EtcdlibTestSuite, ParseEtcdReplyTest) {
+    //whitebox test for etcdlib_parseEtcdReply
+    etcdlib_create_options_t opts{};
+    opts.logErrorMessageData = &errorMessageCount;
+    opts.logErrorMessageCallback = logMessage;
+    etcdlib_autoptr_t etcdlib = nullptr;
+    auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //When parsing a valid etcd reply
+    etcdlib_reply_data_t reply{};
+    reply.memory = const_cast<char*>(R"({"node": {"value": "test"}, "action": "get"})");
+    json_auto_t* jsonRoot = nullptr;
+    const char* value = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot, &value);
+
+    //Then the reply should be parsed correctly
+    EXPECT_EQ(ETCDLIB_RC_OK, rc);
+    EXPECT_NE(jsonRoot, nullptr);
+    EXPECT_STREQ(value, "test");
+    EXPECT_EQ(0, errorMessageCount);
+
+    //When parsing the reply with no checks and outputs
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr);
+
+    //Then the reply should be parsed correctly
+    EXPECT_EQ(ETCDLIB_RC_OK, rc);
+
+    //When parsing the reply with an invalid action
+    json_auto_t* jsonRoot2 = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "set", &jsonRoot2, nullptr);
+
+    //Then the reply returns an error code
+    EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+    EXPECT_EQ(jsonRoot2, nullptr);
+    EXPECT_EQ(1, errorMessageCount);
+
+    //When parsing the reply with an invalid reply
+    reply.memory = const_cast<char*>("plain text response");
+    json_auto_t* jsonRoot3 = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot3, nullptr);
+
+    //Then the reply returns an error code
+    EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+    EXPECT_EQ(2, errorMessageCount);
+
+    //When parsing the reply with an invalid json
+    reply.memory = const_cast<char*>(R"({"node":{}, "action": "get"})");
+    json_auto_t* jsonRoot4 = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot4, &value);
+
+    //Then the reply returns an error code
+    EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+    EXPECT_EQ(3, errorMessageCount);
+
+    //When parsing the reply with an invalid json
+    reply.memory = const_cast<char*>("{}");
+    json_auto_t* jsonRoot5 = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, &jsonRoot5, &value);
+
+    //Then the reply returns an error code
+    EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+    EXPECT_EQ(4, errorMessageCount);
+
+    //When parsing the reply with an etcd error
+    reply.memory = const_cast<char*>(R"({"errorCode": 100, "message": "error message"})");
+    json_auto_t* jsonRoot6 = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr);
+
+    //Then the reply returns an error code
+    EXPECT_EQ(ETCDLIB_RC_ETCD_ERROR, rc);
+    EXPECT_EQ(5, errorMessageCount);
 }

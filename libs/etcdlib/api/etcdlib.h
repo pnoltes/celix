@@ -22,6 +22,7 @@
 
 #include "etcdlib_export.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,13 +47,18 @@ extern "C" {
  * @brief Return codes for the etcdlib functions
  *
  * Note that other error codes can be returned as well, in that case the etcdlib_strerror function can be used to get
- * the error string. This can includes curl error strings.
+ * the error string. This can include curl error strings.
  */
 #define ETCDLIB_RC_OK 0
 #define ETCDLIB_RC_TIMEOUT 3
 #define ETCDLIB_RC_EVENT_CLEARED 4
-#define ETCDLIB_RC_INVALID_RESPONSE_CONTENT 5
-#define ETCDLIB_RC_ENOMEM 6
+#define ETCDLIB_RC_INVALID_RESPONSE_CONTENT                                                                            \
+    5 /** In case of an invalid response content, details are logged using the                                         \
+         etcdlib_log_invalid_response_reply_callback. */
+#define ETCDLIB_RC_ETCD_ERROR                                                                                          \
+    6 /** In case of an etcdlib error, details are logged using the                                                    \
+        etcdlib_log_invalid_response_error_callback. */
+#define ETCDLIB_RC_ENOMEM 7
 
 /**
  * @brief Opaque struct for etcdlib_t
@@ -90,6 +96,30 @@ typedef void (*etcdlib_key_value_callback)(const char* key, const char* value, v
  */
 ETCDLIB_EXPORT etcdlib_t* etcdlib_create(const char* server, int port, int flags);
 
+
+/**
+* @brief Log reply callback function
+* @param[in] data The data passed to the callback function
+* @param[in] reply The reply string. The reply string is null-terminated and only valid during the callback.
+*/
+typedef void etcdlib_log_reply_callback(void *data, const char *reply);
+
+ /**
+ * @brief Log invalid content reply callback function
+ * @param[in] data The data passed to the callback function
+ * @param[in] reply The reply string. The reply string is null-terminated and only valid during the callback.
+ */
+typedef void etcdlib_log_invalid_response_reply_callback(void *data, const char *reply);
+
+/**
+ * @brief Log error message callback function.
+ * @param[in] data The data passed to the callback function
+ * @param[in] errorFmt The error message format string.
+ * @param[in] ... The arguments for the format string.
+ */
+typedef void etcdlib_log_error_message_callback(void* data, const char* errorFmt, ...)
+    __attribute__((format(printf, 2, 3)));
+
 /**
  * @brief ETCD-LIB create options
  */
@@ -99,8 +129,22 @@ typedef struct etcdlib_create_options {
     bool initializeCurl; /**< If true curl is initialized (globally), if false curl is not initialized. */
     bool useMultiCurl;   /**< If true curl is used in multi mode, if false curl is used in single mode.
                             Multi mode performs better, but also uses more resources. */
-                            //TODO options for max nr of completed curl entries (multi mode)
-    //TODO max nr of parallel curl connections (multi mode)
+                         // TODO options for max nr of completed curl entries (multi mode)
+    // TODO max nr of parallel curl connections (multi mode)
+    void* logReplyData; /**< Data passed to the logReplyCallback */
+    etcdlib_log_reply_callback*
+        logReplyCallback;              /**< Callback function to log _all_ etcdlib underlying HTTP replies. */
+    void* logInvalidResponseReplyData; /**< Data passed to the logInvalidResponseContentCallback */
+    etcdlib_log_invalid_response_reply_callback*
+        logInvalidResponseReplyCallback; /**< Callback function to log _all_ etcdlib encountered invalid response
+                                              content replies. */
+    void* logErrorMessageData;           /**< Data passed to the logInvalidResponseErrorCallback */
+    etcdlib_log_error_message_callback*
+        logErrorMessageCallback; /**< Callback function to log the error message when an invalid response
+                                            occurs. An invalid response is when a reply is an expected HTTP 2xx reply,
+                                            but the content is invalid (not JSON, not an expected etcd JSON reply).
+                                            etcdlib will log an error message describing issue if a
+                                            logInvalidResponseErrorCallback is provided.  */
 } etcdlib_create_options_t;
 
 #define ETCDLIB_EMPTY_CREATE_OPTIONS \
@@ -155,18 +199,6 @@ ETCDLIB_EXPORT int etcdlib_port(etcdlib_t* etcdlib);
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key, char** value, long long* index);
 
 /**
- * @brief Retrieve the contents of a directory. For every found key/value pair the given callback function is called.
- * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param[in] directory The Etcd-directory which has to be searched for keys
- * @param[in] callback Callback function which is called for every found key
- * @param[in] arg Argument is passed to the callback function
- * @param[out] index If not NULL, the Etcd-index of the last modified value (etcd wide).
- * @return 0 on success, non-zero otherwise
- */
-ETCDLIB_EXPORT etcdlib_status_t etcdlib_get_directory(
-    etcdlib_t* etcdlib, const char* directory, etcdlib_key_value_callback callback, void* arg, long long* index);
-
-/**
  * @brief Setting an Etcd-key/value
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
@@ -175,14 +207,15 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_get_directory(
  * @param[in] prevExist If true, the value is only set when the key already exists, if false it is always set
  * @return 0 on success, non-zero otherwise
  */
-ETCDLIB_EXPORT etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl, bool prevExist);
+ETCDLIB_EXPORT etcdlib_status_t
+etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl, bool prevExist);
 
 /**
  * @brief Refresh the ttl of an existing key.
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key the etcd key to refresh.
  * @param[in] ttl the ttl value to use.
- * @return 0 on success, non-zero otherwise.
+ * @return 0 on success, non-zero otherwise. //TODO what is returned if key does not exist?
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* key, int ttl);
 
@@ -190,9 +223,28 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* 
  * @brief Deleting an Etcd-key
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
- * @return 0 on success, non-zero otherwise
+ * @return 0 on success, non-zero otherwise. //TODO what happens if key does not exist?
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_del(etcdlib_t* etcdlib, const char* key);
+
+//TODO watch entry?
+
+ /**
+  * @brief Retrieve the contents of a directory. For every found key/value pair, the given callback function is called.
+  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
+  * @param[in] directory The Etcd-directory which has to be searched for keys
+  * @param[in] callback Callback function which is called for every found key
+  * @param[in] arg Argument is passed to the callback function
+  * @param[out] index If not NULL, the Etcd-index of the last modified value (etcd wide).
+  * @return 0 on success, non-zero otherwise
+  */
+ ETCDLIB_EXPORT etcdlib_status_t etcdlib_getDir(
+     etcdlib_t* etcdlib, const char* directory, etcdlib_key_value_callback callback, void* arg, long long* index);
+
+//TODO implement etcdlib_createDir, etcdlib_refreshDir, etcdlib_deleteDir
+ETCDLIB_EXPORT etcdlib_status_t etcdlib_createDir(etcdlib_t* etcdlib, const char* directory, int ttl);
+ETCDLIB_EXPORT etcdlib_status_t etcdlib_refreshDir(etcdlib_t* etcdlib, const char* directory);
+ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char* directory);
 
 /**
  * @brief Watching an etcd directory for changes
@@ -218,7 +270,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
                                               char** prevValue,
                                               char** value,
                                               char** rkey,
-                                              long long* modifiedIndex);
+                                              long long* modifiedIndex); //TODO rename to watchDir
 
 #ifdef __cplusplus
 }

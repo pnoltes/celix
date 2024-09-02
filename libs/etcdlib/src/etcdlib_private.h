@@ -21,6 +21,7 @@
 #define ETCDLIB_PRIVATE_H_
 
 #include <stddef.h>
+#include <jansson.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +48,28 @@ bool etcdlib_isStatusHttpError(etcdlib_status_t status);
  * @brief Check if the provided status contains an HTTP error return code
  */
 int etcdlib_getHttpCodeFromStatus(etcdlib_status_t status);
+
+/**
+ * @brief Parse and check the provided etcd reply.
+ *
+ * Will log an error message using logInvalidResponseErrorCallback if the content of the reply is not as expected.
+ * Invalid replies are:
+ *   - Reply is not a JSON object
+ *   - Reply contains an error field
+ *  - Reply does not contain a node/value field (if provided)
+ *   - Reply does not contain the expected action (if provided)
+ *
+ * @param[in] etcdlib The etcdlib instance
+ * @param[in] reply The etcd reply to parse
+ * @param[in] expectedAction The optional expected action of the reply. If provided, checks "action" in the reply.
+ * @param[out] jsonRootOut The root JSON object of the reply.
+ * @param[out] valueOut The optional value JSON object of the reply. If provided, extracts "node.value" from the reply.
+ */
+etcdlib_status_t etcdlib_parseEtcdReply(const etcdlib_t* etcdlib,
+                                        const etcdlib_reply_data_t* reply,
+                                        const char* expectedAction,
+                                        json_t** jsonRootOut,
+                                        const char** valueOut);
 
 
 #ifdef __cplusplus
