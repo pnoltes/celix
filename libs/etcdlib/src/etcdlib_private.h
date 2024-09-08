@@ -20,6 +20,7 @@
 #ifndef ETCDLIB_PRIVATE_H_
 #define ETCDLIB_PRIVATE_H_
 
+#include <stdarg.h>
 #include <stddef.h>
 #include <jansson.h>
 
@@ -69,8 +70,23 @@ etcdlib_status_t etcdlib_parseEtcdReply(const etcdlib_t* etcdlib,
                                         const etcdlib_reply_data_t* reply,
                                         const char* expectedAction,
                                         json_t** jsonRootOut,
-                                        const char** valueOut);
+                                        json_t** nodeOut,
+                                        const char** valueOut,
+                                        long* indexOut);
 
+/**
+ * @brief Util function to create an etcd url and if possible use the local buffer to create the url.
+ * If the localBuf is too small, a new buffer will be allocated on *heapBuf.
+ *
+ * @param[in] etcdlib The etcdlib instance
+ * @param[in] localBuf The local buffer to use for the url.
+ * @param[in] localBufSize The size of the local buffer.
+ * @param[out] heapBuf The buffer that is allocated when the local buffer is too small.
+ * @param[in] urlFmt The url format string.
+ * @param[in] ... The arguments for the url format string.
+ * @return The url that can be used or NULL when out of memory.
+ */
+const char* etcdlib_createUrl(char* localBuf, size_t localBufSize, char** heapBuf, const char* urlFmt, va_list args);
 
 #ifdef __cplusplus
 }

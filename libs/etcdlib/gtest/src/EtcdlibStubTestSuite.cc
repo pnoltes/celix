@@ -22,16 +22,17 @@
 #include "etcdlib.h"
 #include "etcdlib_private.h"
 
-#include <civetweb.h>
-#include <memory>
-#include <string>
-#include <mutex>
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
-#include <unistd.h>
 #include <atomic>
+#include <civetweb.h>
 #include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <unistd.h>
 
 struct MgTestContext {
     constexpr static unsigned int randomSeed = 0x12345678;
@@ -39,6 +40,7 @@ struct MgTestContext {
     std::mutex mutex{}; // protects below
     int httpErrorCode{0}; // if > 0, the http error code to return
     std::string expectedUrl{}; // if empty, no expected url is checked
+    std::string expectedQuery{}; // if empty, no expected query is checked
     std::string expectedMethod{}; // if empty, no expected method is checked
     std::string expectedData{}; // if empty, no expected data is checked
     std::string replyMineType{}; // if empty, application/json is used
@@ -46,11 +48,15 @@ struct MgTestContext {
     std::string replyData{};
     std::string replyEtcdIndex{}; //if empty, no X-Etcd-Index header is added
     int msSleep{0}; // if > 0, sleep for msSleep + random 0-5 milliseconds per request before replying
+    std::future<void> sync{};
+    std::future<void>* syncCanCompleteRequest{}; // if valid, wait for this future to complete before processing the request
+    std::promise<void>* inRequestCallPromise{};
 
     void clear() {
         const std::lock_guard<std::mutex> lock{mutex};
         httpErrorCode = 0;
         expectedUrl.clear();
+        expectedQuery.clear();
         expectedMethod.clear();
         expectedData.clear();
         replyMineType.clear();
@@ -58,6 +64,9 @@ struct MgTestContext {
         replyData.clear();
         replyEtcdIndex.clear();
         msSleep = 0;
+        syncCanCompleteRequest = {};
+        inRequestCallPromise = {};
+
     }
 };
 
@@ -67,6 +76,7 @@ struct MgTestContext {
 class EtcdlibStubTestSuite : public ::testing::Test {
   public:
     static constexpr int port = 52379;
+    static constexpr int httpsPort = 52377;
 
     EtcdlibStubTestSuite() {
         mgTestCtx->clear();
@@ -85,7 +95,8 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static mg_context* createCivetwebServer() {
         mgTestCtx = std::make_unique<MgTestContext>();
         srand(MgTestContext::randomSeed);
-        const char* civetwebOptions[] = {"listening_ports", "52379", "num_threads", "10", nullptr};
+        const char* civetwebOptions[] = {
+            "listening_ports", "52379", "num_threads", "10", "error_log_file", "civetweb.log", nullptr};
         mg_callbacks callbacks{};
         callbacks.log_message = [](const mg_connection* conn, const char* message) -> int {
             (void)conn;
@@ -105,6 +116,15 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static int stubbedBeginRequest(mg_connection* conn) {
         auto* ctx = mgTestCtx.get();
         std::unique_lock<std::mutex> lock{ctx->mutex};
+
+        if (ctx->inRequestCallPromise) {
+            ctx->inRequestCallPromise->set_value();
+        }
+
+        if (ctx->sync.valid()) {
+            ctx->sync.wait();
+        }
+
         const auto* rInfo = mg_get_request_info(conn);
 
         if (ctx->httpErrorCode > 0) {
@@ -118,6 +138,10 @@ class EtcdlibStubTestSuite : public ::testing::Test {
 
         if (!ctx->expectedUrl.empty()) {
             EXPECT_STREQ(ctx->expectedUrl.c_str(), rInfo->request_uri) << "Unexpected url";
+        }
+
+        if (!ctx->expectedQuery.empty()) {
+            EXPECT_STREQ(ctx->expectedQuery.c_str(), rInfo->query_string) << "Unexpected query";
         }
 
         if (!mgTestCtx->expectedData.empty()) {
@@ -143,6 +167,10 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             usleep((msSleep + msRand) * 1000);
         }
 
+        if (mgTestCtx->syncCanCompleteRequest) {
+            mgTestCtx->syncCanCompleteRequest->wait();
+        }
+
         return 1;
     }
 
@@ -162,12 +190,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static etcdlib_create_options_t createEtcdlibOptions() {
         etcdlib_create_options_t opts = {};
         opts.port = port;
-        opts.logReplyData = static_cast<void*>(&replyLogCount);
-        opts.logReplyCallback = [](void* data, const char* reply) {
-            auto* count = static_cast<std::atomic<int>*>(data);
-            const int c  = count->fetch_add(1);
-            (void)fprintf(stdout, "Reply nr %i: '%s'\n", c, reply);
-        };
         opts.logInvalidResponseReplyData = static_cast<void*>(&invalidContentLogCount);
         opts.logInvalidResponseReplyCallback = [](void* data, const char* reply) {
             auto* count = static_cast<std::atomic<int>*>(data);
@@ -185,7 +207,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         etcdlib_t* etcdlib = nullptr;
         auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
         EXPECT_EQ(ETCDLIB_RC_OK, rc);
-        replyLogCount = 0;
         invalidContentLogCount = 0;
         errorMessageCount = 0;
         return etcdlib;
@@ -198,7 +219,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         etcdlib_t* etcdlib = nullptr;
         auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
         EXPECT_EQ(ETCDLIB_RC_OK, rc);
-        replyLogCount = 0;
         invalidContentLogCount = 0;
         errorMessageCount = 0;
         return etcdlib;
@@ -216,12 +236,11 @@ class EtcdlibStubTestSuite : public ::testing::Test {
 
         //Then etcdlib_get should return the value and the index
         char* value = nullptr;
-        long long index;
+        long index;
         auto rc = etcdlib_get(etcdlib, "test", &value, &index);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
         ASSERT_STREQ("test", value);
         ASSERT_EQ(1, index);
-        ASSERT_EQ(1, replyLogCount);
         free(value);
 
         //When preparing an etcd stubbed reply without an X-Etcd-Index header
@@ -235,7 +254,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
         ASSERT_STREQ("test", value);
         ASSERT_EQ(-1, index);
-        ASSERT_EQ(2, replyLogCount);
         free(value);
     }
 
@@ -253,14 +271,13 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then 1000x etcdlib_get should return the value and the index
         for (int i = 0; i < 1000; ++i) {
             char* value = nullptr;
-            long long index;
+            long index;
             auto rc = etcdlib_get(etcdlib, "test", &value, &index);
             ASSERT_EQ(ETCDLIB_RC_OK, rc);
             ASSERT_STREQ("test", value);
             ASSERT_EQ(1, index);
             free(value);
         }
-        ASSERT_EQ(1000, replyLogCount);
         ASSERT_EQ(0, invalidContentLogCount);
     }
 
@@ -273,14 +290,13 @@ class EtcdlibStubTestSuite : public ::testing::Test {
 
         //Then etcdlib_get should return an error
         char* value = nullptr;
-        long long index;
+        long index;
         auto rc = etcdlib_get(etcdlib, "test", &value, &index);
         ASSERT_NE(rc, 0);
         ASSERT_TRUE(ETCDLIB_INTERNAL_HTTPCODE_FLAG & rc);
         ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 405);
         ASSERT_EQ(value, nullptr);
         ASSERT_EQ(index, -1);
-        ASSERT_EQ(0, replyLogCount);
 
         //When preparing an etcd stubbed error reply leading to a 404 error
         {
@@ -295,7 +311,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 404);
         ASSERT_EQ(value, nullptr);
         ASSERT_EQ(index, -1);
-        ASSERT_EQ(0, replyLogCount);
 
         //When preparing an etcd stubbed reply with an invalid etcd index
         {
@@ -328,12 +343,11 @@ class EtcdlibStubTestSuite : public ::testing::Test {
 
         //Then etcdlib_get should return an invalid content error
         char* value = nullptr;
-        long long index;
+        long index;
         auto rc = etcdlib_get(etcdlib, "test", &value, &index);
         ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
         ASSERT_EQ(value, nullptr);
         ASSERT_EQ(index, -1);
-        ASSERT_EQ(0, replyLogCount);
         ASSERT_EQ(1, errorMessageCount);
         ASSERT_EQ(1, invalidContentLogCount);
 
@@ -349,7 +363,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         ASSERT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
         ASSERT_EQ(value, nullptr);
         ASSERT_EQ(index, -1);
-        ASSERT_EQ(0, replyLogCount);
         ASSERT_EQ(2, errorMessageCount);
         ASSERT_EQ(2, invalidContentLogCount);
     }
@@ -367,7 +380,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_set should return ok
         auto rc = etcdlib_set(etcdlib, "test", "myValue", 0, false);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_EQ(1, replyLogCount);
 
         //When preparing an etcd stubbed reply, including a ttl and prevExist
         {
@@ -378,7 +390,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_set should return ok
         rc = etcdlib_set(etcdlib, "test", "myValue", 10, true);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_EQ(2, replyLogCount);
 
         //When preparing an etcd stubbed reply, including a ttl
         {
@@ -389,7 +400,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_set should return ok
         rc = etcdlib_set(etcdlib, "test", "myValue", 10, false);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_EQ(3, replyLogCount);
 
         //When preparing an etcd stubbed reply, including a prevExists
         {
@@ -400,7 +410,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_set should return ok
         rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_EQ(4, replyLogCount);
     }
 
     static void setEtcdEntryWithInvalidReplyTest(etcdlib_t* etcdlib) {
@@ -417,7 +426,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_set should return an invalid content error
         auto rc = etcdlib_set(etcdlib, "test", "myValue", 0, true);
         EXPECT_EQ(rc, ETCDLIB_RC_INVALID_RESPONSE_CONTENT);
-        ASSERT_EQ(0, replyLogCount);
         ASSERT_EQ(1, errorMessageCount);
         ASSERT_EQ(1, invalidContentLogCount);
     }
@@ -436,7 +444,6 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_refresh should return ok
         auto rc = etcdlib_refresh(etcdlib, "test", 10);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_EQ(1, replyLogCount);
     }
 
     static void deleteEtcdEntryTest(etcdlib_t* etcdlib) {
@@ -452,20 +459,334 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_refresh should return ok
         auto rc = etcdlib_del(etcdlib, "test");
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
-        ASSERT_EQ(1, replyLogCount);
     }
+
+    static void getEtcdDirTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "GET";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+
+            mgTestCtx->replyData = R"({"node":{"nodes": [{"key":"test1","value": "value1"}, {"nodes" : [{"key":"test2", "value":"value2"}]}]}, "action": "get"})";
+            mgTestCtx->replyEtcdIndex = "5";
+        }
+
+        //Then etcdlib_get should call the callbacks 2 times for the 2 leaf nodes.
+        long index;
+        std::atomic<int> count{0};
+        auto callback = [](const char* key, const char* value, void *data)  {
+            if (strcmp(key, "test1") == 0) {
+                EXPECT_STREQ(value, "value1");
+            } else if (strcmp(key, "test2") == 0) {
+                EXPECT_STREQ(value, "value2");
+            } else {
+                FAIL() << "Unexpected key: " << key;
+            }
+            auto* c = static_cast<std::atomic<int>*>(data);
+            c->fetch_add(1);
+        };
+        auto rc = etcdlib_getDir(etcdlib, "test", callback, &count, &index);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        ASSERT_EQ(5, index);
+        ASSERT_EQ(2, count);
+    }
+
+    static void watchEtcdDirTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply, set action
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "GET";
+            mgTestCtx->expectedUrl = "/v2/keys/test";
+            mgTestCtx->expectedQuery = "wait=true&recursive=true&waitIndex=10";
+            mgTestCtx->replyData = R"(
+{
+    "action": "set",
+    "node": {
+        "createdIndex": 10,
+        "key": "/test/key1",
+        "modifiedIndex": 10,
+        "value": "bar"
+    }
+}
+)";
+            mgTestCtx->replyEtcdIndex = "22";
+        }
+
+        //Then etcdlib_watchDir should return the set action
+        const char* action = nullptr;
+        char* key = nullptr;
+        char* value = nullptr;
+        char* prevValue = nullptr;
+        bool isDir = false;
+        long modifiedIndex = 0;
+        auto rc = etcdlib_watchDir(etcdlib, "/test", 10, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_SET, action);
+        EXPECT_STREQ("/test/key1", key);
+        EXPECT_STREQ("bar", value);
+        EXPECT_EQ(nullptr, prevValue);
+        EXPECT_FALSE(isDir);
+        EXPECT_EQ(10, modifiedIndex);
+        free(key);
+        free(value);
+
+        //When preparing an etcd stubbed reply, update action
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedQuery = "wait=true&recursive=true&waitIndex=11";
+            mgTestCtx->replyData = R"(
+{
+    "action": "update",
+    "node": {
+        "createdIndex": 2,
+        "key": "/test/key2",
+        "modifiedIndex": 11,
+        "value": "updated"
+    },
+    "prevNode": {
+        "createdIndex": 2,
+        "key": "/test/key2",
+        "modifiedIndex": 4,
+        "value": "original"
+    }
+}
+)";
+        }
+
+        //Then etcdlib_watchDir should return the update action
+        rc = etcdlib_watchDir(etcdlib, "/test", 11, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_UPDATE, action);
+        EXPECT_STREQ("/test/key2", key);
+        EXPECT_STREQ("updated", value);
+        EXPECT_STREQ("original", prevValue);
+        EXPECT_FALSE(isDir);
+        EXPECT_EQ(11, modifiedIndex);
+        free(key);
+        free(prevValue);
+
+        //When preparing an etcd stubbed reply, delete action
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedQuery.clear();
+            mgTestCtx->replyData = R"(
+{
+    "action": "delete",
+    "node": {
+        "createdIndex": 3,
+        "key": "/test/key3",
+        "modifiedIndex": 12
+    },
+    "prevNode": {
+    	"key": "/test/key3",
+    	"value": "test",
+    	"modifiedIndex": 3,
+    	"createdIndex": 3
+    }
+}
+
+)";
+        }
+
+        //Then etcdlib_watchDir should return the delete action
+        rc = etcdlib_watchDir(etcdlib, "/test", 12, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_DELETE, action);
+        EXPECT_STREQ("/test/key3", key);
+        EXPECT_EQ(nullptr, value);
+        EXPECT_STREQ("test", prevValue);
+        EXPECT_FALSE(isDir);
+        EXPECT_EQ(12, modifiedIndex);
+        free(key);
+        free(value);
+        free(prevValue);
+
+        ///When preparing an etcd stubbed reply, compareAndSwap action
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = R"(
+{
+    "action": "compareAndSwap",
+    "node": {
+        "createdIndex": 4,
+        "key": "/test/key4",
+        "modifiedIndex": 13,
+        "value": "two"
+    },
+    "prevNode": {
+    	"createdIndex": 4,
+    	"key": "/test/key4",
+    	"modifiedIndex": 4,
+    	"value": "one"
+    }
+}
+)";
+        }
+
+        //Then etcdlib_watchDir should return the compareAndSwap action
+        rc = etcdlib_watchDir(etcdlib, "/test", 13, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_COMPARE_AND_SWAP, action);
+        EXPECT_STREQ("/test/key4", key);
+        EXPECT_STREQ("two", value);
+        EXPECT_STREQ("one", prevValue);
+        EXPECT_FALSE(isDir);
+        EXPECT_EQ(13, modifiedIndex);
+        free(key);
+        free(value);
+        free(prevValue);
+
+        ///When preparing an etcd stubbed reply, compareAndDelete action
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = R"(
+{
+        "action": "compareAndDelete",
+        "node": {
+                "key": "/test/key5",
+                "modifiedIndex": 15,
+                "createdIndex": 5
+        },
+        "prevNode": {
+                "key": "/test/key5",
+                "value": "one",
+                "modifiedIndex": 5,
+                "createdIndex": 5
+        }
+}
+)";
+        }
+
+        //Then etcdlib_watchDir should return the compareAndDelete action
+        rc = etcdlib_watchDir(etcdlib, "/test", 15, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_COMPARE_AND_DELETE, action);
+        EXPECT_STREQ("/test/key5", key);
+        EXPECT_EQ(nullptr, value);
+        EXPECT_STREQ("one", prevValue);
+        EXPECT_FALSE(isDir);
+        EXPECT_EQ(15, modifiedIndex);
+        free(key);
+        free(value);
+        free(prevValue);
+
+        ///When preparing an etcd stubbed reply, expire action
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = R"(
+{
+  "action": "expire",
+  "node": {
+    "createdIndex": 6,
+    "key": "/test/key6",
+    "modifiedIndex": 16
+  },
+  "prevNode": {
+    "createdIndex": 6,
+    "key": "/test/key6",
+    "value": "bar",
+    "modifiedIndex": 6
+  }
+}
+)";
+        }
+
+        //Then etcdlib_watchDir should return the expire action
+        rc = etcdlib_watchDir(etcdlib, "/test", 16, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_EXPIRE, action);
+        EXPECT_STREQ("/test/key6", key);
+        EXPECT_EQ(nullptr, value);
+        EXPECT_STREQ("bar", prevValue);
+        EXPECT_FALSE(isDir);
+        EXPECT_EQ(16, modifiedIndex);
+        free(key);
+        free(value);
+        free(prevValue);
+
+        //When preparing an etcd stubbed reply, delete dir action
+        //Note if a dir is deleted, the is no event for the children
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = R"(
+{
+    "action": "delete",
+    "node": {
+        "createdIndex": 1,
+        "dir": true,
+        "key": "/test",
+        "modifiedIndex": 17
+    },
+    "prevNode": {
+    	"createdIndex": 1,
+    	"dir": true,
+    	"key": "/test",
+    	"modifiedIndex": 1
+    }
+}
+)";
+        }
+
+
+        //Then etcdlib_watchDir should return the delete action
+        rc = etcdlib_watchDir(etcdlib, "/test", 17, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+        EXPECT_STREQ(ETCDLIB_ACTION_DELETE, action);
+        EXPECT_STREQ("/test", key);
+        EXPECT_EQ(nullptr, value);
+        EXPECT_EQ(nullptr, prevValue);
+        EXPECT_TRUE(isDir);
+        EXPECT_EQ(17, modifiedIndex);
+        free(key);
+        free(value);
+        free(prevValue);
+    }
+
+    static void watchAndDestroyEtcd(etcdlib_t* etcdlib) {
+        // When preparing an etcd stubbed reply, delete dir action
+
+        auto completeCallPromise = std::promise<void>{};
+        auto completeCallFuture = completeCallPromise.get_future();
+        auto processingRequestPromise = std::promise<void>{};
+        auto processingRequestFuture = processingRequestPromise.get_future();
+
+        {
+            std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->syncCanCompleteRequest = &completeCallFuture;
+            mgTestCtx->inRequestCallPromise = &processingRequestPromise;
+        }
+
+        //call watchDir in a separate thread
+        std::thread thread{[etcdlib] {
+            const char* action = nullptr;
+            char* key = nullptr;
+            char* value = nullptr;
+            char* prevValue = nullptr;
+            bool isDir = false;
+            long modifiedIndex = 0;
+            auto rc = etcdlib_watchDir(etcdlib, "/test", 1, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
+            ASSERT_EQ(ETCDLIB_RC_TIMEOUT, rc);
+        }};
+
+        processingRequestFuture.wait();
+
+        //destroy etcdlib, which should unblock the watchDir call
+        etcdlib_destroy(etcdlib);
+        thread.join();
+        completeCallPromise.set_value();
+    }
+
 
   protected:
     static std::shared_ptr<mg_context> mgCtx;
     static std::unique_ptr<MgTestContext> mgTestCtx;
-    static std::atomic<int> replyLogCount;
     static std::atomic<int> invalidContentLogCount;
     static std::atomic<int> errorMessageCount;
 };
 
 std::shared_ptr<mg_context> EtcdlibStubTestSuite::mgCtx{};
 std::unique_ptr<MgTestContext> EtcdlibStubTestSuite::mgTestCtx{};
-std::atomic<int> EtcdlibStubTestSuite::replyLogCount{0};
 std::atomic<int> EtcdlibStubTestSuite::invalidContentLogCount{0};
 std::atomic<int> EtcdlibStubTestSuite::errorMessageCount{0};
 
@@ -569,4 +890,48 @@ TEST_F(EtcdlibStubTestSuite, DeleteEtcdEntryTest) {
 
 //TODO test delete with invalid content reply
 
+
+TEST_F(EtcdlibStubTestSuite, GetEtcdDirTest) {
+    //Given an etcdlib instance
+    etcdlib_autoptr_t etcdlib = createEtcdlib();
+    EXPECT_NE(etcdlib, nullptr);
+    getEtcdDirTest(etcdlib);
+
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    getEtcdDirTest(etcdlib2);
+}
+
+//TODO test getDir with invalid content reply
+
+TEST_F(EtcdlibStubTestSuite, WatchEtcdDirTest) {
+    //Given an etcdlib instance
+    etcdlib_autoptr_t etcdlib = createEtcdlib();
+    EXPECT_NE(etcdlib, nullptr);
+    watchEtcdDirTest(etcdlib);
+
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    watchEtcdDirTest(etcdlib2);
+}
+
+TEST_F(EtcdlibStubTestSuite, WatchAndDestroyEtcdTest) {
+    //Given an etcdlib instance
+    // etcdlib_autoptr_t etcdlib = createEtcdlib();
+    // EXPECT_NE(etcdlib, nullptr);
+    // watchAndDestroyEtcd(etcdlib);
+
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    watchAndDestroyEtcd(etcdlib2);
+}
+
+
 //TODO test watch
+
+//TODO test createDir
+//TODO test refreshDir
+//TODO test deleteDir

@@ -43,6 +43,14 @@ public:
         (void)fprintf(stderr, "\n");
     }
 
+    static const char* createUrl(char* localBuf, size_t localBufSize, char** heapBufOut, const char* fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+        const char* url = etcdlib_createUrl(localBuf, localBufSize, heapBufOut, fmt, args);
+        va_end(args);
+        return url;
+    }
+
     static std::atomic<int> errorMessageCount;
 };
 
@@ -103,7 +111,7 @@ TEST_F(EtcdlibTestSuite, CreateWithOptionsTest) {
 TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_OK), "ETCDLIB OK");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_TIMEOUT), "ETCDLIB Timeout");
-    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_CLEARED), "ETCDLIB Event Cleared");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_INDEX_CLEARED), "ETCDLIB Event Index Cleared");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ENOMEM), "ETCDLIB Out of memory or maximum number of curl handles reached");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ETCD_ERROR), "ETCDLIB Etcd error");
     EXPECT_STREQ(etcdlib_strerror(42), "ETCDLIB Unknown error");
@@ -130,26 +138,31 @@ TEST_F(EtcdlibTestSuite, ParseEtcdReplyTest) {
 
     //When parsing a valid etcd reply
     etcdlib_reply_data_t reply{};
+    reply.header = const_cast<char*>("X-Etcd-Index: 1234");
     reply.memory = const_cast<char*>(R"({"node": {"value": "test"}, "action": "get"})");
     json_auto_t* jsonRoot = nullptr;
+    json_t* jsonNode = nullptr;
     const char* value = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot, &value);
+    long index = 0;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot, &jsonNode, &value, &index);
 
     //Then the reply should be parsed correctly
     EXPECT_EQ(ETCDLIB_RC_OK, rc);
     EXPECT_NE(jsonRoot, nullptr);
+    EXPECT_NE(jsonNode, nullptr);
     EXPECT_STREQ(value, "test");
+    EXPECT_EQ(index, 1234);
     EXPECT_EQ(0, errorMessageCount);
 
     //When parsing the reply with no checks and outputs
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     //Then the reply should be parsed correctly
     EXPECT_EQ(ETCDLIB_RC_OK, rc);
 
     //When parsing the reply with an invalid action
     json_auto_t* jsonRoot2 = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "set", &jsonRoot2, nullptr);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "set", &jsonRoot2, nullptr, nullptr, nullptr);
 
     //Then the reply returns an error code
     EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
@@ -159,7 +172,7 @@ TEST_F(EtcdlibTestSuite, ParseEtcdReplyTest) {
     //When parsing the reply with an invalid reply
     reply.memory = const_cast<char*>("plain text response");
     json_auto_t* jsonRoot3 = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot3, nullptr);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot3, nullptr, nullptr, nullptr);
 
     //Then the reply returns an error code
     EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
@@ -168,27 +181,66 @@ TEST_F(EtcdlibTestSuite, ParseEtcdReplyTest) {
     //When parsing the reply with an invalid json
     reply.memory = const_cast<char*>(R"({"node":{}, "action": "get"})");
     json_auto_t* jsonRoot4 = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot4, &value);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot4, nullptr, &value, nullptr);
 
     //Then the reply returns an error code
     EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
     EXPECT_EQ(3, errorMessageCount);
 
     //When parsing the reply with an invalid json
-    reply.memory = const_cast<char*>("{}");
+    reply.memory = const_cast<char*>(R"({"action": "get"})");
     json_auto_t* jsonRoot5 = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, &jsonRoot5, &value);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot4, &jsonNode, nullptr, nullptr);
 
     //Then the reply returns an error code
     EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
     EXPECT_EQ(4, errorMessageCount);
 
+    //When parsing the reply with an invalid json
+    reply.memory = const_cast<char*>("{}");
+    json_auto_t* jsonRoot6 = nullptr;
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, &jsonRoot6, nullptr, &value, nullptr);
+
+    //Then the reply returns an error code
+    EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+    EXPECT_EQ(5, errorMessageCount);
+
     //When parsing the reply with an etcd error
     reply.memory = const_cast<char*>(R"({"errorCode": 100, "message": "error message"})");
-    json_auto_t* jsonRoot6 = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     //Then the reply returns an error code
     EXPECT_EQ(ETCDLIB_RC_ETCD_ERROR, rc);
-    EXPECT_EQ(5, errorMessageCount);
+    EXPECT_EQ(6, errorMessageCount);
 }
+
+TEST_F(EtcdlibTestSuite, CreateEtcdUrlTest) {
+    //whitebox test for etcdlib_createUrl
+    etcdlib_create_options_t opts{};
+    etcdlib_autoptr_t etcdlib = nullptr;
+    auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //When creating an url with a small buffer
+    char localBuf[10];
+    char* heapBuf = nullptr;
+    const char* url = createUrl(localBuf, sizeof(localBuf), &heapBuf, "http://localhost:%i", 1234);
+
+    //Then the url should be created correctly on the heap
+    EXPECT_STREQ("http://localhost:1234", url);
+    EXPECT_NE(url, localBuf);
+    EXPECT_EQ(url, heapBuf);
+    free(heapBuf);
+
+    //When creating an url with a large enough buffer
+    char localBuf2[100];
+    char* heapBuf2 = nullptr;
+    const char* url2 = createUrl(localBuf2, sizeof(localBuf2), &heapBuf2, "http://localhost:%i", 1234);
+
+    //Then the url should be created correctly on the local buffer
+    EXPECT_STREQ("http://localhost:1234", url2);
+    EXPECT_EQ(url2, localBuf2);
+    EXPECT_EQ(heapBuf2, nullptr);
+}
+
+//TODO test get, create, refresh, delete, and update with unknown host or invalid port.

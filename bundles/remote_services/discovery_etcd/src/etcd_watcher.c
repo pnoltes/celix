@@ -115,7 +115,7 @@ static void add_node(const char *key, const char *value, void* arg) {
  * discovery endpoint (see etcd documentation).
  */
 static celix_status_t
-etcdWatcher_addAlreadyExistingWatchpoints(etcd_watcher_t* watcher, discovery_t* discovery, long long* highestModified) {
+etcdWatcher_addAlreadyExistingWatchpoints(etcd_watcher_t* watcher, discovery_t* discovery, long* highestModified) {
     celix_status_t status = CELIX_SUCCESS;
 
     char rootPath[MAX_ROOTNODE_LENGTH];
@@ -136,7 +136,7 @@ static celix_status_t etcdWatcher_addOwnFramework(etcd_watcher_t *watcher)
     char localNodePath[MAX_LOCALNODE_LENGTH];
     char *value = NULL;
  	char url[MAX_VALUE_LENGTH];
-    long long int modIndex;
+    long int modIndex;
     char* endpoints = NULL;
 
 	celix_bundle_context_t *context = watcher->discovery->context;
@@ -227,23 +227,22 @@ static void* etcdWatcher_run(void* data) {
     etcd_watcher_t* watcher = (etcd_watcher_t*)data;
     time_t timeBeforeWatch = time(NULL);
     char rootPath[MAX_ROOTNODE_LENGTH];
-    long long highestModified = 0;
+    long nextModifiedIndex = 0;
 
     celix_bundle_context_t* context = watcher->discovery->context;
 
-    etcdWatcher_addAlreadyExistingWatchpoints(watcher, watcher->discovery, &highestModified);
+    etcdWatcher_addAlreadyExistingWatchpoints(watcher, watcher->discovery, &nextModifiedIndex);
     etcdWatcher_getRootPath(context, rootPath);
 
     while (watcher->running) {
         char* rkey = NULL;
         char* value = NULL;
-        char* preValue = NULL;
-        char* action = NULL;
-        long long modIndex;
+        const char* action = NULL;
 
-        int etcdRc = etcdlib_watch(
-            watcher->etcdlib, rootPath, highestModified + 1, &action, &preValue, &value, &rkey, &modIndex);
-        if (etcdRc == 0 && action != NULL) {
+        long returnedModifiedIndex = 0;
+        int etcdRc = etcdlib_watchDir(
+            watcher->etcdlib, rootPath, nextModifiedIndex + 1, &action, &rkey, &value, NULL, NULL, &returnedModifiedIndex);
+        if (etcdRc == ETCDLIB_RC_OK && action != NULL) {
             if (strcmp(action, "set") == 0) {
                 etcdWatcher_addEntry(watcher, rkey, value);
             } else if (strcmp(action, "delete") == 0) {
@@ -256,10 +255,10 @@ static void* etcdWatcher_run(void* data) {
                 celix_logHelper_error(*watcher->loghelper, "Unexpected action: %s", action);
             }
 
-            highestModified = modIndex;
-        } else if (etcdRc == ETCDLIB_RC_EVENT_CLEARED) {
+            nextModifiedIndex = returnedModifiedIndex + 1;
+        } else if (etcdRc == ETCDLIB_RC_EVENT_INDEX_CLEARED) {
             celix_logHelper_error(
-                *watcher->loghelper, "Got event cleared for remote service etcd watch for index %lli", modIndex);
+                *watcher->loghelper, "Got event cleared for remote service etcd watch for index %li", nextModifiedIndex);
 
             //Note, to recover from an event cleared return a new etcdlib_get followed by etcdlib_watch is needed.
             celix_logHelper_error(
@@ -272,9 +271,7 @@ static void* etcdWatcher_run(void* data) {
             sleep(watcher->ttl / 4);
         }
 
-        FREE_MEM(action);
         FREE_MEM(value);
-        FREE_MEM(preValue);
         FREE_MEM(rkey);
 
         // update own framework uuid
