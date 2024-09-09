@@ -86,18 +86,6 @@ __attribute__((constructor)) void celix_err_initThreadSpecificStorageKey() {
     }
 }
 
-__attribute__((destructor)) void celix_err_deinitThreadSpecificStorageKey() {
-    if (!celix_err_tssKeyInitialized) {
-        fprintf(stderr, "celix_err_tssKey is not initialized\n");
-        return;
-    }
-
-    celix_status_t status = celix_tss_delete(celix_err_tssKey);
-    if (status != CELIX_SUCCESS) {
-        fprintf(stderr,"Failed to delete thread specific storage key for celix_err\n");
-    }
-}
-
 const char* celix_err_popLastError() {
     const char* result = NULL;
     celix_err_t* err = celix_err_getRawTssErr();

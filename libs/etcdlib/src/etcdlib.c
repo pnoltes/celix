@@ -48,8 +48,8 @@
 
 #define ETCD_HEADER_INDEX               "X-Etcd-Index: "
 
-#define DEFAULT_CURL_TIMEOUT            10
-#define DEFAULT_CURL_CONNECT_TIMEOUT    10
+#define DEFAULT_CURL_TIMEOUT            30000
+#define DEFAULT_CURL_CONNECT_TIMEOUT    10000
 
 #define ETCDLIB_MAX_COMPLETED_CURL_ENTRIES 16
 
@@ -64,13 +64,18 @@ typedef struct /*anon*/ {
 struct etcdlib {
     const char* scheme;
     char *server;
-    int port;
+    unsigned int port;
+    unsigned int connectTimeoutInMs;
+    unsigned int timeoutInMs;
 
     void* logInvalidResponseReplyData;
     etcdlib_log_invalid_response_reply_callback* logInvalidResponseReplyCallback;
     void* logErrorMessageData;
     etcdlib_log_error_message_callback* logErrorMessageCallback;
 
+    size_t activeRequest; //atomic, counts the number of active curl requests
+
+    //Used for curl multi
     CURLM* curlMulti;
     bool curlMultiRunning; //atomic flag, only used if curlMulti is not NULL
     pthread_mutex_t curlMutex; //protects completedCurlEntries, only used if curlMulti is not NULL
@@ -102,7 +107,20 @@ static void etcdlib_autofree_callback(void* ptr) {
 
 #define etcdlib_autofree __attribute__((cleanup(etcdlib_autofree_callback)))
 
-#define curl_autoptr CURL* __attribute__((cleanup(curl_easy_cleanup)))
+
+static pthread_key_t etcdlibThreadSpecificCurlsKey;
+static pthread_once_t etcdlibThreadSpecificCurlsOnce = PTHREAD_ONCE_INIT;
+
+static void etcdlib_cleanupThreadSpecificCurl(void* data) {
+    CURL* curl = data;
+    if (curl) {
+        curl_easy_cleanup(curl);
+    }
+}
+
+static void etcdlib_initThreadSpecificCurlsOnce() {
+    pthread_key_create(&etcdlibThreadSpecificCurlsKey, etcdlib_cleanupThreadSpecificCurl);
+}
 
 etcdlib_t *etcdlib_create(const char *server, int port, int flags) {
     etcdlib_create_options_t opts = ETCDLIB_EMPTY_CREATE_OPTIONS;
@@ -130,7 +148,7 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
 
     const char* schemeConfigured = options->useHttps ? "https" : "http";
     const char* serverConfigured = options->server ? options->server : "localhost";
-    const int portConfigured = options->port > 0 ? options->port : 2379;
+    const unsigned int portConfigured = options->port > 0 ? options->port : 2379;
 
     etcdlib_autofree etcdlib_t *lib = calloc(1, sizeof(*lib));
     etcdlib_autofree char* server = strndup(serverConfigured, 1024 * 1024 * 10);
@@ -151,6 +169,8 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
     lib->scheme = schemeConfigured;
     lib->server = etcdlib_steal_ptr(server);
     lib->port = portConfigured;
+    lib->connectTimeoutInMs = options->connectTimeoutInMs > 0 ? options->connectTimeoutInMs : DEFAULT_CURL_CONNECT_TIMEOUT;
+    lib->timeoutInMs = options->timeoutInMs > 0 ? options->timeoutInMs : DEFAULT_CURL_TIMEOUT;
     lib->completedCurlEntriesSize = ETCDLIB_MAX_COMPLETED_CURL_ENTRIES;
 
     if (options->useMultiCurl) {
@@ -181,7 +201,8 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
             return ETCDLIB_RC_ENOMEM;
         }
     } else {
-        //TODO setup and use curlshare, in most cases this is enough and curlmulti is not needed
+        //use CURL* per thread.
+        pthread_once(&etcdlibThreadSpecificCurlsOnce, etcdlib_initThreadSpecificCurlsOnce);
     }
 
     *etcdlib = etcdlib_steal_ptr(lib);
@@ -190,16 +211,10 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
 
 static void etcdlib_stopMultiCurl(etcdlib_t* lib) {
     __atomic_store_n(&lib->curlMultiRunning, false, __ATOMIC_RELEASE);
-    int runningHandles;
+    int runningHandles = 0;
     curl_multi_perform(lib->curlMulti, &runningHandles);
     for (int i = 0; i < runningHandles; i++) {
         curl_multi_wakeup(lib->curlMulti); //note wakeup only wakes up a single handle
-    }
-
-    //wait until there are no more running handles
-    while (runningHandles > 0) {
-        curl_multi_perform(lib->curlMulti, &runningHandles);
-        usleep(1000);
     }
 }
 
@@ -208,9 +223,19 @@ void etcdlib_destroy(etcdlib_t *etcdlib) {
         if (etcdlib->curlMulti) {
             etcdlib_stopMultiCurl(etcdlib);
             curl_multi_cleanup(etcdlib->curlMulti);
+        }
+
+        size_t count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
+        while (count > 0) {
+            sched_yield();
+            count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
+        }
+
+        if (etcdlib->curlMulti) {
             pthread_mutex_destroy(&etcdlib->curlMutex);
             free(etcdlib->completedCurlEntries);
         }
+
         free(etcdlib->server);
         free(etcdlib);
     }
@@ -246,6 +271,8 @@ const char* etcdlib_strerror(int status) {
         return "ETCDLIB Content of response is invalid (not JSON, missing required fields or missing header)";
     case ETCDLIB_RC_ETCD_ERROR:
         return "ETCDLIB Etcd error";
+    case ETCDLIB_RC_STOPPING:
+        return "ETCDLIB Stopping";
     default:
         return "ETCDLIB Unknown error";
     }
@@ -784,7 +811,7 @@ etcdlib_status_t etcdlib_watchDir(etcdlib_t* etcdlib,
         etcdlib, true, dir, watchIndex, action, modifiedKey, modifiedValue, previousValue, isDir, modifiedIndex);
 }
 
-etcdlib_status_t etcdlib_del(etcdlib_t* etcdlib, const char* key) {
+etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* key) {
     key = etcdlib_skipLeadingSlashes(key);
 
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
@@ -837,6 +864,52 @@ static size_t etcdlib_writeHeaderCallback(void* contents, size_t size, size_t nm
     return realsize;
 }
 
+static CURL* etcdlib_getCurl(etcdlib_t* etcdlib) {
+    __atomic_fetch_add(&etcdlib->activeRequest, 1, __ATOMIC_ACQ_REL);
+    CURL* curl;
+    if (etcdlib->curlMulti) {
+        curl = curl_easy_init();
+    } else {
+        curl = pthread_getspecific(etcdlibThreadSpecificCurlsKey);
+        if (!curl) {
+            curl = curl_easy_init();
+            if (curl) {
+                int rc = pthread_setspecific(etcdlibThreadSpecificCurlsKey, curl);
+                if (rc != 0) {
+                    curl_easy_cleanup(curl);
+                    ETCDLIB_LOG_ERROR(etcdlib, "ETCDLIB: Error setting thread specific data");
+                    curl = NULL;
+                }
+            }
+        }
+    }
+    return curl;
+}
+
+static void etcdlib_cleanupCurl(etcdlib_t* etcdlib, CURL* curl) {
+    __atomic_fetch_sub(&etcdlib->activeRequest, 1, __ATOMIC_ACQ_REL);
+    if (etcdlib->curlMulti) {
+        curl_easy_cleanup(curl);
+    } else {
+        //nop, curl is cleaned up by the thread specific destructor
+    }
+}
+
+static etcdlib_status_t etcdlib_transformCurlCodeToEtcdlibStatus(CURLcode code, CURL* curl) {
+    if (code == CURLE_OK) {
+        return ETCDLIB_RC_OK;
+    }
+    if (code == CURLE_HTTP_RETURNED_ERROR) {
+        long httpCode;
+        (void)curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+        return ETCDLIB_INTERNAL_HTTPCODE_FLAG | httpCode;
+    }
+    if (code == CURLE_OPERATION_TIMEDOUT) {
+        return ETCDLIB_RC_TIMEOUT;
+    }
+    return ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
+}
+
 static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
                                                request_t request,
                                                const char* reqData,
@@ -863,14 +936,14 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
         return ETCDLIB_RC_ENOMEM;
     }
 
-    curl_autoptr curl = curl_easy_init(); //TODO check if this can use thread_local storage
+    CURL* curl = etcdlib_getCurl(etcdlib);
     if (!curl) {
         return ETCDLIB_RC_ENOMEM;
     }
 
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECT_TIMEOUT);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, etcdlib->timeoutInMs);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, etcdlib->connectTimeoutInMs);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, etcdlib_writeMemoryCallback);
@@ -898,7 +971,7 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
             rc = ETCDLIB_INTERNAL_CURLMCODE_FLAG | mc;
         } else {
             int running;
-            mc = curl_multi_perform(etcdlib->curlMulti, &running); //TODO how to handle a timeout in curl multi?
+            mc = curl_multi_perform(etcdlib->curlMulti, &running);
             if (mc == CURLM_OK) {
                 rc = etcdlib_waitForMultiCurl(etcdlib, curl);
             } else {
@@ -907,21 +980,14 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
         }
     } else {
         const CURLcode code = curl_easy_perform(curl);
-        if (code == CURLE_HTTP_RETURNED_ERROR) {
-            long httpCode;
-            (void)curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-            rc = ETCDLIB_INTERNAL_HTTPCODE_FLAG | httpCode;
-        } else if (code == CURLE_OPERATION_TIMEDOUT) {
-            rc = ETCDLIB_RC_TIMEOUT;
-        } else if (code != CURLE_OK) {
-            rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
-        }
+        rc = etcdlib_transformCurlCodeToEtcdlibStatus(code, curl);
     }
 
     if (rc == ETCDLIB_RC_OK) {
         rc = etcdlib_parseEtcdReply(etcdlib, &reply, expectedAction, jsonRootOut, nodeOut, valueOut, indexOut);
         etcdlib_logReply(etcdlib, rc, reply.memory, NULL);
     }
+    etcdlib_cleanupCurl(etcdlib, curl);
     etcdlib_freeReplyData(&reply);
 
     return rc;
@@ -979,11 +1045,19 @@ static etcdlib_status_t etcdlib_addCompletedCurlEntry(etcdlib_t* lib, CURL* curl
     return rc;
 }
 
+static CURLMcode etcdlib_removeCurlFromCurlMulti(etcdlib_t* lib, CURL* curl) {
+    CURLMcode mCode = curl_multi_remove_handle(lib->curlMulti, curl);
+    if (mCode != CURLM_OK) {
+        ETCDLIB_LOG_ERROR(lib, "ETCDLIB: curl_multi_remove_handle failed with code %d", mCode);
+    }
+    return mCode;
+}
+
 static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
     etcdlib_status_t rc = ETCDLIB_RC_OK;
     CURLcode code = CURLE_OK;
     int nrOfHandlesRunning;
-    bool etcdlibRunning;
+    bool etcdlibRunning = true;
     do {
         const etcdlib_completed_curl_entry_t entry = etcdlib_removeCompletedCurlEntry(lib, curl);
         if (entry.curl) {
@@ -992,13 +1066,19 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
         }
         CURLMsg* msg = curl_multi_info_read(lib->curlMulti, &nrOfHandlesRunning);
         if (msg && (msg->msg == CURLMSG_DONE) && (msg->easy_handle == curl)) {
-            curl_multi_remove_handle(lib->curlMulti, curl); //TODO handle return code
+            const CURLMcode mCode = etcdlib_removeCurlFromCurlMulti(lib, curl);
+            if (mCode != CURLM_OK) {
+                return ETCDLIB_INTERNAL_CURLMCODE_FLAG | mCode;
+            }
             code = msg->data.result;
             break;
         }
         if (msg && (msg->msg == CURLMSG_DONE)) {
             //found another, non-matching, completed curl, add it to the completedCurlEntries
-            curl_multi_remove_handle(lib->curlMulti, msg->easy_handle); //TODO handle return code
+            const CURLMcode mCode = etcdlib_removeCurlFromCurlMulti(lib, curl);
+            if (mCode != CURLM_OK) {
+                return ETCDLIB_INTERNAL_CURLMCODE_FLAG | mCode;
+            }
             rc = etcdlib_addCompletedCurlEntry(lib, msg->easy_handle, msg->data.result);
             while (rc == ETCDLIB_INTERNAL_RC_MAX_ENTRIES_REACHED) {
                 usleep(1000); //wait a bit and try again
@@ -1012,14 +1092,11 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
         etcdlibRunning = __atomic_load_n(&lib->curlMultiRunning, __ATOMIC_ACQUIRE);
     } while (etcdlibRunning && rc == ETCDLIB_RC_OK);
 
-    if (rc == ETCDLIB_RC_OK && code != CURLE_OK) {
-        if (code == CURLE_HTTP_RETURNED_ERROR) {
-            long httpCode;
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-            rc = ETCDLIB_INTERNAL_HTTPCODE_FLAG | httpCode;
-        } else {
-            rc = ETCDLIB_INTERNAL_CURLCODE_FLAG | code;
-        }
+    if (!etcdlibRunning) {
+        return ETCDLIB_RC_STOPPING;
+    }
+    if (rc == ETCDLIB_RC_OK) {
+        rc = etcdlib_transformCurlCodeToEtcdlibStatus(code, curl);
     }
     return rc;
 }
@@ -1034,3 +1111,14 @@ int etcdlib_getHttpCodeFromStatus(etcdlib_status_t status) {
     }
     return 0;
 }
+
+// bool etcdlib_isStatusCurlError(etcdlib_status_t status) {
+//     return status & ETCDLIB_INTERNAL_CURLCODE_FLAG;
+// }
+//
+// int etcdlib_getCurlCodeFromStatus(etcdlib_status_t status) {
+//     if (status & ETCDLIB_INTERNAL_CURLCODE_FLAG) {
+//         return status & ~ETCDLIB_INTERNAL_CURLCODE_FLAG;
+//     }
+//     return 0;
+// }

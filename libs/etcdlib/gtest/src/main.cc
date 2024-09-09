@@ -28,7 +28,6 @@ int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
     int rc = RUN_ALL_TESTS();
 
-    printf("cleaning up curl\n");
     curl_global_cleanup();
 
     return rc;

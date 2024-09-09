@@ -41,7 +41,7 @@ typedef struct {
 } etcdlib_reply_data_t;
 
 /**
- * @brief Extract HTTP return codes from the provided etcdlib_status_t
+ * @brief Check if the provided status contains an HTTP error return code
  */
 bool etcdlib_isStatusHttpError(etcdlib_status_t status);
 
@@ -49,6 +49,16 @@ bool etcdlib_isStatusHttpError(etcdlib_status_t status);
  * @brief Check if the provided status contains an HTTP error return code
  */
 int etcdlib_getHttpCodeFromStatus(etcdlib_status_t status);
+
+// /**
+// * @brief Check if the provided status contains a curl error code
+// */
+// bool etcdlib_isStatusCurlError(etcdlib_status_t status);
+//
+// /**
+//  * @brief Extract curl_multi return codes from the provided etcdlib_status_t
+//  */
+// int etcdlib_getCurlCodeFromStatus(etcdlib_status_t status);
 
 /**
  * @brief Parse and check the provided etcd reply.

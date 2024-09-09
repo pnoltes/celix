@@ -346,7 +346,7 @@ celix_status_t etcdWatcher_destroy(etcd_watcher_t *watcher) {
 	// register own framework
 	status = etcdWatcher_getLocalNodePath(watcher->discovery->context, localNodePath);
 
-	if (status != CELIX_SUCCESS || etcdlib_del(watcher->etcdlib, localNodePath) == false)
+	if (status != CELIX_SUCCESS || etcdlib_delete(watcher->etcdlib, localNodePath) == false)
 	{
 		celix_logHelper_log(*watcher->loghelper, CELIX_LOG_LEVEL_WARNING, "Cannot remove local discovery registration.");
 	}

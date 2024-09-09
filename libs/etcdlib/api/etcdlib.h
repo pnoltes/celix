@@ -62,6 +62,7 @@ extern "C" {
     6 /** In case of an etcdlib error, details are logged using the                                                    \
         etcdlib_log_invalid_response_error_callback. */
 #define ETCDLIB_RC_ENOMEM 7
+#define ETCDLIB_RC_STOPPING 8 /** The etcdlib instance is stopping */
 
 /**
  * @brief Opaque struct for etcdlib_t
@@ -127,13 +128,17 @@ typedef void etcdlib_log_error_message_callback(void* data, const char* errorFmt
  * @brief ETCD-LIB create options
  */
 typedef struct etcdlib_create_options {
-    bool useHttps;       /**< If true use HTTPS, if false use HTTP. */
-    const char* server;  /**< The server where Etcd can be reached. If NULL defaults to "localhost" */
-    int port;            /**< The port where Etcd can be reached. If <= 0 defaults to  2379. */
-    bool initializeCurl; /**< If true curl is initialized (globally), if false curl is not initialized. */
-    bool useMultiCurl;   /**< If true curl is used in multi mode, if false curl is used in single mode.
-                            Multi mode performs better, but also uses more resources. */
-                         // TODO options for max nr of completed curl entries (multi mode)
+    bool useHttps;                   /**< If true use HTTPS, if false use HTTP. */
+    const char* server;              /**< The server where Etcd can be reached. If NULL defaults to "localhost" */
+    unsigned int port;               /**< The port where Etcd can be reached. If 0, defaults to 2379. */
+    unsigned int connectTimeoutInMs; /**< The connect timeout in milliseconds. If 0, defaults to 10000 milliseconds.
+                           Note this only for the time it takes to connect to the server. */
+    unsigned int timeoutInMs; /**< The timeout in milliseconds. If 0, defaults to 30000 milliseconds. This is the time
+                   for the whole request, including the time it takes to connect to the server. */
+    bool initializeCurl;      /**< If true curl is initialized (globally), if false curl is not initialized. */
+    bool useMultiCurl;        /**< If true curl is used in multi mode, if false curl is used in single mode.
+                                 Multi mode performs better, but also uses more resources. */
+                              // TODO options for max nr of completed curl entries (multi mode)
     // TODO max nr of parallel curl connections (multi mode)
     void* logInvalidResponseReplyData; /**< Data passed to the logInvalidResponseContentCallback */
     etcdlib_log_invalid_response_reply_callback*
@@ -161,7 +166,10 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_o
                                                            etcdlib_t** etcdlib);
 
 /**
- * @brief Destroys the ETCD-LIB.  with the server/port where Etcd can be reached.
+ * @brief Destroys the ETCD-LIB.
+ *
+ * If multi curl is used, this will also wakeup the watch calls. Else TODO what happens?
+ *
  * @param etcdlib_t* The ETCD-LIB instance.
  */
 ETCDLIB_EXPORT void etcdlib_destroy(etcdlib_t* etcdlib);
@@ -226,7 +234,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* 
  * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
  * @return 0 on success, non-zero otherwise. //TODO what happens if key does not exist?
  */
-ETCDLIB_EXPORT etcdlib_status_t etcdlib_del(etcdlib_t* etcdlib, const char* key);
+ETCDLIB_EXPORT etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* key);
 
 // TODO watch entry?
 
@@ -268,7 +276,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char
  * - An event occurs in the watched directory, which can be a set, delete, expire, update,
  * compareAndSwap or compareAndDelete event.
  * - A timeout occurs (ETCDLIB_RC_TIMEOUT is returned).
- * - The etcdlib instance is destroyed (ETCDLIB_RC_OK is returned).
+ * - In case of useMultiCurl, when the etcdlib instance is destroyed (ETCDLIB_RC_STOPPED is then returned).
  *
  * a watch will return directly if:
  * - The server return an unexpected HTTP code(ETCDLIB_RC_ETCD_ERROR is returned).
@@ -296,6 +304,8 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char
  * for freeing the memory.
  * @param[out] isDir If not NULL, set to true if the modified key is a directory.
  * @param[out] modifiedIndex If not NULL, the modified index in the etcd node.modifiedIndex field returned by etcd.
+ * @return 0 on success, non-zero otherwise. For useMultiCurl, ETCDLIB_RC_STOPPING is returned when the etcdlib instance
+ * is destroyed.
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_watchDir(etcdlib_t* etcdlib,
                                                  const char* dir,

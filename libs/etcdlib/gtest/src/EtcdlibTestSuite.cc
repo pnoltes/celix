@@ -51,6 +51,52 @@ public:
         return url;
     }
 
+    static void testErrorReturn(etcdlib_t* etcdlib, etcdlib_status_t expectedStatus) {
+        char* value = nullptr;
+        auto rc = etcdlib_get(etcdlib, "key", &value, nullptr);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+        rc = etcdlib_set(etcdlib, "key", "value", 0, false);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+        rc = etcdlib_refresh(etcdlib, "key", 5);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+        rc = etcdlib_delete(etcdlib, "key");
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+        //TODO rc = etcdlib_watch()
+
+        rc = etcdlib_getDir(etcdlib, "dir", nullptr, nullptr, nullptr);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+//TODO
+        // rc = etcdlib_createDir(etcdlib, "dir", 0);
+        // EXPECT_NE(rc, ETCDLIB_RC_OK);
+        // EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+        //                               << ", got: " << etcdlib_strerror(rc);
+        //
+        // rc = etcdlib_deleteDir(etcdlib, "dir");
+        // EXPECT_NE(rc, ETCDLIB_RC_OK);
+        // EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+        //                               << ", got: " << etcdlib_strerror(rc);
+
+        rc = etcdlib_watchDir(etcdlib, "dir", 1, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+    }
+
     static std::atomic<int> errorMessageCount;
 };
 
@@ -114,6 +160,7 @@ TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_INDEX_CLEARED), "ETCDLIB Event Index Cleared");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ENOMEM), "ETCDLIB Out of memory or maximum number of curl handles reached");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ETCD_ERROR), "ETCDLIB Etcd error");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_STOPPING), "ETCDLIB Stopping");
     EXPECT_STREQ(etcdlib_strerror(42), "ETCDLIB Unknown error");
 
     //curlcode error
@@ -243,4 +290,67 @@ TEST_F(EtcdlibTestSuite, CreateEtcdUrlTest) {
     EXPECT_EQ(heapBuf2, nullptr);
 }
 
-//TODO test get, create, refresh, delete, and update with unknown host or invalid port.
+TEST_F(EtcdlibTestSuite, UnresolvableHostTest) {
+    //When creating an etcdlib with an unresolvable host
+    etcdlib_autoptr_t lib1 = etcdlib_create("unresolvable_host", 2379, ETCDLIB_NO_CURL_INITIALIZATION);
+    ASSERT_NE(lib1, nullptr);
+
+    //Then calls to etcdlib_get, etcdlib_create, etcdlib_refresh, etcdlib_delete, etc should returns an error
+    testErrorReturn(lib1, ETCDLIB_INTERNAL_CURLCODE_FLAG | CURLE_COULDNT_RESOLVE_HOST);
+
+    //When creating an etcdlib with an unresolvable host and using multi curl
+    etcdlib_create_options_t opts{};
+    opts.useMultiCurl = true;
+    opts.server = "unresolvable_host";
+    etcdlib_autoptr_t lib2 = nullptr;
+    auto rc = etcdlib_createWithOptions(&opts, &lib2);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //Then calls to etcdlib_get, etcdlib_create, etcdlib_refresh, etcdlib_delete, etc should returns an error
+    testErrorReturn(lib2, ETCDLIB_INTERNAL_CURLCODE_FLAG | CURLE_COULDNT_RESOLVE_HOST);
+}
+
+TEST_F(EtcdlibTestSuite, UnreachableHostTest) {
+    //When creating an etcdlib with an unreachable host
+    etcdlib_create_options_t opts{};
+    opts.timeoutInMs = 100;
+    opts.server = "192.168.254.254";
+    etcdlib_autoptr_t lib1 = nullptr;
+    auto rc = etcdlib_createWithOptions(&opts, &lib1);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //Then calls to etcdlib_get, etcdlib_create, etcdlib_refresh, etcdlib_delete, etc should returns an error
+    testErrorReturn(lib1, ETCDLIB_RC_TIMEOUT);
+
+    //When creating an etcdlib with an unreachable host and using multi curl
+    opts.useMultiCurl = true;
+    etcdlib_autoptr_t lib2 = nullptr;
+    rc = etcdlib_createWithOptions(&opts, &lib2);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //Then calls to etcdlib_get, etcdlib_create, etcdlib_refresh, etcdlib_delete, etc should returns an error
+    testErrorReturn(lib2, ETCDLIB_RC_TIMEOUT);
+}
+
+TEST_F(EtcdlibTestSuite, ClosedPortTest) {
+    //When creating an etcdlib with a closed port
+    etcdlib_create_options_t opts{};
+    opts.timeoutInMs = 100;
+    opts.server = "localhost";
+    opts.port = 42424;
+    etcdlib_autoptr_t lib1 = nullptr;
+    auto rc = etcdlib_createWithOptions(&opts, &lib1);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //Then calls to etcdlib_get, etcdlib_create, etcdlib_refresh, etcdlib_delete, etc should returns an error
+    testErrorReturn(lib1, ETCDLIB_INTERNAL_CURLCODE_FLAG | CURLE_COULDNT_CONNECT);
+
+    //When creating an etcdlib with a closed port and using multi curl
+    opts.useMultiCurl = true;
+    etcdlib_autoptr_t lib2 = nullptr;
+    rc = etcdlib_createWithOptions(&opts, &lib2);
+    ASSERT_EQ(ETCDLIB_RC_OK, rc);
+
+    //Then calls to etcdlib_get, etcdlib_create, etcdlib_refresh, etcdlib_delete, etc should returns an error
+    testErrorReturn(lib2, ETCDLIB_INTERNAL_CURLCODE_FLAG | CURLE_COULDNT_CONNECT);
+}

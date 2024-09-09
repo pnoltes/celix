@@ -17,6 +17,7 @@
 * under the License.
 */
 
+#include <chrono>
 #include <gtest/gtest.h>
 
 #include "etcdlib.h"
@@ -169,6 +170,8 @@ class EtcdlibStubTestSuite : public ::testing::Test {
 
         if (mgTestCtx->syncCanCompleteRequest) {
             mgTestCtx->syncCanCompleteRequest->wait();
+            delete mgTestCtx->syncCanCompleteRequest;
+            mgTestCtx->syncCanCompleteRequest = nullptr;
         }
 
         return 1;
@@ -190,6 +193,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static etcdlib_create_options_t createEtcdlibOptions() {
         etcdlib_create_options_t opts = {};
         opts.port = port;
+        opts.timeoutInMs = 500;
         opts.logInvalidResponseReplyData = static_cast<void*>(&invalidContentLogCount);
         opts.logInvalidResponseReplyCallback = [](void* data, const char* reply) {
             auto* count = static_cast<std::atomic<int>*>(data);
@@ -457,7 +461,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         }
 
         //Then etcdlib_refresh should return ok
-        auto rc = etcdlib_del(etcdlib, "test");
+        auto rc = etcdlib_delete(etcdlib, "test");
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
     }
 
@@ -743,22 +747,23 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         free(prevValue);
     }
 
-    static void watchAndDestroyEtcd(etcdlib_t* etcdlib) {
+    static void watchAndDestroyEtcd(etcdlib_t* etcdlib, bool multiCurl) {
         // When preparing an etcd stubbed reply, delete dir action
 
         auto completeCallPromise = std::promise<void>{};
-        auto completeCallFuture = completeCallPromise.get_future();
+        auto completeCallFuture = new std::future<void>{std::move(completeCallPromise.get_future())};
         auto processingRequestPromise = std::promise<void>{};
         auto processingRequestFuture = processingRequestPromise.get_future();
 
         {
             std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-            mgTestCtx->syncCanCompleteRequest = &completeCallFuture;
+            mgTestCtx->syncCanCompleteRequest = completeCallFuture;
             mgTestCtx->inRequestCallPromise = &processingRequestPromise;
         }
 
+        std::atomic<bool> etcdWatchCalled{false};
         //call watchDir in a separate thread
-        std::thread thread{[etcdlib] {
+        std::thread thread{[etcdlib, &etcdWatchCalled, multiCurl] {
             const char* action = nullptr;
             char* key = nullptr;
             char* value = nullptr;
@@ -766,15 +771,21 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             bool isDir = false;
             long modifiedIndex = 0;
             auto rc = etcdlib_watchDir(etcdlib, "/test", 1, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
-            ASSERT_EQ(ETCDLIB_RC_TIMEOUT, rc);
+            if (multiCurl) {
+                EXPECT_EQ(ETCDLIB_RC_STOPPING, rc); //multi curl support stopping a watch
+            } else {
+                EXPECT_EQ(ETCDLIB_RC_TIMEOUT, rc); //single curl does not support stopping a watch
+            }
+            etcdWatchCalled = true;
         }};
 
-        processingRequestFuture.wait();
+        processingRequestFuture.wait_for(std::chrono::seconds(10));
 
         //destroy etcdlib, which should unblock the watchDir call
         etcdlib_destroy(etcdlib);
-        thread.join();
         completeCallPromise.set_value();
+        thread.join();
+        ASSERT_TRUE(etcdWatchCalled);
     }
 
 
@@ -918,15 +929,15 @@ TEST_F(EtcdlibStubTestSuite, WatchEtcdDirTest) {
 }
 
 TEST_F(EtcdlibStubTestSuite, WatchAndDestroyEtcdTest) {
-    //Given an etcdlib instance
-    // etcdlib_autoptr_t etcdlib = createEtcdlib();
-    // EXPECT_NE(etcdlib, nullptr);
-    // watchAndDestroyEtcd(etcdlib);
+    // //Given an etcdlib instance
+    etcdlib_t*  etcdlib = createEtcdlib();
+    EXPECT_NE(etcdlib, nullptr);
+    watchAndDestroyEtcd(etcdlib, false);
 
     //Given an etcdlib instance with curl multi handle
-    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    etcdlib_t* etcdlib2 = createEtcdlibWithCurlMulti();
     EXPECT_NE(etcdlib2, nullptr);
-    watchAndDestroyEtcd(etcdlib2);
+    watchAndDestroyEtcd(etcdlib2, true);
 }
 
 
