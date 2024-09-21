@@ -58,7 +58,7 @@ public:
         EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
                                       << ", got: " << etcdlib_strerror(rc);
 
-        rc = etcdlib_set(etcdlib, "key", "value", 0, false);
+        rc = etcdlib_set(etcdlib, "key", "value", 0);
         EXPECT_NE(rc, ETCDLIB_RC_OK);
         EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
                                       << ", got: " << etcdlib_strerror(rc);

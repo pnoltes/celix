@@ -246,7 +246,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key,
  * @return 0 on success, non-zero otherwise
  */
 ETCDLIB_EXPORT etcdlib_status_t
-etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl, bool prevExist);
+etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl);
 
 /**
  * @brief Refresh the ttl of an existing key. The key can be a directory.

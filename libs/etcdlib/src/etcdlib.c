@@ -22,6 +22,7 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
@@ -211,12 +212,18 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
     return ETCDLIB_RC_OK;
 }
 
-static void etcdlib_stopMultiCurl(etcdlib_t* lib) {
-    __atomic_store_n(&lib->curlMultiRunning, false, __ATOMIC_RELEASE);
-    int runningHandles = 0;
-    curl_multi_perform(lib->curlMulti, &runningHandles);
-    for (int i = 0; i < runningHandles; i++) {
-        curl_multi_wakeup(lib->curlMulti); //note wakeup only wakes up a single handle
+static void etcdlib_stopMultiCurl(etcdlib_t* etcdlib) {
+    __atomic_store_n(&etcdlib->curlMultiRunning, false, __ATOMIC_RELEASE);
+    // int runningHandles = 0;
+    // curl_multi_perform(lib->curlMulti, &runningHandles);
+    // for (int i = 0; i < runningHandles; i++) {
+    //     curl_multi_wakeup(lib->curlMulti); //note wakeup only wakes up a single handle
+    // }
+
+    size_t count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
+    while (count > 0) {
+        curl_multi_wakeup(etcdlib->curlMulti);
+        count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
     }
 }
 
@@ -225,12 +232,13 @@ void etcdlib_destroy(etcdlib_t *etcdlib) {
         if (etcdlib->curlMulti) {
             etcdlib_stopMultiCurl(etcdlib);
             curl_multi_cleanup(etcdlib->curlMulti);
-        }
-
-        size_t count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
-        while (count > 0) {
-            sched_yield();
-            count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
+        } else {
+            //wait for all requests to finish
+            size_t count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
+            while (count > 0) {
+                sched_yield();
+                count = __atomic_load_n(&etcdlib->activeRequest, __ATOMIC_ACQUIRE);
+            }
         }
 
         if (etcdlib->curlMulti) {
@@ -561,26 +569,22 @@ etcdlib_status_t etcdlib_getDir(
     return rc;
 }
 
-etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl, bool prevExist) {
+etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl) {
     key = etcdlib_skipLeadingSlashes(key);
 
     char ttlStr[24];
     ttlStr[0] = '\0';
     if (ttl > 0) {
-        (void)snprintf(ttlStr, sizeof(ttlStr), ";ttl=%d", ttl);
+        (void)snprintf(ttlStr, sizeof(ttlStr), ";ttl=%i", ttl);
     }
 
-    const char* prevExistStr = "";
-    if (prevExist) {
-        prevExistStr = ";prevExist=true";
-    }
 
     etcdlib_autofree char* requestAutoFree = NULL;
     char requestBuffer[512];
-    const int needed = snprintf(requestBuffer, sizeof(requestBuffer), "value=%s%s%s", value, ttlStr, prevExistStr);
+    const int needed = snprintf(requestBuffer, sizeof(requestBuffer), "value=%s%s", value, ttlStr);
     const char* request = requestBuffer;
     if (needed >= sizeof(requestBuffer)) {
-        const int written = asprintf(&requestAutoFree, "value=%s%s%s", value, ttlStr, prevExistStr);
+        const int written = asprintf(&requestAutoFree, "value=%s%s", value, ttlStr);
         if (written < 0) {
             return ETCDLIB_RC_ENOMEM;
         }
@@ -612,15 +616,43 @@ etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* va
     return rc;
 }
 
+etcdlib_status_t etcdlib_createDir(etcdlib_t* etcdlib, const char* dir, int ttl) {
+    dir = etcdlib_skipLeadingSlashes(dir);
+
+
+    char request[34];
+    if (ttl > 0) {
+        (void)snprintf(request, sizeof(request), "dir=true;ttl=%i", ttl);
+    } else {
+        (void)snprintf(request, sizeof(request), "dir=true");
+    }
+
+    etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
+                                                 PUT,
+                                                 request,
+                                                 ETCDLIB_ACTION_SET,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL,
+                                                 NULL,
+                                                 "%s://%s:%d/v2/keys/%s",
+                                                 etcdlib->scheme,
+                                                 etcdlib->server,
+                                                 etcdlib->port,
+                                                 dir);
+
+    return rc;
+}
+
 etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
     key = etcdlib_skipLeadingSlashes(key);
 
     char buffer[512];
     etcdlib_autofree char *requestAutoFree = NULL;
-    const int needed = snprintf(buffer, sizeof(buffer), "prevExist=true;refresh=true;ttl=%d", ttl);
+    const int needed = snprintf(buffer, sizeof(buffer), "prevExist=true;refresh=true;ttl=%i", ttl);
     const char* request = buffer;
     if (needed >= sizeof(buffer)) {
-        const int written = asprintf(&requestAutoFree, "prevExist=true;refresh=true;ttl=%d", ttl);
+        const int written = asprintf(&requestAutoFree, "prevExist=true;refresh=true;ttl=%i", ttl);
         if (written < 0) {
             return ETCDLIB_RC_ENOMEM;
         }
@@ -1066,25 +1098,22 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
             code = entry.res;
             break;
         }
-        CURLMsg* msg = curl_multi_info_read(lib->curlMulti, &nrOfHandlesRunning);
-        if (msg && (msg->msg == CURLMSG_DONE) && (msg->easy_handle == curl)) {
+        const CURLMsg* msg = curl_multi_info_read(lib->curlMulti, &nrOfHandlesRunning);
+        if (msg && msg->msg == CURLMSG_DONE) {
             const CURLMcode mCode = etcdlib_removeCurlFromCurlMulti(lib, curl);
             if (mCode != CURLM_OK) {
                 return ETCDLIB_INTERNAL_CURLMCODE_FLAG | mCode;
             }
-            code = msg->data.result;
-            break;
-        }
-        if (msg && (msg->msg == CURLMSG_DONE)) {
-            //found another, non-matching, completed curl, add it to the completedCurlEntries
-            const CURLMcode mCode = etcdlib_removeCurlFromCurlMulti(lib, curl);
-            if (mCode != CURLM_OK) {
-                return ETCDLIB_INTERNAL_CURLMCODE_FLAG | mCode;
-            }
-            rc = etcdlib_addCompletedCurlEntry(lib, msg->easy_handle, msg->data.result);
-            while (rc == ETCDLIB_INTERNAL_RC_MAX_ENTRIES_REACHED) {
-                usleep(1000); //wait a bit and try again
+            if (msg->easy_handle != curl) {
+                //found another, non-matching, completed curl, add it to the completedCurlEntries
                 rc = etcdlib_addCompletedCurlEntry(lib, msg->easy_handle, msg->data.result);
+                while (rc == ETCDLIB_INTERNAL_RC_MAX_ENTRIES_REACHED) {
+                    usleep(1000); //wait a bit and try again
+                    rc = etcdlib_addCompletedCurlEntry(lib, msg->easy_handle, msg->data.result);
+                }
+            } else {
+                code = msg->data.result;
+                break;
             }
         } else {
             //no completed curl found, wait for more events
@@ -1092,6 +1121,9 @@ static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl) {
             rc = curl_multi_perform(lib->curlMulti, &running);
         }
         etcdlibRunning = __atomic_load_n(&lib->curlMultiRunning, __ATOMIC_ACQUIRE);
+        if (!etcdlibRunning) {
+            (void)etcdlib_removeCurlFromCurlMulti(lib, curl);
+        }
     } while (etcdlibRunning && rc == ETCDLIB_RC_OK);
 
     if (!etcdlibRunning) {

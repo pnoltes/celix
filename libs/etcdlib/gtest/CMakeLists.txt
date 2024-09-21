@@ -26,9 +26,8 @@ target_include_directories(test_etcdlib PRIVATE ../src)
 add_test(NAME test_etcdlib COMMAND test_etcdlib)
 setup_target_for_coverage(test_etcdlib SCAN_DIR ..)
 
-
-if (EI_TESTS)
-    find_package(civetweb REQUIRED) #TODO maybe make QUIET (optional)
+find_package(civetweb QUIET)
+if (civetweb_FOUND)
     add_executable(test_etcdlib_stub
             src/main.cc
             src/EtcdlibStubTestSuite.cc
@@ -37,7 +36,12 @@ if (EI_TESTS)
     target_include_directories(test_etcdlib_stub PRIVATE ../src)
     add_test(NAME test_etcdlib_stub COMMAND test_etcdlib_stub)
     setup_target_for_coverage(test_etcdlib_stub SCAN_DIR ..)
+else ()
+    message(WARNING "Civetweb not found, skipping test_etcdlib_stub")
+endif ()
 
+
+if (EI_TESTS)
     add_executable(test_etcdlib_mock
             src/EtcdlibMockTestSuite.cc
     )

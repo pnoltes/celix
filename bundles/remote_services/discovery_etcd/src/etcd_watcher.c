@@ -136,7 +136,6 @@ static celix_status_t etcdWatcher_addOwnFramework(etcd_watcher_t *watcher)
     char localNodePath[MAX_LOCALNODE_LENGTH];
     char *value = NULL;
  	char url[MAX_VALUE_LENGTH];
-    long int modIndex;
     char* endpoints = NULL;
 
 	celix_bundle_context_t *context = watcher->discovery->context;
@@ -156,11 +155,9 @@ static celix_status_t etcdWatcher_addOwnFramework(etcd_watcher_t *watcher)
 
 	watcher->ttl = celix_bundleContext_getPropertyAsLong(context, CFG_ETCD_TTL, DEFAULT_ETCD_TTL);
 
-	if (etcdlib_get(watcher->etcdlib, localNodePath, &value, &modIndex) != ETCDLIB_RC_OK) {
-		etcdlib_set(watcher->etcdlib, localNodePath, endpoints, watcher->ttl, false);
-	} else if (etcdlib_set(watcher->etcdlib, localNodePath, endpoints, watcher->ttl , true) != ETCDLIB_RC_OK)  {
+	if (etcdlib_set(watcher->etcdlib, localNodePath, endpoints, watcher->ttl) != ETCDLIB_RC_OK)  {
 		celix_logHelper_log(*watcher->loghelper, CELIX_LOG_LEVEL_WARNING, "Cannot register local discovery");
-    }
+        }
 
 	FREE_MEM(value);
 
