@@ -28,6 +28,12 @@
 extern "C" {
 #endif
 
+/**
+* @file etcdlib.h
+* @brief C API for etcdlib
+* The etcdlib API is thread-safe.
+*/
+
 /*
  * If set etcdlib will _not_ initialize curl
  * using curl_global_init. Note that
@@ -125,6 +131,32 @@ typedef void etcdlib_log_error_message_callback(void* data, const char* errorFmt
     __attribute__((format(printf, 2, 3)));
 
 /**
+ * @brief the mode of the etcdlib.
+ */
+typedef enum etcdlib_mode {
+    /**
+     * @brief ETCD-LIB default mode.
+     *
+     * In this mode, connections are handled on the calling threads and the shared resources are protected by a mutex.
+     *
+     * Implementation detail: In this mode, etcdlib will use CURLM.
+     */
+    ETCDLIB_MODE_DEFAULT = 0,
+
+    /**
+     * @brief ETCD-LIB local thread mode. In this mode, a connection resource is created and reused for every thread
+     * that calls the etcdlib functions. This mode can be faster than the default mode.
+     *
+     * This mode introduces a pthread_key_t and as such introduces a small overhead for every thread, only threads that
+     * call etcdlib functions will create a connection resource. Different etcdlib instances will reuse the same
+     * thread-based connection resource.
+     *
+     * Implementation detail: The connection thread resource is a CURL handle.
+     */
+    ETCDLIB_MODE_LOCAL_THREAD = 1,
+} etcdlib_mode_t;
+
+/**
  * @brief ETCD-LIB create options
  */
 typedef struct etcdlib_create_options {
@@ -136,10 +168,7 @@ typedef struct etcdlib_create_options {
     unsigned int timeoutInMs; /**< The timeout in milliseconds. If 0, defaults to 30000 milliseconds. This is the time
                    for the whole request, including the time it takes to connect to the server. */
     bool initializeCurl;      /**< If true curl is initialized (globally), if false curl is not initialized. */
-    bool useMultiCurl;        /**< If true curl is used in multi mode, if false curl is used in single mode.
-                                 Multi mode performs better, but also uses more resources. */
-                              // TODO options for max nr of completed curl entries (multi mode)
-    // TODO max nr of parallel curl connections (multi mode)
+    etcdlib_mode_t mode;      /**< The mode of the etcdlib. See etcdlib_mode_t for more information. */
     void* logInvalidResponseReplyData; /**< Data passed to the logInvalidResponseContentCallback */
     etcdlib_log_invalid_response_reply_callback*
         logInvalidResponseReplyCallback; /**< Callback function to log _all_ etcdlib encountered invalid response
@@ -153,8 +182,8 @@ typedef struct etcdlib_create_options {
                                             logInvalidResponseErrorCallback is provided.  */
 } etcdlib_create_options_t;
 
-#define ETCDLIB_EMPTY_CREATE_OPTIONS \
-    { false, NULL, 0, false, false, NULL, NULL, NULL, NULL }
+#define ETCDLIB_EMPTY_CREATE_OPTIONS                                                                                   \
+    { false, NULL, 0, 0, 0, false, ETCDLIB_MODE_DEFAULT, NULL, NULL, NULL, NULL }
 
 /**
  * @brief Creates the ETCD-LIB with the provided options.

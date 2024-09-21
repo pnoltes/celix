@@ -143,7 +143,6 @@ TEST_F(EtcdlibTestSuite, CreateWithOptionsTest) {
     ASSERT_EQ(rc, ETCDLIB_RC_OK);
     ASSERT_NE(lib1, nullptr);
 
-    opts.useMultiCurl = true;
     opts.server = "foo";
     opts.port = 1234;
     etcdlib_autoptr_t lib2 = nullptr;
@@ -300,7 +299,6 @@ TEST_F(EtcdlibTestSuite, UnresolvableHostTest) {
 
     //When creating an etcdlib with an unresolvable host and using multi curl
     etcdlib_create_options_t opts{};
-    opts.useMultiCurl = true;
     opts.server = "unresolvable_host";
     etcdlib_autoptr_t lib2 = nullptr;
     auto rc = etcdlib_createWithOptions(&opts, &lib2);
@@ -323,7 +321,6 @@ TEST_F(EtcdlibTestSuite, UnreachableHostTest) {
     testErrorReturn(lib1, ETCDLIB_RC_TIMEOUT);
 
     //When creating an etcdlib with an unreachable host and using multi curl
-    opts.useMultiCurl = true;
     etcdlib_autoptr_t lib2 = nullptr;
     rc = etcdlib_createWithOptions(&opts, &lib2);
     ASSERT_EQ(ETCDLIB_RC_OK, rc);
@@ -346,7 +343,6 @@ TEST_F(EtcdlibTestSuite, ClosedPortTest) {
     testErrorReturn(lib1, ETCDLIB_INTERNAL_CURLCODE_FLAG | CURLE_COULDNT_CONNECT);
 
     //When creating an etcdlib with a closed port and using multi curl
-    opts.useMultiCurl = true;
     etcdlib_autoptr_t lib2 = nullptr;
     rc = etcdlib_createWithOptions(&opts, &lib2);
     ASSERT_EQ(ETCDLIB_RC_OK, rc);

@@ -153,11 +153,11 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
     etcdlib_autofree etcdlib_t *lib = calloc(1, sizeof(*lib));
     etcdlib_autofree char* server = strndup(serverConfigured, 1024 * 1024 * 10);
     etcdlib_autofree etcdlib_completed_curl_entry_t* completedEntries = NULL;
-    if (options->useMultiCurl) {
+    if (options->mode == ETCDLIB_MODE_DEFAULT) {
         completedEntries = calloc(ETCDLIB_MAX_COMPLETED_CURL_ENTRIES, sizeof(*lib->completedCurlEntries));
     }
 
-    if (!lib || !server || (options->useMultiCurl && !completedEntries)) {
+    if (!lib || !server || (options->mode == ETCDLIB_MODE_DEFAULT && !completedEntries)) {
         return ETCDLIB_RC_ENOMEM;
     }
 
@@ -173,7 +173,7 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
     lib->timeoutInMs = options->timeoutInMs > 0 ? options->timeoutInMs : DEFAULT_CURL_TIMEOUT;
     lib->completedCurlEntriesSize = ETCDLIB_MAX_COMPLETED_CURL_ENTRIES;
 
-    if (options->useMultiCurl) {
+    if (options->mode == ETCDLIB_MODE_DEFAULT) {
         lib->completedCurlEntries = etcdlib_steal_ptr(completedEntries);
         lib->completedCurlEntriesSize = ETCDLIB_MAX_COMPLETED_CURL_ENTRIES;
 
@@ -192,6 +192,8 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
             free(lib->completedCurlEntries);
             return ETCDLIB_INTERNAL_CURLMCODE_FLAG | mCode;
         }
+
+
 
         int rc = pthread_mutex_init(&lib->curlMutex, NULL);
         if (rc != 0) {
@@ -379,10 +381,6 @@ etcdlib_status_t etcdlib_parseEtcdReply(const etcdlib_t* etcdlib,
                                                json_t** nodeOut,
                                                const char** valueOut,
                                                long* indexOut) {
-    if (indexOut) {
-        *indexOut = etcdlib_getCurrentIndex(reply->header);
-    }
-
     json_error_t error;
     json_auto_t* jsonRoot = json_loads(reply->memory, 0, &error);
     if (!jsonRoot) {
@@ -441,6 +439,10 @@ etcdlib_status_t etcdlib_parseEtcdReply(const etcdlib_t* etcdlib,
             return ETCDLIB_RC_INVALID_RESPONSE_CONTENT;
         }
         *valueOut = json_string_value(jsonValue);
+    }
+
+    if (indexOut) {
+        *indexOut = etcdlib_getCurrentIndex(reply->header);
     }
 
     if (jsonRootOut) {
@@ -891,7 +893,7 @@ static void etcdlib_cleanupCurl(etcdlib_t* etcdlib, CURL* curl) {
     if (etcdlib->curlMulti) {
         curl_easy_cleanup(curl);
     } else {
-        //nop, curl is cleaned up by the thread specific destructor
+        curl_easy_reset(curl);
     }
 }
 

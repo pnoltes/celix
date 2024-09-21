@@ -20,7 +20,7 @@ add_executable(test_etcdlib
         src/EtcdlibTestSuite.cc
 )
 
-target_link_libraries(test_etcdlib PRIVATE CURL::libcurl etcdlib_static GTest::gtest)
+target_link_libraries(test_etcdlib PRIVATE CURL::libcurl etcdlib_static jansson::jansson GTest::gtest)
 target_include_directories(test_etcdlib PRIVATE ../src)
 
 add_test(NAME test_etcdlib COMMAND test_etcdlib)
@@ -33,7 +33,7 @@ if (EI_TESTS)
             src/main.cc
             src/EtcdlibStubTestSuite.cc
     )
-    target_link_libraries(test_etcdlib_stub PRIVATE CURL::libcurl etcdlib_static GTest::gtest civetweb::civetweb)
+    target_link_libraries(test_etcdlib_stub PRIVATE CURL::libcurl etcdlib_static jansson::jansson civetweb::civetweb GTest::gtest)
     target_include_directories(test_etcdlib_stub PRIVATE ../src)
     add_test(NAME test_etcdlib_stub COMMAND test_etcdlib_stub)
     setup_target_for_coverage(test_etcdlib_stub SCAN_DIR ..)
@@ -41,7 +41,7 @@ if (EI_TESTS)
     add_executable(test_etcdlib_mock
             src/EtcdlibMockTestSuite.cc
     )
-    target_link_libraries(test_etcdlib_mock PRIVATE CURL::libcurl etcdlib_static GTest::gtest GTest::gtest_main)
+    target_link_libraries(test_etcdlib_mock PRIVATE CURL::libcurl etcdlib_static jansson::jansson GTest::gtest GTest::gtest_main)
     target_include_directories(test_etcdlib_mock PRIVATE ../src)
     target_link_options(test_etcdlib_mock PRIVATE
             LINKER:--wrap,curl_global_init
