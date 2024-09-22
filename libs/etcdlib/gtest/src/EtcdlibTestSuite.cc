@@ -22,6 +22,7 @@
 #include "etcdlib.h"
 #include "etcdlib_private.h"
 
+#include <atomic>
 #include <curl/curl.h>
 #include <jansson.h>
 
@@ -163,7 +164,7 @@ TEST_F(EtcdlibTestSuite, CreateWithOptionsTest) {
 TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_OK), "ETCDLIB OK");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_TIMEOUT), "ETCDLIB Timeout");
-    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_NOT_FOUND), "ETCDLIB Not Found");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_NOT_FOUND), "ETCDLIB Entry Not Found");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_INDEX_CLEARED), "ETCDLIB Event Index Cleared");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ENOMEM), "ETCDLIB Out of memory or maximum number of curl handles reached");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ETCD_ERROR), "ETCDLIB Etcd error");

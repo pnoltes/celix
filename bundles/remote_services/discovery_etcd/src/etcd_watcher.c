@@ -102,7 +102,7 @@ static celix_status_t etcdWatcher_getLocalNodePath(celix_bundle_context_t *conte
     return status;
 }
 
-static void add_node(const char *key, const char *value, void* arg) {
+static void add_node(void* arg, const char *key, const char *value) {
 	discovery_t *discovery = (discovery_t *) arg;
 	endpointDiscoveryPoller_addDiscoveryEndpoint(discovery->poller, (char *) value);
 }

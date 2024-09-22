@@ -99,7 +99,7 @@ typedef int etcdlib_status_t;
     ({ __auto_type __ptr = (p); (p) = NULL; __ptr; })
 #endif
 
-typedef void (*etcdlib_key_value_callback)(const char* key, const char* value, void* data);
+typedef void (*etcdlib_key_value_callback)(void* data, const char* key, const char* value);
 
 /**
  * @brief Creates the ETCD-LIB  with the server/port where Etcd can be reached.

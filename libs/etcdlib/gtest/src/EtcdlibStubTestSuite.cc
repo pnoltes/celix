@@ -17,13 +17,13 @@
 * under the License.
 */
 
-#include <atomic>
 #include <chrono>
 #include <gtest/gtest.h>
 
 #include "etcdlib.h"
 #include "etcdlib_private.h"
 
+#include <atomic>
 #include <civetweb.h>
 #include <cstdarg>
 #include <cstdio>
@@ -34,7 +34,6 @@
 #include <mutex>
 #include <string>
 #include <unistd.h>
-#include <utility>
 
 struct MgTestContext {
     constexpr static unsigned int randomSeed = 0x12345678;
@@ -405,13 +404,13 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
             mgTestCtx->expectedMethod = "PUT";
-            mgTestCtx->expectedUrl = "/v2/keys/test&key"; //note civetweb will decode the url
+            mgTestCtx->expectedUrl = "/v2/keys/test";
             mgTestCtx->expectedData = "value=my%26Value"; //note civetweb will not decode the data
             mgTestCtx->replyData = R"({"node": {"value": "my&Value"}, "action": "set"})";
         }
 
         //Then etcdlib_set should return ok
-        auto rc = etcdlib_set(etcdlib, "test&key", "my&Value", 0);
+        auto rc = etcdlib_set(etcdlib, "test", "my&Value", 0);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
     }
 
@@ -495,7 +494,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_get should call the callbacks 2 times for the 2 leaf nodes.
         long index;
         std::atomic<int> count{0};
-        auto callback = [](const char* key, const char* value, void *data)  {
+        auto callback = [](void *data, const char* key, const char* value)  {
             if (strcmp(key, "test1") == 0) {
                 EXPECT_STREQ(value, "value1");
             } else if (strcmp(key, "test2") == 0) {
@@ -924,7 +923,37 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //When preparing an etcd stubbed reply with invalid json data
         {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-            mgTestCtx->replyData = "{}}";
+            mgTestCtx->replyData = "{}";
+        }
+
+        //Then etcdlib_* calls will return an error
+        rc = etcdlib_get(etcdlib, "test", &value, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_set(etcdlib, "test", "myValue", 0);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_refresh(etcdlib, "test", 0);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_delete(etcdlib, "test");
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_watch(etcdlib, "/test", 0, nullptr, nullptr, nullptr, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+
+        //And the etcdlib_*Dir calls will return an error
+        rc = etcdlib_getDir(etcdlib, "test", nullptr, nullptr, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_createDir(etcdlib, "test", 0);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_refreshDir(etcdlib, "test", 0);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_deleteDir(etcdlib, "test");
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+        rc = etcdlib_watchDir(etcdlib, "test", 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);
+
+        //When preparing an etcd stubbed reply with empty data
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->replyData = "";
         }
 
         //Then etcdlib_* calls will return an error
@@ -953,7 +982,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     }
 
     static void notFoundTest(etcdlib_t* etcdlib) {
-        // When preparing an etcd stubbed reply with no json data
+        // When preparing an etcd stubbed reply with etcd not found error (100)
         {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
             mgTestCtx->replyData =
@@ -965,6 +994,38 @@ class EtcdlibStubTestSuite : public ::testing::Test {
 
         //Then etcdlib_* calls will return an error
         auto rc = etcdlib_get(etcdlib, nonExistingKey, &value, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_set(etcdlib, nonExistingKey, "myValue", 0);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_refresh(etcdlib, nonExistingKey, 0);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_delete(etcdlib, nonExistingKey);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_watch(etcdlib, "/test", 0, nullptr, nullptr, nullptr, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+
+        //And the etcdlib_*Dir calls will return an error
+        rc = etcdlib_getDir(etcdlib, nonExistingKey, nullptr, nullptr, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_createDir(etcdlib, nonExistingKey, 0);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_refreshDir(etcdlib, nonExistingKey, 0);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_deleteDir(etcdlib, nonExistingKey);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+        rc = etcdlib_watchDir(etcdlib, nonExistingKey, 0, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+        ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+
+
+        // When preparing an etcd stubbed reply with 404
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->httpErrorCode = 404;
+            mgTestCtx->replyData = "";
+        }
+
+        //Then etcdlib_* calls will return an error
+        rc = etcdlib_get(etcdlib, nonExistingKey, &value, nullptr);
         ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
         rc = etcdlib_set(etcdlib, nonExistingKey, "myValue", 0);
         ASSERT_EQ(ETCDLIB_RC_NOT_FOUND, rc);

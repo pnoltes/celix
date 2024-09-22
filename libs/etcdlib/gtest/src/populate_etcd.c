@@ -24,10 +24,10 @@
 #include <stdarg.h>
 
 static void logMsg(void *data __attribute__((unused)), const char * fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
 }
 
 static void logInvalidResponseReply(void *data __attribute__((unused)), const char *reply) {
@@ -58,12 +58,13 @@ int main() {
     }
 
     //create a permanent key
-    (void)etcdlib_set(etcdlib, "/persistant/key", "value", 0);
+    (void)etcdlib_set(etcdlib, "/permanent/key", "value", 0);
+
 
     //create a permanent dir with 2 entries
-    (void)etcdlib_createDir(etcdlib, "/persistant/dir", 0);
-    (void)etcdlib_set(etcdlib, "/persistant/dir/key1", "value1", 0);
-    (void)etcdlib_set(etcdlib, "/persistant/dir/key2", "value2", 0);
+    (void)etcdlib_createDir(etcdlib, "/permanent/dir", 0);
+    (void)etcdlib_set(etcdlib, "/permanent/dir/key1", "value1", 0);
+    (void)etcdlib_set(etcdlib, "/permanent/dir/key2", "value2", 0);
 
     //create a key with a ttl of 10 seconds
     (void)etcdlib_set(etcdlib, "/temp/key", "value", 10);
@@ -72,7 +73,6 @@ int main() {
     (void)etcdlib_createDir(etcdlib, "/temp/dir", 10);
     (void)etcdlib_set(etcdlib, "/temp/dir/key1", "value3", 0);
     (void)etcdlib_set(etcdlib, "/temp/dir/key2", "value4", 0);
-    (void)etcdlib_set(etcdlib, "/temp/dir/key2&with?escapable&url", "and&with;Escapable?value", 0);
 
     printf("etcdlib populate done. looping to refresh watches\n");
 
@@ -82,8 +82,7 @@ int main() {
     while (1) {
         etcdlib_refresh(etcdlib, "/temp/key", 10);
         etcdlib_refreshDir(etcdlib, "/temp/dir", 10);
-        count++;
-        if (count % 30 == 0) {
+        if (count++ % 30 == 0) {
                 printf("etcdlib updating values\n");
                 snprintf(buf, sizeof(buf), "value-%d", count);
                 etcdlib_set(etcdlib, "/temp/key", buf, 10);
@@ -92,4 +91,6 @@ int main() {
         }
         sleep(1);
     }
+
+    etcdlib_destroy(etcdlib);
 }
