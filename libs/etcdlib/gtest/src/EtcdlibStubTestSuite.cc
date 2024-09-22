@@ -314,8 +314,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //Then etcdlib_get should return an error
         rc = etcdlib_get(etcdlib, "test", &value, &index);
         ASSERT_NE(rc, 0);
-        ASSERT_TRUE(ETCDLIB_INTERNAL_HTTPCODE_FLAG & rc);
-        ASSERT_EQ(etcdlib_getHttpCodeFromStatus(rc), 404);
+        ASSERT_EQ(rc, ETCDLIB_RC_NOT_FOUND);
         ASSERT_EQ(value, nullptr);
         ASSERT_EQ(index, -1);
 

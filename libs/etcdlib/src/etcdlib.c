@@ -1189,14 +1189,3 @@ int etcdlib_getHttpCodeFromStatus(etcdlib_status_t status) {
     }
     return 0;
 }
-
-// bool etcdlib_isStatusCurlError(etcdlib_status_t status) {
-//     return status & ETCDLIB_INTERNAL_CURLCODE_FLAG;
-// }
-//
-// int etcdlib_getCurlCodeFromStatus(etcdlib_status_t status) {
-//     if (status & ETCDLIB_INTERNAL_CURLCODE_FLAG) {
-//         return status & ~ETCDLIB_INTERNAL_CURLCODE_FLAG;
-//     }
-//     return 0;
-// }
