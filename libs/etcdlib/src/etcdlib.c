@@ -265,7 +265,7 @@ const char* etcdlib_strerror(int status) {
         return curl_multi_strerror(status & ~ETCDLIB_INTERNAL_CURLMCODE_FLAG);
     }
     if (status & ETCDLIB_INTERNAL_HTTPCODE_FLAG) {
-        return "HTTP error"; //TODO improve error code for HTTP errors
+        return "HTTP error";
     }
 
     switch (status) {
@@ -273,6 +273,8 @@ const char* etcdlib_strerror(int status) {
         return "ETCDLIB OK";
     case ETCDLIB_RC_TIMEOUT:
         return "ETCDLIB Timeout";
+    case ETCDLIB_RC_NOT_FOUND:
+        return "ETCDLIB Not Found";
     case ETCDLIB_RC_EVENT_INDEX_CLEARED:
         return "ETCDLIB Event Index Cleared";
     case ETCDLIB_RC_ENOMEM:
@@ -405,6 +407,9 @@ etcdlib_status_t etcdlib_parseEtcdReply(const etcdlib_t* etcdlib,
         const int errorCode = json_is_integer(jsonErrorCode) ? (int)json_integer_value(jsonErrorCode) : -1;
         if (errorCode == 401) {
             return ETCDLIB_RC_EVENT_INDEX_CLEARED;
+        }
+        if (errorCode == 100) {
+            return ETCDLIB_RC_NOT_FOUND;
         }
         json_t* jsonMessage = json_object_get(jsonRoot, "message");
         const char* message = jsonMessage ? json_string_value(jsonMessage) : "No message";
@@ -644,15 +649,17 @@ etcdlib_status_t etcdlib_createDir(etcdlib_t* etcdlib, const char* dir, int ttl)
     return rc;
 }
 
-etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
+static etcdlib_status_t etcdlib_refreshInternal(etcdlib_t* etcdlib, const char* key, int ttl, bool dir) {
     key = etcdlib_skipLeadingSlashes(key);
 
+    const char* dirArg = dir ? "dir=true;" : "";
+
     char buffer[512];
-    etcdlib_autofree char *requestAutoFree = NULL;
-    const int needed = snprintf(buffer, sizeof(buffer), "prevExist=true;refresh=true;ttl=%i", ttl);
+    etcdlib_autofree char* requestAutoFree = NULL;
+    const int needed = snprintf(buffer, sizeof(buffer), "%sprevExist=true;refresh=true;ttl=%i", dirArg, ttl);
     const char* request = buffer;
     if (needed >= sizeof(buffer)) {
-        const int written = asprintf(&requestAutoFree, "prevExist=true;refresh=true;ttl=%i", ttl);
+        const int written = asprintf(&requestAutoFree, "%sprevExist=true;refresh=true;ttl=%i", dirArg, ttl);
         if (written < 0) {
             return ETCDLIB_RC_ENOMEM;
         }
@@ -673,6 +680,14 @@ etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
                                                  etcdlib->port,
                                                  key);
     return rc;
+}
+
+etcdlib_status_t etcdlib_refresh(etcdlib_t *etcdlib, const char *key, int ttl) {
+    return etcdlib_refreshInternal(etcdlib, key, ttl, false);
+}
+
+etcdlib_status_t etcdlib_refreshDir(etcdlib_t *etcdlib, const char *key, int ttl) {
+    return etcdlib_refreshInternal(etcdlib, key, ttl, true);
 }
 
 static void etcdlib_extractAction(json_t* jsonRoot, const char** action) {
@@ -699,10 +714,9 @@ static void etcdlib_extractAction(json_t* jsonRoot, const char** action) {
     }
 }
 
-//TODO make static etcdlib_watchInternal that supports a recursive and non-recursive watch
 static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
                                   bool resursiveWatch,
-                                  const char* dir,
+                                  const char* key,
                                   long watchIndex,
                                   const char** action,
                                   char** modifiedKey,
@@ -710,13 +724,11 @@ static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
                                   char** previousValue,
                                   bool* isDir,
                                   long* modifiedIndex) {
-    dir = etcdlib_skipLeadingSlashes(dir);
+    key = etcdlib_skipLeadingSlashes(key);
     etcdlib_status_t rc;
     json_auto_t* jsonRoot = NULL;
     json_t* jsonNode = NULL;
-    const char* resursiveParam = resursiveWatch ? "&recursive=true" : "";
-    // TODO refactor, expire has not value, set has not prevNode and this shuold not lead to a
-    // RC_INVALID_RESPONSE_CONTENT
+    const char* recursiveParam = resursiveWatch ? "&recursive=true" : "";
     if (watchIndex < 0) {
         rc = etcdlib_performRequest(etcdlib,
                                     GET,
@@ -730,8 +742,8 @@ static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
                                     etcdlib->scheme,
                                     etcdlib->server,
                                     etcdlib->port,
-                                    resursiveParam,
-                                    dir);
+                                    recursiveParam,
+                                    key);
     } else {
         rc = etcdlib_performRequest(etcdlib,
                                     GET,
@@ -745,8 +757,8 @@ static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
                                     etcdlib->scheme,
                                     etcdlib->server,
                                     etcdlib->port,
-                                    dir,
-                                    resursiveParam,
+                                    key,
+                                    recursiveParam,
                                     watchIndex);
     }
 
@@ -832,21 +844,36 @@ static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
     return rc;
 }
 
+etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
+                               const char* key,
+                               long watchIndex,
+                               const char** event,
+                               char** modifiedValue,
+                               char** previousValue,
+                               long* modifiedIndex) {
+    return etcdlib_watchInternal(
+        etcdlib, false, key, watchIndex, event, NULL, modifiedValue, previousValue, NULL, modifiedIndex);
+}
+
 etcdlib_status_t etcdlib_watchDir(etcdlib_t* etcdlib,
                                   const char* dir,
                                   long watchIndex,
-                                  const char** action,
+                                  const char** event,
                                   char** modifiedKey,
                                   char** modifiedValue,
                                   char** previousValue,
                                   bool* isDir,
                                   long* modifiedIndex) {
     return etcdlib_watchInternal(
-        etcdlib, true, dir, watchIndex, action, modifiedKey, modifiedValue, previousValue, isDir, modifiedIndex);
+        etcdlib, true, dir, watchIndex, event, modifiedKey, modifiedValue, previousValue, isDir, modifiedIndex);
 }
 
-etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* key) {
+etcdlib_status_t etcdlib_deleteInternal(etcdlib_t* etcdlib, const char* key, bool dir) {
     key = etcdlib_skipLeadingSlashes(key);
+
+    const char* recursiveArg =
+        dir ? "?recursive=true" // note using recursive=true instead of dir=true so that a non-empty dir can be deleted
+            : "";
 
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  DELETE,
@@ -856,12 +883,21 @@ etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* key) {
                                                  NULL,
                                                  NULL,
                                                  NULL,
-                                                 "%s://%s:%d/v2/keys/%s?recursive=true",
+                                                 "%s://%s:%d/v2/keys/%s%s",
                                                  etcdlib->scheme,
                                                  etcdlib->server,
                                                  etcdlib->port,
-                                                 key);
+                                                 key,
+                                                 recursiveArg);
     return rc;
+}
+
+etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* key) {
+    return etcdlib_deleteInternal(etcdlib, key, false);
+}
+
+etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char* dir) {
+    return etcdlib_deleteInternal(etcdlib, dir, true);
 }
 
 static size_t etcdlib_writeMemoryCallback(const void* contents, size_t size, size_t nmemb, void* userp) {

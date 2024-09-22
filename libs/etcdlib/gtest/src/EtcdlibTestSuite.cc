@@ -73,23 +73,30 @@ public:
         EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
                                       << ", got: " << etcdlib_strerror(rc);
 
-        //TODO rc = etcdlib_watch()
+        rc = etcdlib_watch(etcdlib, "key", 1, nullptr, nullptr, nullptr, nullptr);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
 
         rc = etcdlib_getDir(etcdlib, "dir", nullptr, nullptr, nullptr);
         EXPECT_NE(rc, ETCDLIB_RC_OK);
         EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
                                       << ", got: " << etcdlib_strerror(rc);
 
-//TODO
-        // rc = etcdlib_createDir(etcdlib, "dir", 0);
-        // EXPECT_NE(rc, ETCDLIB_RC_OK);
-        // EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
-        //                               << ", got: " << etcdlib_strerror(rc);
-        //
-        // rc = etcdlib_deleteDir(etcdlib, "dir");
-        // EXPECT_NE(rc, ETCDLIB_RC_OK);
-        // EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
-        //                               << ", got: " << etcdlib_strerror(rc);
+        rc = etcdlib_createDir(etcdlib, "dir", 0);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+        rc = etcdlib_refreshDir(etcdlib, "dir", 5);
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
+
+        rc = etcdlib_deleteDir(etcdlib, "dir");
+        EXPECT_NE(rc, ETCDLIB_RC_OK);
+        EXPECT_EQ(rc, expectedStatus) << "Expected status: " << etcdlib_strerror(expectedStatus)
+                                      << ", got: " << etcdlib_strerror(rc);
 
         rc = etcdlib_watchDir(etcdlib, "dir", 1, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
         EXPECT_NE(rc, ETCDLIB_RC_OK);
@@ -156,6 +163,7 @@ TEST_F(EtcdlibTestSuite, CreateWithOptionsTest) {
 TEST_F(EtcdlibTestSuite, StatusStrErrorTest) {
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_OK), "ETCDLIB OK");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_TIMEOUT), "ETCDLIB Timeout");
+    EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_NOT_FOUND), "ETCDLIB Not Found");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_EVENT_INDEX_CLEARED), "ETCDLIB Event Index Cleared");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ENOMEM), "ETCDLIB Out of memory or maximum number of curl handles reached");
     EXPECT_STREQ(etcdlib_strerror(ETCDLIB_RC_ETCD_ERROR), "ETCDLIB Etcd error");
@@ -252,12 +260,12 @@ TEST_F(EtcdlibTestSuite, ParseEtcdReplyTest) {
     EXPECT_EQ(5, errorMessageCount);
 
     //When parsing the reply with an etcd error
-    reply.memory = const_cast<char*>(R"({"errorCode": 100, "message": "error message"})");
+    reply.memory = const_cast<char*>(R"({"errorCode": 100, "message": "not found"})");
     rc = etcdlib_parseEtcdReply(etcdlib, &reply, nullptr, nullptr, nullptr, nullptr, nullptr);
 
     //Then the reply returns an error code
-    EXPECT_EQ(ETCDLIB_RC_ETCD_ERROR, rc);
-    EXPECT_EQ(6, errorMessageCount);
+    EXPECT_EQ(ETCDLIB_RC_NOT_FOUND, rc);
+    EXPECT_EQ(5, errorMessageCount); //not found should not trigger an error message
 }
 
 TEST_F(EtcdlibTestSuite, CreateEtcdUrlTest) {

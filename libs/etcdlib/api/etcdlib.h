@@ -29,12 +29,14 @@ extern "C" {
 #endif
 
 /**
-* @file etcdlib.h
-* @brief C API for etcdlib
-* The etcdlib API is thread-safe.
-*/
+ * @file etcdlib.h
+ * @brief C API for etcdlib
+ * The etcdlib API is thread-safe.
+ */
 
-/*
+/**
+ * @brief Flags to control etcdlib curl initialization.
+ *
  * If set etcdlib will _not_ initialize curl
  * using curl_global_init. Note that
  * curl_global_init can be called multiple
@@ -58,17 +60,18 @@ extern "C" {
  * the error string. This can include curl error strings.
  */
 #define ETCDLIB_RC_OK 0
-#define ETCDLIB_RC_TIMEOUT 3
+#define ETCDLIB_RC_TIMEOUT 1
+#define ETCDLIB_RC_NOT_FOUND 2
 #define ETCDLIB_RC_EVENT_INDEX_CLEARED                                                                                 \
-    4 /** Indicates that the event index is cleared and that a new get then watch is needed */
+    3 /** Indicates that the event index is cleared and that a new get then watch is needed */
 #define ETCDLIB_RC_INVALID_RESPONSE_CONTENT                                                                            \
-    5 /** In case of an invalid response content, details are logged using the                                         \
+    4 /** In case of an invalid response content, details are logged using the                                         \
          etcdlib_log_invalid_response_reply_callback. */
 #define ETCDLIB_RC_ETCD_ERROR                                                                                          \
-    6 /** In case of an etcdlib error, details are logged using the                                                    \
+    5 /** In case of an etcdlib error, details are logged using the                                                    \
         etcdlib_log_invalid_response_error_callback. */
-#define ETCDLIB_RC_ENOMEM 7
-#define ETCDLIB_RC_STOPPING 8 /** The etcdlib instance is stopping */
+#define ETCDLIB_RC_ENOMEM 6
+#define ETCDLIB_RC_STOPPING 7 /** The etcdlib instance is stopping */
 
 /**
  * @brief Opaque struct for etcdlib_t
@@ -77,7 +80,11 @@ typedef struct etcdlib etcdlib_t; // opaque struct
 
 typedef int etcdlib_status_t;
 
-//TODO doc
+/**
+ * @brief Autoptr for etcdlib_t*.
+ *
+ * The autoptr will automatically cleanup the etcdlib_t* when it goes out of scope.
+ */
 #define etcdlib_autoptr_t etcdlib_t* __attribute__((cleanup(etcdlib_cleanup)))
 
 /**
@@ -160,8 +167,8 @@ typedef enum etcdlib_mode {
  * @brief ETCD-LIB create options
  */
 typedef struct etcdlib_create_options {
-    bool useHttps;                   /**< If true use HTTPS, if false use HTTP. */
-    const char* server;              /**< The server where Etcd can be reached. If NULL defaults to "localhost" */
+    bool useHttps;                   /**< If true, HTTPS os used. if false, HTTP is used. */
+    const char* server;              /**< The server where Etcd can be reached. If NULL, defaults to "localhost" */
     unsigned int port;               /**< The port where Etcd can be reached. If 0, defaults to 2379. */
     unsigned int connectTimeoutInMs; /**< The connect timeout in milliseconds. If 0, defaults to 10000 milliseconds.
                            Note this only for the time it takes to connect to the server. */
@@ -178,7 +185,7 @@ typedef struct etcdlib_create_options {
         logErrorMessageCallback; /**< Callback function to log the error message when an invalid response
                                             occurs. An invalid response is when a reply is an expected HTTP 2xx reply,
                                             but the content is invalid (not JSON, not an expected etcd JSON reply).
-                                            etcdlib will log an error message describing issue if a
+                                            Etcdlib will log an error message describing issue if a
                                             logInvalidResponseErrorCallback is provided.  */
 } etcdlib_create_options_t;
 
@@ -197,9 +204,12 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_o
 /**
  * @brief Destroys the ETCD-LIB.
  *
- * If multi curl is used, this will also wakeup the watch calls. Else TODO what happens?
+ * If the mode is ETCDLIB_MODE_DEFAULT, this function will also wakeup existing calls to etcdlib_get, etcdlib_set,
+ * etcdlib_delete, etcdlib_watch, etcdlib_getDir, etcdlib_createDir, etcdlib_refresh, etcdlib_refreshDir,
+ * etcdlib_deleteDir and etcdlib_watchDir. If the mode is ETCDLIB_MODE_LOCAL_THREAD, this function will not wakeup
+ * existing calls but wait for them to finish or timeout.
  *
- * @param etcdlib_t* The ETCD-LIB instance.
+ * @param[in] etcdlib The ETCD-LIB instance.
  */
 ETCDLIB_EXPORT void etcdlib_destroy(etcdlib_t* etcdlib);
 
@@ -233,6 +243,7 @@ ETCDLIB_EXPORT int etcdlib_port(etcdlib_t* etcdlib);
  * @param[out] index If not NULL, the Etcd-index of the last modified value (etcd wide) or -1 if an etcd index header
  * was not found in the HTTP response.
  * @return 0 on success, non-zero otherwise
+ * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key, char** value, long* index);
 
@@ -249,11 +260,12 @@ ETCDLIB_EXPORT etcdlib_status_t
 etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* value, int ttl);
 
 /**
- * @brief Refresh the ttl of an existing key. The key can be a directory.
+ * @brief Refresh the ttl of an existing key. The key should not be a directory.
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key the etcd key to refresh.
  * @param[in] ttl the ttl value to use.
- * @return 0 on success, non-zero otherwise. //TODO what is returned if key does not exist?
+ * @return 0 on success, non-zero otherwise.
+ * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* key, int ttl);
 
@@ -261,17 +273,66 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* 
  * @brief Deleting an Etcd-key
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
- * @return 0 on success, non-zero otherwise. //TODO what happens if key does not exist?
+ * @return 0 on success, non-zero otherwise.
+ * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* key);
 
-// TODO watch entry?
+/**
+ * @brief Watching an etcd entry changes.
+ *
+ * This call will block until a (watchable) event occurs in the watched entry.
+ *
+ * Watches should be done on the returned index of an etcdlib_get call + 1.
+ * This way, the watch will only return changes after the last get call. Between etcdlib_watch calls, the returned
+ * index + 1 should be used as the watchIndex; this enables skipping events (indexes) that are outside the watched
+ * entry.
+ * If > 1000 changes occur between the get and watch call, ETCD will return an
+ * "index cleared event" and this will result in a ETCDLIB_RC_EVENT_INDEX_CLEARED return code.
+ * When this happens, the watch should be restarted with an etcdlib_get call and use the returned index +1 for a new
+ * etcdlib_watch call.
+ *
+ * A watch will return if:
+ * - An event occurs in the watched directory, which can be a set, delete, expire, update,
+ * compareAndSwap or compareAndDelete event.
+ * - A timeout occurs (ETCDLIB_RC_TIMEOUT is returned).
+ * - In case of useMultiCurl, when the etcdlib instance is destroyed (ETCDLIB_RC_STOPPED is then returned).
+ *
+ * A watch will return directly if:
+ * - The server returns an unexpected HTTP code (ETCDLIB_RC_ETCD_ERROR is returned).
+ * - the server returns an invalid response content (ETCDLIB_RC_INVALID_RESPONSE_CONTENT).
+ * - The server is not unresolvable.
+ *
+ * The watch will not return if the entry is refreshed (ttl, and only ttl is updated).
+ *
+ * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
+ * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
+ * @param[in] watchIndex The modified index the watch watches for. < 0 means watching for the first change.
+ * @param[out] event If not NULL, The event action that was performed on the key. Will be NULL if the action is not
+ * recognized (not set, delete, expire, update, compareAndSwap or compareAndDelete).
+ * The caller should not free the memory.
+ * @param[out] modifiedValue If not NULL, memory is allocated and contains the modified value. The caller is responsible
+ * for freeing the memory.
+ * @param[out] previousValue If not NULL, memory is allocated and contains the previous value. The caller is responsible
+ * for freeing the memory.
+ * @param[out] modifiedIndex If not NULL, the modified index in the etcd node.modifiedIndex field returned by etcd.
+ * @return 0 on success, non-zero otherwise. For useMultiCurl, ETCDLIB_RC_STOPPING is returned when the etcdlib instance
+ * is destroyed.
+ * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
+ */
+ETCDLIB_EXPORT etcdlib_status_t etcdlib_watch(etcdlib_t* etcdlib,
+                                              const char* key,
+                                              long watchIndex,
+                                              const char** event,
+                                              char** modifiedValue,
+                                              char** previousValue,
+                                              long* modifiedIndex);
 
 /**
  * @brief Retrieve the contents of a dir.
  * For every found key/value pair, the given callback function is called.
  *
- * TODO describe which thread a callback is called on. This differs between single and multi mode.
+ * The callback will be called on the same thread as the etcdlib_getDir call.
  *
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
  * @param[in] dir The Etcd directory which has to be searched for keys
@@ -279,22 +340,47 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* k
  * @param[in] callbackData Argument is passed to the callback function
  * @param[out] index If not NULL, the Etcd-index of the last modified value (etcd wide).
  * @return 0 on success, non-zero otherwise
+ * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_getDir(
     etcdlib_t* etcdlib, const char* dir, etcdlib_key_value_callback callback, void* callbackData, long* index);
 
-//TODO implement etcdlib_createDir, etcdlib_refreshDir, etcdlib_deleteDir
+ /**
+  * @brief Create an Etcd directory.
+  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
+  * @param[in] dir The Etcd directory to create (Note: a leading '/' should be avoided).
+  * @param[in] ttl If non-zero, this is used as the TTL value
+  * @return 0 on success, non-zero otherwise
+  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_createDir(etcdlib_t* etcdlib, const char* dir, int ttl);
+
+ /**
+  * @brief Refresh the ttl of an existing directory.
+  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
+  * @param[in] dir the etcd directory to refresh.
+  * @param[in] ttl the ttl value to use.
+  * @return 0 on success, non-zero otherwise.
+  * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
+  */
+ETCDLIB_EXPORT etcdlib_status_t etcdlib_refreshDir(etcdlib_t* etcdlib, const char* dir, int ttl);
+
+ /**
+  * @brief Deleting an Etcd directory.
+  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
+  * @param[in] dir The Etcd directory to delete (Note: a leading '/' should be avoided).
+  * @return 0 on success, non-zero otherwise.
+  * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
+  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char* dir);
 
 /**
- * @brief Watching an etcd dir, recursively, for set changes
+ * @brief Watching an etcd dir, recursively, for set changes.
  *
  * This call will block until a (watchable) event occurs in the watched directory.
  *
  * Watches should be done on the returned index of an etcdlib_getDir call + 1.
  * This way, the watch will only return changes after the last getDir call. Between etcdlib_watchDir calls, the returned
- * index + 1 should be used as the watchIndex, this enables skipping events (indexes) that are outside the watch
+ * index + 1 should be used as the watchIndex; This enables skipping events (indexes) that are outside the watched
  * directory.
  * If > 1000 changes occur between the getDir and watch call, ETCD will return an
  * "index cleared event" and this will result in a ETCDLIB_RC_EVENT_INDEX_CLEARED return code.
@@ -307,16 +393,15 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char
  * - A timeout occurs (ETCDLIB_RC_TIMEOUT is returned).
  * - In case of useMultiCurl, when the etcdlib instance is destroyed (ETCDLIB_RC_STOPPED is then returned).
  *
- * a watch will return directly if:
- * - The server return an unexpected HTTP code(ETCDLIB_RC_ETCD_ERROR is returned).
- * - A invalid response content is returned by the server (ETCDLIB_RC_INVALID_RESPONSE_CONTENT).
- * - The server is not reachable (TODO).
+ * A watch will return directly if:
+ * - The server returns an unexpected HTTP code (ETCDLIB_RC_ETCD_ERROR is returned).
+ * - the server returns an invalid response content (ETCDLIB_RC_INVALID_RESPONSE_CONTENT).
+ * - The server is not unresolvable.
  *
- * The watch will not return the directory key or keys in the directory are
- * refreshed (ttl, and only ttl is updated).
+ * The watch will not return if the directory or entries in the directory are refreshed (ttl, and only ttl is updated).
  *
- * Note when a directory is deleted or expired, only a event on the deleted/expired directory is returned, no events on
- * the keys in the directory. This is a limitation of etcd. Use the `isDir` parameter to check if the event is on a
+ * Note when a directory is deleted or expired, only an event on the deleted/expired directory is returned, no events on
+ * the keys in the directory. This is a limitation of etcd. Use the `isDir` parameter to check if the event is for a
  * directory.
  *
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
@@ -335,6 +420,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char
  * @param[out] modifiedIndex If not NULL, the modified index in the etcd node.modifiedIndex field returned by etcd.
  * @return 0 on success, non-zero otherwise. For useMultiCurl, ETCDLIB_RC_STOPPING is returned when the etcdlib instance
  * is destroyed.
+ * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
  */
 ETCDLIB_EXPORT etcdlib_status_t etcdlib_watchDir(etcdlib_t* etcdlib,
                                                  const char* dir,
