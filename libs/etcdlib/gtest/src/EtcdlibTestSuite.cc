@@ -245,7 +245,7 @@ TEST_F(EtcdlibTestSuite, ParseEtcdReplyTest) {
     //When parsing the reply with an invalid json
     reply.memory = const_cast<char*>(R"({"action": "get"})");
     json_auto_t* jsonRoot5 = nullptr;
-    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot4, &jsonNode, nullptr, nullptr);
+    rc = etcdlib_parseEtcdReply(etcdlib, &reply, "get", &jsonRoot5, &jsonNode, nullptr, nullptr);
 
     //Then the reply returns an error code
     EXPECT_EQ(ETCDLIB_RC_INVALID_RESPONSE_CONTENT, rc);

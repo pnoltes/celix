@@ -90,13 +90,14 @@ typedef enum { GET, PUT, DELETE } request_t;
 static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
                                                request_t request,
                                                const char* reqData,
+                                               int reqDataSize,
                                                const char* expectedAction,
                                                json_t** jsonRootOut,
                                                json_t** nodeOut,
                                                const char** valueOut,
                                                long* indexOut,
                                                const char* urlFmt,
-                                               ...) __attribute__((format(printf, 9, 10)));
+                                               ...) __attribute__((format(printf, 10, 11)));
 
 static etcdlib_status_t etcdlib_waitForMultiCurl(etcdlib_t* lib, CURL* curl);
 
@@ -467,6 +468,7 @@ etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key, char** valueOu
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  GET,
                                                  NULL,
+                                                 0,
                                                  ETCDLIB_ACTION_GET,
                                                  &jsonRoot,
                                                  NULL,
@@ -547,6 +549,7 @@ etcdlib_status_t etcdlib_getDir(
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  GET,
                                                  NULL,
+                                                 0,
                                                  ETCDLIB_ACTION_GET,
                                                  &jsonRoot,
                                                  &jsonNode,
@@ -577,13 +580,16 @@ etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* va
     etcdlib_autofree char* requestAutoFree = NULL;
     char requestBuffer[512];
     const int needed = snprintf(requestBuffer, sizeof(requestBuffer), "%svalue=%s", ttlStr, escapedValue);
+    int written;
     const char* request = requestBuffer;
     if (needed >= sizeof(requestBuffer)) {
-        const int written = asprintf(&requestAutoFree, "%svalue=%s", ttlStr, escapedValue);
+        written = asprintf(&requestAutoFree, "%svalue=%s", ttlStr, escapedValue);
         if (written < 0) {
             return ETCDLIB_RC_ENOMEM;
         }
         request = requestAutoFree;
+    } else {
+        written = needed;
     }
 
     json_auto_t* jsonRoot = NULL;
@@ -591,6 +597,7 @@ etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* va
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  PUT,
                                                  request,
+                                                 written,
                                                  ETCDLIB_ACTION_SET,
                                                  &jsonRoot,
                                                  NULL,
@@ -613,15 +620,17 @@ etcdlib_status_t etcdlib_createDir(etcdlib_t* etcdlib, const char* dir, int ttl)
     dir = etcdlib_stripLeadingSlashes(dir);
 
     char request[34];
+    int written;
     if (ttl > 0) {
-        (void)snprintf(request, sizeof(request), "dir=true&ttl=%i", ttl);
+        written = snprintf(request, sizeof(request), "dir=true&ttl=%i", ttl);
     } else {
-        (void)snprintf(request, sizeof(request), "dir=true");
+        written = snprintf(request, sizeof(request), "dir=true");
     }
 
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  PUT,
                                                  request,
+                                                 written,
                                                  ETCDLIB_ACTION_SET,
                                                  NULL,
                                                  NULL,
@@ -645,17 +654,21 @@ static etcdlib_status_t etcdlib_refreshInternal(etcdlib_t* etcdlib, const char* 
     etcdlib_autofree char* requestAutoFree = NULL;
     const int needed = snprintf(buffer, sizeof(buffer), "%sprevExist=true&refresh=true&ttl=%i", dirArg, ttl);
     const char* request = buffer;
+    int written;
     if (needed >= sizeof(buffer)) {
-        const int written = asprintf(&requestAutoFree, "%sprevExist=true&refresh=true&ttl=%i", dirArg, ttl);
+        written = asprintf(&requestAutoFree, "%sprevExist=true&refresh=true&ttl=%i", dirArg, ttl);
         if (written < 0) {
             return ETCDLIB_RC_ENOMEM;
         }
         request = requestAutoFree;
+    } else {
+        written = needed;
     }
 
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  PUT,
                                                  request,
+                                                 written,
                                                  ETCDLIB_ACTION_UPDATE,
                                                  NULL,
                                                  NULL,
@@ -738,6 +751,7 @@ static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
         rc = etcdlib_performRequest(etcdlib,
                                     GET,
                                     NULL,
+                                    0,
                                     NULL,
                                     &jsonRoot,
                                     &jsonNode,
@@ -753,6 +767,7 @@ static etcdlib_status_t etcdlib_watchInternal(etcdlib_t* etcdlib,
         rc = etcdlib_performRequest(etcdlib,
                                     GET,
                                     NULL,
+                                    0,
                                     NULL,
                                     &jsonRoot,
                                     &jsonNode,
@@ -883,6 +898,7 @@ etcdlib_status_t etcdlib_deleteInternal(etcdlib_t* etcdlib, const char* key, boo
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  DELETE,
                                                  NULL,
+                                                 0,
                                                  ETCDLIB_ACTION_DELETE,
                                                  NULL,
                                                  NULL,
@@ -991,6 +1007,7 @@ static etcdlib_status_t etcdlib_transformCurlCodeToEtcdlibStatus(CURLcode code, 
 static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
                                                request_t request,
                                                const char* reqData,
+                                               int reqDataSize,
                                                const char* expectedAction,
                                                json_t** jsonRootOut,
                                                json_t** nodeOut,
@@ -1034,6 +1051,7 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, reqData);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, reqDataSize);
     } else if (request == DELETE) {
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
     } else if (request == GET) {
