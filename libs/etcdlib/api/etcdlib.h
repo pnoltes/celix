@@ -128,6 +128,17 @@ typedef void etcdlib_log_reply_callback(void *data, const char *reply);
  */
 typedef void etcdlib_log_invalid_response_reply_callback(void *data, const char *reply);
 
+
+/**
+* @brief Log http calls callback function (trace logging).
+* @param[in] data The data passed to the callback function
+* @param[in] url The url of the http call
+* @param[in] method The http method of the call
+* @param[in] request The request string. The request string is null-terminated and only valid during the callback.
+* @param[in] reply The reply string. The reply string is null-terminated and only valid during the callback.
+*/
+typedef void etcdlib_log_http_calls_callback(void *data, const char *url, const char *method, const char* request, const char *reply);
+
 /**
  * @brief Log error message callback function.
  * @param[in] data The data passed to the callback function
@@ -187,10 +198,13 @@ typedef struct etcdlib_create_options {
                                             but the content is invalid (not JSON, not an expected etcd JSON reply).
                                             Etcdlib will log an error message describing issue if a
                                             logInvalidResponseErrorCallback is provided.  */
+    void* logHttpCallsData; /**< Data passed to the logHttpCallsCallback */
+    etcdlib_log_http_calls_callback*
+        logHttpCallsCallback; /**< Callback function to log all http calls. This can be used for trace logging. */
 } etcdlib_create_options_t;
 
 #define ETCDLIB_EMPTY_CREATE_OPTIONS                                                                                   \
-    { false, NULL, 0, 0, 0, false, ETCDLIB_MODE_DEFAULT, NULL, NULL, NULL, NULL }
+    { false, NULL, 0, 0, 0, false, ETCDLIB_MODE_DEFAULT, NULL, NULL, NULL, NULL, NULL, NULL }
 
 /**
  * @brief Creates the ETCD-LIB with the provided options.
@@ -238,7 +252,7 @@ ETCDLIB_EXPORT int etcdlib_port(etcdlib_t* etcdlib);
 /**
  * @brief Retrieve a single value from Etcd.
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param[in] key The Etcd-key (Note: a leading '/' should be avoided).
+ * @param[in] key The Etcd-key.
  * @param[out] value The allocated memory contains the Etcd-value. The caller is responsible for freeing this memory.
  * @param[out] index If not NULL, the Etcd-index of the last modified value (etcd wide) or -1 if an etcd index header
  * was not found in the HTTP response.
@@ -250,7 +264,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_get(etcdlib_t* etcdlib, const char* key,
 /**
  * @brief Setting an Etcd-key/value
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
+ * @param[in] key The Etcd-key
  * @param[in] value The Etcd-value
  * @param[in] ttl If non-zero, this is used as the TTL value
  * @param[in] prevExist If true, the value is only set when the key already exists, if false it is always set
@@ -272,7 +286,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_refresh(etcdlib_t* etcdlib, const char* 
 /**
  * @brief Deleting an Etcd-key
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
+ * @param[in] key The Etcd-key
  * @return 0 on success, non-zero otherwise.
  * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
  */
@@ -306,7 +320,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_delete(etcdlib_t* etcdlib, const char* k
  * The watch will not return if the entry is refreshed (ttl, and only ttl is updated).
  *
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param[in] key The Etcd-key (Note: a leading '/' should be avoided)
+ * @param[in] key The Etcd-key
  * @param[in] watchIndex The modified index the watch watches for. < 0 means watching for the first change.
  * @param[out] event If not NULL, The event action that was performed on the key. Will be NULL if the action is not
  * recognized (not set, delete, expire, update, compareAndSwap or compareAndDelete).
@@ -348,7 +362,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_getDir(
  /**
   * @brief Create an Etcd directory.
   * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
-  * @param[in] dir The Etcd directory to create (Note: a leading '/' should be avoided).
+  * @param[in] dir The Etcd directory to create.
   * @param[in] ttl If non-zero, this is used as the TTL value
   * @return 0 on success, non-zero otherwise
   */
@@ -367,7 +381,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_refreshDir(etcdlib_t* etcdlib, const cha
  /**
   * @brief Deleting an Etcd directory.
   * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
-  * @param[in] dir The Etcd directory to delete (Note: a leading '/' should be avoided).
+  * @param[in] dir The Etcd directory to delete.
   * @return 0 on success, non-zero otherwise.
   * @return ETCDLIB_RC_NOT_FOUND if the key does not exist.
   */
@@ -405,7 +419,7 @@ ETCDLIB_EXPORT etcdlib_status_t etcdlib_deleteDir(etcdlib_t* etcdlib, const char
  * directory.
  *
  * @param[in] etcdlib The ETCD-LIB instance (contains hostname and port info).
- * @param[in] dir The Etcd-key (Note: a leading '/' should be avoided)
+ * @param[in] dir The Etcd-key
  * @param[in] watchIndex The modified index the watch watches for. < 0 means watching for the first change.
  * @param[out] event If not NULL, The event action that was performed on the key. Will be NULL if the action is not
  * recognized (not set, delete, expire, update, compareAndSwap or compareAndDelete).

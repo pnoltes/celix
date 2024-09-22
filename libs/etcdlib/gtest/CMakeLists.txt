@@ -42,7 +42,6 @@ else ()
     message(WARNING "Civetweb not found, skipping test_etcdlib_stub")
 endif ()
 
-
 if (EI_TESTS)
     add_executable(test_etcdlib_mock
             src/EtcdlibMockTestSuite.cc
@@ -55,3 +54,14 @@ if (EI_TESTS)
     add_test(NAME test_etcdlib_mock COMMAND test_etcdlib_mock)
     setup_target_for_coverage(test_etcdlib_mock SCAN_DIR ..)
 endif ()
+
+# Simple executable to test the etcdlib with an actual etcd server
+add_executable(etcdlib_populate
+        src/populate_etcd.c
+)
+target_link_libraries(etcdlib_populate PRIVATE etcdlib_static)
+
+add_executable(etcdlib_watch
+        src/watch_etcd.c
+)
+target_link_libraries(etcdlib_watch PRIVATE etcdlib_static)

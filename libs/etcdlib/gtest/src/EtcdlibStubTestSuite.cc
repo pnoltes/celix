@@ -202,6 +202,9 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         };
         opts.logErrorMessageData = static_cast<void*>(&errorMessageCount);
         opts.logErrorMessageCallback = logMessage;
+        opts.logHttpCallsCallback = [](void*, const char* url, const char* method, const char* reqDat, const char* respDat) {
+            (void)fprintf(stdout, "HTTP call: %s %s\nRequest: %s\nResponse: %s\n", method, url, reqDat, respDat);
+        };
         return opts;
     }
 
@@ -389,11 +392,26 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //When preparing an etcd stubbed reply, including a ttl
         {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-            mgTestCtx->expectedData = "value=myValue;ttl=10";
+            mgTestCtx->expectedData = "ttl=10&value=myValue";
         }
 
         //Then etcdlib_set should return ok
         rc = etcdlib_set(etcdlib, "test", "myValue", 10);
+        ASSERT_EQ(ETCDLIB_RC_OK, rc);
+    }
+
+    static void testSetWithUrlSpecialCharsTest(etcdlib_t* etcdlib) {
+        //When preparing an etcd stubbed reply using special characters in the key and value
+        {
+            const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
+            mgTestCtx->expectedMethod = "PUT";
+            mgTestCtx->expectedUrl = "/v2/keys/test&key"; //note civetweb will decode the url
+            mgTestCtx->expectedData = "value=my%26Value"; //note civetweb will not decode the data
+            mgTestCtx->replyData = R"({"node": {"value": "my&Value"}, "action": "set"})";
+        }
+
+        //Then etcdlib_set should return ok
+        auto rc = etcdlib_set(etcdlib, "test&key", "my&Value", 0);
         ASSERT_EQ(ETCDLIB_RC_OK, rc);
     }
 
@@ -421,7 +439,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
             mgTestCtx->expectedMethod = "PUT";
             mgTestCtx->expectedUrl = "/v2/keys/test";
-            mgTestCtx->expectedData = "prevExist=true;refresh=true;ttl=10";
+            mgTestCtx->expectedData = "prevExist=true&refresh=true&ttl=10";
             mgTestCtx->replyData =
                 R"({"action":"update","node":{"key":"/test","value":"val1","ttl":1,"modifiedIndex":1,"createdIndex":1},"prevNode":{"key":"/test","value":"val1","ttl":10,"modifiedIndex":2,"createdIndex":1}})";
         }
@@ -846,7 +864,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         //When preparing an etcd stubbed reply with a tll
         {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
-            mgTestCtx->expectedData = "dir=true;ttl=10";
+            mgTestCtx->expectedData = "dir=true&ttl=10";
         }
 
         //Then etcdlib_createDir should return ok
@@ -860,7 +878,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             const std::lock_guard<std::mutex> lock{mgTestCtx->mutex};
             mgTestCtx->expectedMethod = "PUT";
             mgTestCtx->expectedUrl = "/v2/keys/test";
-            mgTestCtx->expectedData = "dir=true;prevExist=true;refresh=true;ttl=10";
+            mgTestCtx->expectedData = "dir=true&prevExist=true&refresh=true&ttl=10";
             mgTestCtx->replyData =
                 R"({"action":"update","node":{"key":"/test","dir":"true","ttl":10,"modifiedIndex":1,"createdIndex":1}})";
         }
@@ -1186,3 +1204,16 @@ TEST_F(EtcdlibStubTestSuite, EntryNotFoundTest) {
     EXPECT_NE(etcdlib2, nullptr);
     notFoundTest(etcdlib2);
 }
+
+TEST_F(EtcdlibStubTestSuite, SetWithUrlSpecialCharsTest) {
+    // //Given an etcdlib instance
+    etcdlib_autoptr_t  etcdlib = createEtcdlib();
+    EXPECT_NE(etcdlib, nullptr);
+    testSetWithUrlSpecialCharsTest(etcdlib);
+
+    //Given an etcdlib instance with curl multi handle
+    etcdlib_autoptr_t etcdlib2 = createEtcdlibWithCurlMulti();
+    EXPECT_NE(etcdlib2, nullptr);
+    testSetWithUrlSpecialCharsTest(etcdlib2);
+}
+
