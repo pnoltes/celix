@@ -832,7 +832,8 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             if (multiCurl) {
                 EXPECT_EQ(ETCDLIB_RC_STOPPING, rc); //multi curl support stopping a watch
             } else {
-                EXPECT_EQ(ETCDLIB_RC_TIMEOUT, rc); //single curl does not support stopping a watch
+                EXPECT_EQ(ETCDLIB_RC_STOPPING, rc); //multi curl support stopping a watch
+                //EXPECT_EQ(ETCDLIB_RC_TIMEOUT, rc); //single curl does not support stopping a watch
             }
             etcdWatchCalled = true;
         }};

@@ -576,7 +576,8 @@ etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* va
         (void)snprintf(ttlStr, sizeof(ttlStr), "ttl=%i&", ttl);
     }
 
-    etcdlib_autofree char* escapedValue = curl_easy_escape(NULL, value, 0);
+
+    char* escapedValue = curl_easy_escape(NULL, value, 0);
     etcdlib_autofree char* requestAutoFree = NULL;
     char requestBuffer[512];
     const int needed = snprintf(requestBuffer, sizeof(requestBuffer), "%svalue=%s", ttlStr, escapedValue);
@@ -585,12 +586,14 @@ etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* va
     if (needed >= sizeof(requestBuffer)) {
         written = asprintf(&requestAutoFree, "%svalue=%s", ttlStr, escapedValue);
         if (written < 0) {
+            curl_free(escapedValue);
             return ETCDLIB_RC_ENOMEM;
         }
         request = requestAutoFree;
     } else {
         written = needed;
     }
+    curl_free(escapedValue);
 
     json_auto_t* jsonRoot = NULL;
     const char* valueReturned = NULL;

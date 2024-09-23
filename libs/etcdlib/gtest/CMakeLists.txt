@@ -55,12 +55,13 @@ if (EI_TESTS)
     setup_target_for_coverage(test_etcdlib_mock SCAN_DIR ..)
 endif ()
 
-# Simple executable to test the etcdlib with an actual etcd server
+# Small executable to test the etcdlib by populating entries in an actual etcd instance
 add_executable(etcdlib_populate
         src/populate_etcd.c
 )
 target_link_libraries(etcdlib_populate PRIVATE etcdlib_static)
 
+# Small executable to test the etcdlib by getting and watching entries on an actual etcd instance
 add_executable(etcdlib_watch
         src/watch_etcd.c
 )
