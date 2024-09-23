@@ -210,7 +210,8 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static etcdlib_t* createEtcdlib() {
         //Given an etcdlib instance with no curl multi handle and port 52379
         etcdlib_create_options_t opts = createEtcdlibOptions();
-        opts.mode = ETCDLIB_MODE_LOCAL_THREAD;
+        //TODO revert only to check ci result opts.mode = ETCDLIB_MODE_LOCAL_THREAD;
+        opts.mode = ETCDLIB_MODE_DEFAULT;
         etcdlib_t* etcdlib = nullptr;
         auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
         EXPECT_EQ(ETCDLIB_RC_OK, rc);
