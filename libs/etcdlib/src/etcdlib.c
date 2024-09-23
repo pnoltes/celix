@@ -328,7 +328,7 @@ const char* etcdlib_createUrl(char* localBuf, size_t localBufSize, char** heapBu
     va_copy(args2, args);
 
     int written = vsnprintf(localBuf, localBufSize, urlFmt, args);
-    if (written <= localBufSize) {
+    if (written < localBufSize) {
         result = localBuf;
     } else {
         // buffer too small, allocate new buffer
@@ -600,7 +600,7 @@ etcdlib_status_t etcdlib_set(etcdlib_t* etcdlib, const char* key, const char* va
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  PUT,
                                                  request,
-                                                 written,
+                                                 written+1,
                                                  ETCDLIB_ACTION_SET,
                                                  &jsonRoot,
                                                  NULL,
@@ -633,7 +633,7 @@ etcdlib_status_t etcdlib_createDir(etcdlib_t* etcdlib, const char* dir, int ttl)
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  PUT,
                                                  request,
-                                                 written,
+                                                 written+1,
                                                  ETCDLIB_ACTION_SET,
                                                  NULL,
                                                  NULL,
@@ -671,7 +671,7 @@ static etcdlib_status_t etcdlib_refreshInternal(etcdlib_t* etcdlib, const char* 
     etcdlib_status_t rc = etcdlib_performRequest(etcdlib,
                                                  PUT,
                                                  request,
-                                                 written,
+                                                 written+1,
                                                  ETCDLIB_ACTION_UPDATE,
                                                  NULL,
                                                  NULL,

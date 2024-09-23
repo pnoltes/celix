@@ -222,9 +222,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static etcdlib_t* createEtcdlibWithCurlMulti() {
         //Given an etcdlib instance with curl multi handle and port 52379
         etcdlib_create_options_t opts = createEtcdlibOptions();
-        //TODO revert, ci test
-        //opts.mode = ETCDLIB_MODE_DEFAULT;
-        opts.mode = ETCDLIB_MODE_LOCAL_THREAD;
+        opts.mode = ETCDLIB_MODE_DEFAULT;
         etcdlib_t* etcdlib = nullptr;
         auto rc = etcdlib_createWithOptions(&opts, &etcdlib);
         EXPECT_EQ(ETCDLIB_RC_OK, rc);
@@ -831,8 +829,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             long modifiedIndex = 0;
             auto rc = etcdlib_watchDir(etcdlib, "/test", 1, &action, &key, &value, &prevValue, &isDir, &modifiedIndex);
             if (multiCurl) {
-                //EXPECT_EQ(ETCDLIB_RC_STOPPING, rc); //multi curl support stopping a watch
-                EXPECT_EQ(ETCDLIB_RC_TIMEOUT, rc); //single curl does not support stopping a watch
+                EXPECT_EQ(ETCDLIB_RC_STOPPING, rc); //multi curl support stopping a watch
             } else {
                 EXPECT_EQ(ETCDLIB_RC_TIMEOUT, rc); //single curl does not support stopping a watch
             }
