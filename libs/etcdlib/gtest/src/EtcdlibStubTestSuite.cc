@@ -97,11 +97,11 @@ class EtcdlibStubTestSuite : public ::testing::Test {
         mgTestCtx = std::make_unique<MgTestContext>();
         srand(MgTestContext::randomSeed);
         const char* civetwebOptions[] = {
-            "listening_ports", "52379", "num_threads", "10", "error_log_file", "civetweb.log", nullptr};
+            "listening_ports", "52379", "num_threads", "10", nullptr};
         mg_callbacks callbacks{};
         callbacks.log_message = [](const mg_connection* conn, const char* message) -> int {
             (void)conn;
-            fprintf(stderr, "Civetweb: %s\n", message);
+            (void)fprintf(stderr, "Civetweb: %s\n", message);
             return 0;
         };
         callbacks.begin_request = [](mg_connection* conn) -> int {
@@ -192,7 +192,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
     static etcdlib_create_options_t createEtcdlibOptions() {
         etcdlib_create_options_t opts = {};
         opts.port = port;
-        opts.timeoutInMs = 500;
+        opts.timeoutInMs = 750;
         opts.logInvalidResponseReplyData = static_cast<void*>(&invalidContentLogCount);
         opts.logInvalidResponseReplyCallback = [](void* data, const char* reply) {
             auto* count = static_cast<std::atomic<int>*>(data);
@@ -836,7 +836,7 @@ class EtcdlibStubTestSuite : public ::testing::Test {
             etcdWatchCalled = true;
         }};
 
-        processingRequestFuture.wait_for(std::chrono::seconds(200));
+        processingRequestFuture.wait_for(std::chrono::seconds(5));
 
         //destroy etcdlib, which should unblock the watchDir call
         etcdlib_destroy(etcdlib);

@@ -48,8 +48,8 @@
 
 #define ETCD_HEADER_INDEX "X-Etcd-Index: "
 
-#define DEFAULT_CURL_TIMEOUT 30000
-#define DEFAULT_CURL_CONNECT_TIMEOUT 10000
+#define DEFAULT_CURL_TIMEOUT 30000L
+#define DEFAULT_CURL_CONNECT_TIMEOUT 10000L
 
 #define ETCDLIB_MAX_COMPLETED_CURL_ENTRIES 16
 
@@ -65,8 +65,8 @@ struct etcdlib {
     const char* scheme;
     char* server;
     unsigned int port;
-    unsigned int connectTimeoutInMs;
-    unsigned int timeoutInMs;
+    long connectTimeoutInMs;
+    long timeoutInMs;
 
     void* logInvalidResponseReplyData;
     etcdlib_log_invalid_response_reply_callback* logInvalidResponseReplyCallback;
@@ -171,8 +171,8 @@ etcdlib_status_t etcdlib_createWithOptions(const etcdlib_create_options_t* optio
     lib->server = etcdlib_steal_ptr(server);
     lib->port = portConfigured;
     lib->connectTimeoutInMs =
-        options->connectTimeoutInMs > 0 ? options->connectTimeoutInMs : DEFAULT_CURL_CONNECT_TIMEOUT;
-    lib->timeoutInMs = options->timeoutInMs > 0 ? options->timeoutInMs : DEFAULT_CURL_TIMEOUT;
+        options->connectTimeoutInMs > 0L ? (long)options->connectTimeoutInMs : DEFAULT_CURL_CONNECT_TIMEOUT;
+    lib->timeoutInMs = options->timeoutInMs > 0L ? (long)options->timeoutInMs : DEFAULT_CURL_TIMEOUT;
     lib->completedCurlEntriesSize = ETCDLIB_MAX_COMPLETED_CURL_ENTRIES;
 
     if (options->mode == ETCDLIB_MODE_DEFAULT) {
@@ -1039,7 +1039,6 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
         return ETCDLIB_RC_ENOMEM;
     }
 
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, etcdlib->timeoutInMs);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, etcdlib->connectTimeoutInMs);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
