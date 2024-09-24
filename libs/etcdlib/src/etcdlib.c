@@ -1039,8 +1039,12 @@ static etcdlib_status_t etcdlib_performRequest(etcdlib_t* etcdlib,
         return ETCDLIB_RC_ENOMEM;
     }
 
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, etcdlib->timeoutInMs);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, etcdlib->connectTimeoutInMs);
+    if (etcdlib->timeoutInMs > 0) {
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, etcdlib->timeoutInMs);
+    }
+    if (etcdlib->connectTimeoutInMs > 0) {
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, etcdlib->connectTimeoutInMs);
+    }
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, etcdlib_writeMemoryCallback);
