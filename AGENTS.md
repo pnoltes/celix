@@ -30,7 +30,6 @@ Set up the cmake build directory:
 ```bash
 mkdir build
 cmake \
-  -DBUILD_EXPERIMENTAL=ON \
   -DENABLE_TESTING=ON \
   -DRSA_JSON_RPC=ON \
   -DRSA_REMOTE_SERVICE_ADMIN_SHM_V2=ON \
@@ -44,13 +43,13 @@ cmake \
 Run the build using ninja build:
 
 ```bash
-ninja build
+ninja -C build
 ```
 
 After building, run the tests:
 
 ```bash
-ctest --output-on-failure build
+ctest --output-on-failure --test-dir build
 ```
 
 Always build and run the test before submitting changes that affect the build or tests.
