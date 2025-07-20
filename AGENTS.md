@@ -52,5 +52,5 @@ After building, run the tests:
 ctest --output-on-failure --test-dir build
 ```
 
-Always build and run the test before submitting changes that affect the build or tests.
+With exception of documentation changes, always build and run the test before submitting changes that affect the build or tests.
 
