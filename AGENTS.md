@@ -53,13 +53,23 @@ cmake \
   -S . -B build
 ```
 
-Run the build using ninja build:
+Run the build using ninja build. The build can take a long time, so allow for a
+long wait (about 10 minutes) when invoking the build:
 
 ```bash
 ninja -C build
 ```
 
-After building, run the tests:
+After building, run the tests for the components you changed. Run `ctest` from
+the appropriate `build` subdirectory when possible.
+For example, to test the shell bundles:
+
+```bash
+ctest --output-on-failure --test-dir build/bundles/shell
+```
+
+When working on core libraries such as the framework or utils, run the tests
+from the main build directory, which can take more than four minutes:
 
 ```bash
 ctest --output-on-failure --test-dir build
