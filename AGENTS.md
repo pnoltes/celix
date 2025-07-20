@@ -54,3 +54,7 @@ ctest --output-on-failure --test-dir build
 
 With exception of documentation changes, always build and run the test before submitting changes that affect the build or tests.
 
+# Coding Style
+
+Refer to the [development guide](documents/development/README.md) for the project's coding conventions. 
+New files should be formatted with the project's `.clang-format` configuration.
