@@ -40,6 +40,19 @@ cmake \
 
 ## Building
 
+Run cmake, but use the offline mode for fetchcontent: 
+
+```bash
+cmake \
+  -DCMAKE_FETCHCONTENT_FULLY_DISCONNECTED=ON \
+  -DENABLE_TESTING=ON \
+  -DRSA_JSON_RPC=ON \
+  -DRSA_REMOTE_SERVICE_ADMIN_SHM_V2=ON \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -G Ninja \ 
+  -S . -B build
+```
+
 Run the build using ninja build:
 
 ```bash
