@@ -19,7 +19,7 @@
 
 mkdir build
 
-conan install . --build missing --profile debug \
+conan install . --build compatible --profile:host default --profile:build debug \
           --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True \
           --options celix/*:enable_testing=True --options celix/*:enable_ccache=True \
           --conf:build tools.cmake.cmaketoolchain:generator=Ninja \

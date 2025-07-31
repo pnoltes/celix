@@ -47,9 +47,10 @@ FROM build as conan-build
 ENV PATH="${PATH}:/root/.local/bin"
 RUN pipx install conan
 
-# Setup conan profile for root
-COPY conan-container-default-profile /root/.conan2/profiles/default
-COPY conan-container-debug-profile /root/.conan2/profiles/debug
+# Setup conan profiles for root
+RUN conan profile detect && \
+    cp ~/.conan2/profiles/default ~/.conan2/profiles/debug && \
+    sed -i 's/build_type=Release/build_type=Debug/' ~/.conan2/profiles/debug
 
 # Build image using apt dependencies
 FROM build as apt-build
@@ -93,8 +94,9 @@ ENV PATH="${PATH}:/home/celixdev/.local/bin"
 RUN pipx install conan
 
 # Setup conan profile for celixdev
-COPY --chown=celixdev:celixdev conan-container-default-profile /home/celixdev/.conan2/profiles/default
-COPY --chown=celixdev:celixdev conan-container-debug-profile /home/celixdev/.conan2/profiles/debug
+RUN conan profile detect && \
+    cp ~/.conan2/profiles/default ~/.conan2/profiles/debug && \
+    sed -i 's/build_type=Release/build_type=Debug/' ~/.conan2/profiles/debug
 
 #Install development dependencies
 RUN sudo DEBIAN_FRONTEND="noninteractive" apt-get update && \

@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-conan build . --profile debug \
+conan build . --profile:build debug \
           --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True \
           --options celix/*:enable_testing=True --options celix/*:enable_ccache=True \
           --conf:build tools.cmake.cmaketoolchain:generator=Ninja \
