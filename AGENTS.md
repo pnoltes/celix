@@ -57,7 +57,7 @@ Run the build using ninja build. The build can take a long time, so allow for a
 long wait (about 10 minutes) when invoking the build:
 
 ```bash
-cmake --build build
+cmake --build . --parallel
 ```
 
 After building, run the tests for the components you changed. Run `ctest` from
