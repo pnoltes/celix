@@ -116,7 +116,7 @@ A workaround we adopt in Celix is adding the following to conanfile.py:
         if self.settings.os == "Linux":
             tc.cache_variables["CMAKE_EXE_LINKER_FLAGS"] = "-Wl,--unresolved-symbols=ignore-in-shared-libs"
         elif self.settings.os == "Macos":
-            tc.cache_variables["CMAKE_EXE_LINKER_FLAGS"] = "-Wl,-undefined -Wl,dynamic_lookup"
+            tc.cache_variables["CMAKE_EXE_LINKER_FLAGS"] = "-Wl,dynamic_lookup"
         tc.generate()
 ```
 
