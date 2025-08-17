@@ -16,7 +16,7 @@ env:
 jobs:
 
   macos-build-conan:
-    runs-on: macOS-14
+    runs-on: macOS-15
     timeout-minutes: 120
     steps:
       - name: Checkout source code
@@ -72,7 +72,7 @@ jobs:
           source deactivate_conanrun.sh
 
   macos-build-brew:
-    runs-on: macOS-14
+    runs-on: macOS-15
     timeout-minutes: 120
     steps:
       - name: Checkout source code
