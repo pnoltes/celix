@@ -18,16 +18,18 @@
 find_package(civetweb CONFIG QUIET)
 if (NOT civetweb_FOUND)
     include(FetchContent)
-    set(CIVETWEB_ENABLE_WEBSOCKETS TRUE CACHE BOOL "" FORCE)
-    set(CIVETWEB_BUILD_TESTING FALSE CACHE BOOL "" FORCE)
-    set(BUILD_SHARED_LIBS TRUE CACHE BOOL "" FORCE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
     FetchContent_Declare(
             civetweb
             GIT_REPOSITORY https://github.com/civetweb/civetweb.git
 #            GIT_REPOSITORY https://gitee.com/mirrors/civetweb.git
             GIT_TAG        d7ba35bbb649209c66e582d5a0244ba988a15159 # V1.16
     )
+
+    set(CIVETWEB_ENABLE_WEBSOCKETS TRUE)
+    set(CIVETWEB_BUILD_TESTING FALSE)
+    set(BUILD_SHARED_LIBS TRUE)
+    set(CMAKE_C_FLAGS "-Wno-error")
+
     FetchContent_MakeAvailable(civetweb)
     if (NOT TARGET civetweb::civetweb)
         add_library(civetweb::civetweb ALIAS civetweb-c-library)
