@@ -35,7 +35,7 @@
 #define L_ERROR(...) \
         logHelper.error(__VA_ARGS__);
 
-static constexpr const char* ENDPOINT_ARRAY = "endpoints";
+#define ENDPOINT_ARRAY "endpoints"
 
 static std::optional<std::string> readFile(const std::string& path) {
 
