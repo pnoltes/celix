@@ -29,9 +29,8 @@ if (ENABLE_ADDRESS_SANITIZER)
         set(CMAKE_C_FLAGS "-shared-libasan -fsanitize=address -fno-omit-frame-pointer ${CMAKE_C_FLAGS}")
         set(CMAKE_CXX_FLAGS "-shared-libasan -fsanitize=address -fno-omit-frame-pointer ${CMAKE_CXX_FLAGS}")
         if (APPLE)
-            set(CMAKE_EXE_LINKER_FLAGS "-Wl,-fsanitize=address ${CMAKE_EXE_LINKER_FLAGS}")
-            set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-fsanitize=address ${CMAKE_SHARED_LINKER_FLAGS}")
-            set(CMAKE_STATIC_LINKER_FLAGS "-Wl,-fsanitize=address ${CMAKE_STATIC_LINKER_FLAGS}")
+            set(CMAKE_EXE_LINKER_FLAGS "-fsanitize=address ${CMAKE_EXE_LINKER_FLAGS}")
+            set(CMAKE_SHARED_LINKER_FLAGS "-fsanitize=address ${CMAKE_SHARED_LINKER_FLAGS}")
         else ()
             # Fix a linux clang deficiency where the ASan runtime library is not found automatically
             # Find the ASan runtime library path and set RPATH
