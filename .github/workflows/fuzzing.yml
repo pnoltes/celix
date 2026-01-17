@@ -46,7 +46,7 @@ jobs:
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: | 
           #retrieve lastest master / Celix Fuzzing run id
-          RUN_ID=$(gh run list --branch ${BRANCH_NAME} --workflow ${{ github.workflow }} --json databaseId --jq '.[0].databaseId')
+          RUN_ID=$(gh run list --branch "${BRANCH_NAME}" --workflow "${{ github.workflow }}" --json databaseId --jq '.[0].databaseId')
           gh run download "$RUN_ID" --name fuzzing-corpora-artifact
           mkdir -p build/libs/utils/fuzzing
           tar -xzf fuzzing-corpora-artifact.tar.gz -C fuzzing-previous
