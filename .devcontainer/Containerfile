@@ -46,7 +46,7 @@ RUN pipx install conan && \
     sed -i 's/^build_type=.*/build_type=Debug/' /root/.conan2/profiles/debug
 
 # Note from build not conan-build, because conan-dev uses a celixdev user
-FROM build as conan-dev
+FROM base as conan-dev
 
 ARG USERNAME=celixdev
 ARG USER_UID=1000
