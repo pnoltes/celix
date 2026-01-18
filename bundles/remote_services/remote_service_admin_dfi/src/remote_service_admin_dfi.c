@@ -25,6 +25,7 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <string.h>
+#include <pthread.h>
 #include <uuid/uuid.h>
 #include <curl/curl.h>
 #include <limits.h>
@@ -32,8 +33,8 @@
 
 #include <jansson.h>
 #include "json_serializer.h"
-#include "utils.h"
 #include "celix_utils.h"
+#include "celix_threads.h"
 #include "celix_ref.h"
 #include "hash_map.h"
 
@@ -1159,4 +1160,3 @@ static size_t remoteServiceAdmin_write(void *contents, size_t size, size_t nmemb
     fwrite(contents, size, nmemb, get->stream);
     return size * nmemb;
 }
-
