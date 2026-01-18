@@ -18,11 +18,18 @@
 option(ENABLE_ADDRESS_SANITIZER "Enabled building with address sanitizer. Note for gcc libasan must be installed," OFF)
 option(ENABLE_UNDEFINED_SANITIZER "Enabled building with undefined behavior sanitizer." OFF)
 option(ENABLE_THREAD_SANITIZER "Enabled building with thread sanitizer." OFF)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy during build" OFF)
+option(CLANG_TIDY_WARNINGS_AS_ERRORS "Treat clang-tidy warnings as errors" ON)
 
 # Clear "Advanced" flag for sanitizer options
 mark_as_advanced(CLEAR ENABLE_ADDRESS_SANITIZER)
 mark_as_advanced(CLEAR ENABLE_UNDEFINED_SANITIZER)
 mark_as_advanced(CLEAR ENABLE_THREAD_SANITIZER)
+mark_as_advanced(CLEAR ENABLE_CLANG_TIDY)
+mark_as_advanced(CLEAR CLANG_TIDY_WARNINGS_AS_ERRORS)
+
+# Enable generation of compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if (ENABLE_ADDRESS_SANITIZER)
     set(UBSAN_SAN "")
@@ -72,6 +79,19 @@ elseif (ENABLE_THREAD_SANITIZER)
     set(CMAKE_C_FLAGS "-fsanitize=thread ${CMAKE_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "-fsanitize=thread ${CMAKE_CXX_FLAGS}")
 endif()
+
+if (ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+    if (CLANG_TIDY_EXE)
+        if (CLANG_TIDY_WARNINGS_AS_ERRORS)
+            set(CLANG_TIDY_EXE "${CLANG_TIDY_EXE} --warnings-as-errors=*")
+        endif ()
+        set(CMAKE_C_CLANG_TIDY ${CLANG_TIDY_EXE})
+        set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY_EXE})
+    else()
+        message(FATAL_ERROR "ENABLE_CLANG_TIDY is ON, but clang-tidy was not found.")
+    endif()
+endif ()
 
 MACRO(celix_subproject)
     set(ARGS "${ARGN}")
