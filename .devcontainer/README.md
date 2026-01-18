@@ -22,7 +22,7 @@ limitations under the License.
 This directory contains a [DevContainer](https://containers.dev) setup for developing Apache Celix inside a container.
 
 Although Apache Celix can be built using CMake with APT-installed dependencies or Conan with Conan-installed/built
-dependencies, this DevContainer setup currently only supports Conan.
+dependencies, this DevContainer setup only supports Conan.
 
 Please note, the DevContainer setup is not broadly tested and might not work on all systems.
 It has been tested on Ubuntu 23.10 and Fedora 40.
@@ -37,33 +37,15 @@ container.
 
 ## CLion Usage
 
-At the time of writing this readme, CLion does not fully support DevContainers,
-but there is some support focusing on Docker. Using a container and remote development via SSH with CLion works.
-
-To start developing in a container with build a CevContainer image using the `build-devcontainer-image.sh` script
-and then start a container with SSHD running and interactively set up `.gitconfig`, `.gnupg`, and SSH agent
-forwarding, using the `.devcontainer/run-dev-container.sh` script:
-
-```bash
-cd ${CELIX_ROOT}
-./.devcontainer/build-devcontainer-image.sh
-./.devcontainer/run-devcontainer.sh
-ssh -p 2233 celixdev@localhost
-```
-
-In CLion, open the Remote Development window by navigating to "File -> Remote Development..." and add a new
-configuration. When a new configuration is added, you can start a new project using `/home/celixdev/workspace` as the
-project root and selecting CLion as the IDE.
-
-Also ensure the CMake profile from the - conan generated - `CMakeUserPresets.json` is used: Enable the profile in the 
-Settings -> "Build, Execution, Deployment" -> CMake menu.
+CLion 2025.3.1 includes DevContainer support (including Podman), so you can open this repository directly
+using the IDE's DevContainer workflow. Once the container is built, select the Conan-generated profile
+from `CMakeUserPresets.json` in "Settings -> Build, Execution, Deployment -> CMake".
 
 ## Running tests
 Tests can be run using ctest.
-When building with conan, the conanrun.sh script will setup the environment for the
-built dependencies. To run the tests, execute the following commands:
+When building with Conan, run tests from the build directory after configuring/building:
 
 ```shell
 cd build
-ctest --output-on-failure --test-command ./workspaces/celix/build/conanrun.sh
+ctest --output-on-failure
 ```

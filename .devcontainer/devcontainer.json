@@ -10,6 +10,5 @@
     "securityOpt":["label=disable"],
     "remoteUser": "celixdev",
     "containerUser": "celixdev",
-    "onCreateCommand": "sh .devcontainer/setup-project-with-conan.sh",
-    "postCreateCommand": "sh .devcontainer/build-project-with-conan.sh"
+    "postCreateCommand": "mkdir -p build && conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build && conan build . --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build"
 }

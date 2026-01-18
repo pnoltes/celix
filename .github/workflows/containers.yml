@@ -59,36 +59,6 @@ jobs:
           source conanrun.sh && \
           ctest --output-on-failure"          
 
-  container-apt-build-ubuntu:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 120
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c #v3.3.0
-      - name: Build container image
-        run: |
-          cd .devcontainer && \
-          docker build --tag apache/celix-apt-build:latest --target apt-build --file Containerfile .
-      - name: Cache ccache
-        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf #v4.2.2
-        with:
-          path: ~/.ccache-container
-          key: cache-ccache-container-${{ runner.os }}-${{ github.job }}-${{ github.sha }}
-          restore-keys: cache-ccache-container-${{ runner.os }}-${{ github.job }}-
-      - name: Build Celix
-        run: |
-          docker run --rm -v ~/.ccache-container:/root/.ccache -v $(pwd):/workspace \
-          apache/celix-apt-build:latest /bin/bash -c \
-          "mkdir /workspace/build && cd /workspace/build && \
-          cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXPERIMENTAL=ON -DENABLE_TESTING=ON -DRSA_JSON_RPC=ON  \
-          -DRSA_REMOTE_SERVICE_ADMIN_SHM_V2=ON -DENABLE_CCACHE=ON .. && \
-          make -j"
-      - name: Test Celix
-        run: |
-          docker run --rm -v $(pwd):/workspace apache/celix-apt-build:latest /bin/bash -c \
-          "cd /workspace/build && \
-          ctest --output-on-failure"          
-
   build-dev-container-images:
     runs-on: ubuntu-22.04
     timeout-minutes: 120
@@ -98,5 +68,4 @@ jobs:
       - name: Build dev container images
         run: |
           cd .devcontainer && \
-          docker build --tag apache/celix-conan-dev:latest --target conan-dev --file Containerfile . && \
-          docker build --tag apache/celix-apt-dev:latest --target apt-dev --file Containerfile .
+          docker build --tag apache/celix-conan-dev:latest --target conan-dev --file Containerfile .
