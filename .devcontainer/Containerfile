@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-FROM docker.io/library/ubuntu:24.04@sha256:2e863c44b718727c860746568e1d54afd13b2fa71b160f5cd9058fc436217b30 as build
+FROM docker.io/library/ubuntu:24.04@sha256:2e863c44b718727c860746568e1d54afd13b2fa71b160f5cd9058fc436217b30 as base
 
 # Install dependencies
 RUN DEBIAN_FRONTEND="noninteractive" apt-get update && \
@@ -34,16 +34,16 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get update && \
         pipx && \
     apt-get clean
 
-#python3-pip && \
-
 # Build image using conan & cmake
-FROM build as conan-build
+FROM base as conan-build
 
 ENV PATH="${PATH}:/root/.local/bin"
-RUN pipx install conan
-
-COPY conan-container-default-profile /root/.conan2/profiles/default
-COPY conan-container-debug-profile /root/.conan2/profiles/debug
+RUN pipx install conan && \
+    conan profile detect --force && \
+    cp /root/.conan2/profiles/default /root/.conan2/profiles/release && \
+    cp /root/.conan2/profiles/default /root/.conan2/profiles/debug && \
+    sed -i 's/^build_type=.*/build_type=Release/' /root/.conan2/profiles/release && \
+    sed -i 's/^build_type=.*/build_type=Debug/' /root/.conan2/profiles/debug
 
 # Note from build not conan-build, because conan-dev uses a celixdev user
 FROM build as conan-dev
@@ -68,7 +68,9 @@ USER ${USERNAME}
 WORKDIR /home/${USERNAME}
 
 ENV PATH="${PATH}:/home/${USERNAME}/.local/bin"
-RUN pipx install conan
-
-COPY --chown=${USERNAME}:${USERNAME} conan-container-default-profile /home/${USERNAME}/.conan2/profiles/default
-COPY --chown=${USERNAME}:${USERNAME} conan-container-debug-profile /home/${USERNAME}/.conan2/profiles/debug
+RUN pipx install conan && \
+    conan profile detect --force && \
+    cp /home/${USERNAME}/.conan2/profiles/default /home/${USERNAME}/.conan2/profiles/release && \
+    cp /home/${USERNAME}/.conan2/profiles/default /home/${USERNAME}/.conan2/profiles/debug && \
+    sed -i 's/^build_type=.*/build_type=Release/' /home/${USERNAME}/.conan2/profiles/release && \
+    sed -i 's/^build_type=.*/build_type=Debug/' /home/${USERNAME}/.conan2/profiles/debug
