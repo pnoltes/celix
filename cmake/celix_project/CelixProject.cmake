@@ -15,10 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
+set(ENABLE_CLANG_TIDY_DEFAULT OFF)
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+if(CLANG_TIDY_EXE)
+    set(ENABLE_CLANG_TIDY_DEFAULT ON)
+endif()
+
 option(ENABLE_ADDRESS_SANITIZER "Enabled building with address sanitizer. Note for gcc libasan must be installed," OFF)
 option(ENABLE_UNDEFINED_SANITIZER "Enabled building with undefined behavior sanitizer." OFF)
 option(ENABLE_THREAD_SANITIZER "Enabled building with thread sanitizer." OFF)
-option(ENABLE_CLANG_TIDY "Enable clang-tidy during build" OFF)
+option(ENABLE_CLANG_TIDY "Enable clang-tidy during build" ${ENABLE_CLANG_TIDY_DEFAULT})
 option(CLANG_TIDY_WARNINGS_AS_ERRORS "Treat clang-tidy warnings as errors" ON)
 
 # Clear "Advanced" flag for sanitizer options
@@ -81,7 +87,6 @@ elseif (ENABLE_THREAD_SANITIZER)
 endif()
 
 if (ENABLE_CLANG_TIDY)
-    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
     if (CLANG_TIDY_EXE)
         if (CLANG_TIDY_WARNINGS_AS_ERRORS)
             set(CLANG_TIDY_EXE "${CLANG_TIDY_EXE} --warnings-as-errors=*")
