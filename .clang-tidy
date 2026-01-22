@@ -1,12 +1,23 @@
 ---
 Checks: >
   clang-analyzer-*,
+  cert-*,
+  cppcoreguidelines-*,
+  hicpp-*
   bugprone-*,
   performance-*,
   readability-*,
   -readability-identifier-naming,
-  -readability-magic-numbers
-WarningsAsErrors: ''
+  -readability-magic-numbers,
+  -readability-else-after-return,
+  -bugprone-narrowing-conversions,
+  -readability-identifier-length,
+  -bugprone-easily-swappable-parameters,
+  -performance-type-promotion-in-math-fn,
+  -readability-uppercase-literal-suffix,
+  -bugprone-macro-parentheses,
+  -bugprone-branch-clone
+WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
 FormatStyle: file
