@@ -27,11 +27,13 @@ jobs:
         run: |
           cd .devcontainer && \
           docker build --tag apache/celix-conan-build:latest --target conan-build --file Containerfile .
+      - name: Setup Conan container profiles from docker image
+        run: |
+          mkdir -p ~/.conan2-container
+          docker run --rm -v ~/.conan2-container:/tmp/.conan2 apache/celix-conan-build:latest /bin/bash -c \
+          "cp -r /root/.conan2/profiles /tmp/.conan2/"
       - name: Build Celix dependencies
         run: | #Using .conan2-container so that the steps can be reproduced locally without affecting the host conan 
-          mkdir -p ~/.conan2-container/profiles && \
-          cp .devcontainer/conan-container-default-profile ~/.conan2-container/profiles/default && \
-          cp .devcontainer/conan-container-debug-profile ~/.conan2-container/profiles/debug && \
           docker run --rm -v ~/.conan2-container:/root/.conan2 -v $(pwd):/workspace \
           apache/celix-conan-build:latest /bin/bash -c \
           "cd /workspace && \
