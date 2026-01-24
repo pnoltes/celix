@@ -35,7 +35,6 @@
 #include "celix_service_listener.h"
 #include "bundle_listener.h"
 #include "framework_listener.h"
-#include "celix_service_listener.h"
 #include "dm_dependency_manager.h"
 #include "celix_bundle_context.h"
 #include "celix_framework_export.h"
