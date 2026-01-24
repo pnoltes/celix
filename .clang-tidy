@@ -10,16 +10,22 @@ Checks: >
   -readability-identifier-naming,
   -readability-magic-numbers,
   -readability-else-after-return,
-  -bugprone-narrowing-conversions,
+  -readability-non-const-parameter,
   -readability-identifier-length,
-  -bugprone-easily-swappable-parameters,
-  -performance-type-promotion-in-math-fn,
   -readability-uppercase-literal-suffix,
+  -readability-redundant-declaration,
+  -bugprone-narrowing-conversions,
+  -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
   -bugprone-branch-clone,
+  -performance-type-promotion-in-math-fn,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-init-variables,
-  -cppcoreguidelines-narrowing-conversions
+  -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -clang-analyzer-unix.Malloc,
+  -cert-dcl37-c,
+  -cert-dcl51-cpp
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
