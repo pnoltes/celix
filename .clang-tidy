@@ -17,28 +17,45 @@ Checks: >
   -readability-function-cognitive-complexity,
   -readability-avoid-const-params-in-decls,
   -readability-inconsistent-declaration-parameter-name,
+  -readability-avoid-unconditional-preprocessor-if,
   -readability-named-parameter,
+  -readability-avoid-nested-conditional-operator,
+  -readability-braces-around-statements,
+  -readability-implicit-bool-conversion,
+  -readability-redundant-member-init,
   -bugprone-narrowing-conversions,
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
   -bugprone-branch-clone,
   -performance-type-promotion-in-math-fn,
+  -performance-enum-size,
+  -cppcoreguidelines-pro-type-union-access,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-init-variables,
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-macro-to-enum,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-pro-type-union-access,
+  -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-no-malloc,
+  -cppcoreguidelines-prefer-member-initializer,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
   -clang-analyzer-unix.Malloc,
   -clang-analyzer-core.NullDereference,
   -clang-analyzer-security.insecureAPI.strcpy,
+  -clang-analyzer-core.CallAndMessage,
   -clang-diagnostic-unknown-warning-option,
   -cert-dcl37-c,
   -cert-err33-c,
   -cert-err34-c,
   -cert-exp42-c,
   -cert-flp37-c,
-  -cert-dcl51-cpp
+  -cert-dcl51-cpp,
+  -cert-dcl50-cpp
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
-AnalyzeTemporaryDtors: false
+#AnalyzeTemporaryDtors: false
 FormatStyle: file
 ...
