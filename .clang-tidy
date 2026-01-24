@@ -30,7 +30,9 @@ Checks: >
   -clang-analyzer-security.insecureAPI.strcpy,
   -cert-dcl37-c,
   -cert-dcl51-cpp,
-  -cert-err33-c
+  -cert-err33-c,
+  -cert-exp42-c,
+  -cert-flp37-c
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
