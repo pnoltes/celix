@@ -10,5 +10,15 @@
     "securityOpt":["label=disable"],
     "remoteUser": "celixdev",
     "containerUser": "celixdev",
-    "postCreateCommand": "mkdir -p build && conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build && conan build . --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build"
+    "postCreateCommand": "conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --options celix/*:enable_code_coverage=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build && cmake --preset conan-debug -G Ninja",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.cpptools",
+                "matepek.vscode-catch2-test-adapter",
+                "ms-vscode.cmake-tools"
+            ]
+        }
+    }
 }

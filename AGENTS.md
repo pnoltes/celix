@@ -32,26 +32,13 @@ Assume no internet connection. Request confirmation before installing system pac
 
 ```bash
 
-# Initial configure build:
-cmake \
-  -DCMAKE_FETCHCONTENT_FULLY_DISCONNECTED=ON \
-  -DENABLE_TESTING=ON \
-  -DRSA_JSON_RPC=ON \
-  -DRSA_REMOTE_SERVICE_ADMIN_SHM_V2=ON \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-  -G Ninja \ 
-  -S . -B build
+# Install dependency and setup initial cmake files in build, including a CMakePresets.json
+conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build
 
-# Initial configure build, if a download is needed:  
-cmake \
-  -DENABLE_TESTING=ON \
-  -DRSA_JSON_RPC=ON \
-  -DRSA_REMOTE_SERVICE_ADMIN_SHM_V2=ON \
-  -DCMAKE_BUILD_TYPE=Debug \
-  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-  -G Ninja \ 
-  -S . -B build
+# Configure CMake. using the conan generated CMakePresets.json.
+# Note explictly using Ninja generator, because the conan generated CMakePresets.json 
+# does not configure Ninja as generator
+cmake --preset conan-debug -G Ninja
 
 # Compile:
 cmake --build build --parallel
