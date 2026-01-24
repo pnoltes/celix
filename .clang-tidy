@@ -28,6 +28,7 @@ Checks: >
   -clang-analyzer-unix.Malloc,
   -clang-analyzer-core.NullDereference,
   -clang-analyzer-security.insecureAPI.strcpy,
+  -clang-diagnostic-unknown-warning-option,
   -cert-dcl37-c,
   -cert-dcl51-cpp,
   -cert-err33-c,
