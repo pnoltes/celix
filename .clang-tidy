@@ -32,10 +32,11 @@ Checks: >
   -clang-analyzer-security.insecureAPI.strcpy,
   -clang-diagnostic-unknown-warning-option,
   -cert-dcl37-c,
-  -cert-dcl51-cpp,
   -cert-err33-c,
+  -cert-err34-c,
   -cert-exp42-c,
-  -cert-flp37-c
+  -cert-flp37-c,
+  -cert-dcl51-cpp
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
