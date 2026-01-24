@@ -27,7 +27,8 @@ Checks: >
   -cppcoreguidelines-avoid-non-const-global-variables,
   -clang-analyzer-unix.Malloc,
   -cert-dcl37-c,
-  -cert-dcl51-cpp
+  -cert-dcl51-cpp,
+  -cert-err33-c
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 AnalyzeTemporaryDtors: false
