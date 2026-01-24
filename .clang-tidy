@@ -16,9 +16,9 @@ Checks: >
   -performance-type-promotion-in-math-fn,
   -readability-uppercase-literal-suffix,
   -bugprone-macro-parentheses,
-  -bugprone-branch-clone
-  -cppcoreguidelines-avoid-magic-numbers
-  -cppcoreguidelines-init-variables
+  -bugprone-branch-clone,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-init-variables,
   -cppcoreguidelines-narrowing-conversions
 WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
