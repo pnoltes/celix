@@ -258,7 +258,8 @@ int serviceReference_equals2(const void* reference1, const void* reference2) {
 celix_status_t serviceReference_compareTo(service_reference_pt reference, service_reference_pt compareTo, int *compare) {
 	celix_status_t status = CELIX_SUCCESS;
 
-	long id, other_id;
+	long id;
+    long other_id;
 	const char* id_str;
     const char* other_id_str;
 	serviceReference_getProperty(reference, (char *) CELIX_FRAMEWORK_SERVICE_ID, &id_str);

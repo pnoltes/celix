@@ -2698,7 +2698,7 @@ void celix_framework_waitForGenericEvent(celix_framework_t* fw, long eventId) {
                    event->genericEventName ? event->genericEventName : "unnamed",
                    eventId,
                    event->bndEntry ? celix_bundle_getSymbolicName(event->bndEntry->bnd) : "unnamed",
-                   event->bndEntry ? event->bndEntry->bndId : -1l);
+                   event->bndEntry ? event->bndEntry->bndId : -1L);
             logAbsTime = celixThreadCondition_getDelayedTime(fw->dispatcher.genericEventTimeoutInSeconds);
         }
     }
