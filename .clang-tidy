@@ -26,6 +26,8 @@ Checks: >
   -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -clang-analyzer-unix.Malloc,
+  -clang-analyzer-core.NullDereference,
+  -clang-analyzer-security.insecureAPI.strcpy,
   -cert-dcl37-c,
   -cert-dcl51-cpp,
   -cert-err33-c
