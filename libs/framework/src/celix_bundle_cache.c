@@ -181,7 +181,7 @@ celix_bundleCache_createArchive(celix_bundle_cache_t* cache, long id, const char
         celixThreadMutex_lock(&cache->mutex);
         status = celix_bundleArchive_create(cache->fw, archiveRoot, id, location, &archive);
         if (status == CELIX_SUCCESS) {
-            celix_stringHashMap_put(cache->locationToBundleIdLookupMap, location, (void*) id);
+            celix_stringHashMap_putLong(cache->locationToBundleIdLookupMap, location, id);
         }
         celixThreadMutex_unlock(&cache->mutex);
         celix_utils_freeStringIfNotEqual(archiveRootBuffer, archiveRoot);

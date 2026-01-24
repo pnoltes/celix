@@ -983,7 +983,7 @@ static void celix_bundleContext_stopTrackerInternal(celix_bundle_context_t* ctx,
     } else if (found && async) {
         //NOTE: for async stopping of tracking we need to ensure we cant wait for the tracker destroy id event.
         long eventId = celix_framework_nextEventId(ctx->framework);
-        celix_longHashMap_put(ctx->stoppingTrackerEventIds, trackerId, (void*)eventId);
+        celix_longHashMap_putLong(ctx->stoppingTrackerEventIds, trackerId, eventId);
 
         if (bundleTracker != NULL) {
             celix_framework_fireGenericEvent(ctx->framework, eventId, celix_bundle_getId(ctx->bundle), "stop tracker", bundleTracker, celix_bundleContext_removeBundleTracker, doneData, doneCallback);
