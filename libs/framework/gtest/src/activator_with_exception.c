@@ -22,7 +22,7 @@
 #include <stdio.h>
 
 struct bundle_act {
-
+    int dummy;
 };
 
 static celix_status_t act_start(struct bundle_act *act CELIX_UNUSED, celix_bundle_context_t *ctx CELIX_UNUSED) {

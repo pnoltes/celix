@@ -52,6 +52,7 @@ namespace celix { namespace dm {
     protected:
         celix_dm_service_dependency_t *cServiceDep {nullptr};
 
+        //NOLINTNEXTLINE(readability-make-member-function-const) 
         void setDepStrategy(DependencyUpdateStrategy strategy) {
             if (strategy == DependencyUpdateStrategy::locking) {
                 celix_dmServiceDependency_setStrategy(this->cServiceDependency(), DM_SERVICE_DEPENDENCY_STRATEGY_LOCKING);
@@ -81,6 +82,7 @@ namespace celix { namespace dm {
          *
          * Deprecated -> will always return true.
          */
+        //NOLINTNEXTLINE(readability-convert-member-functions-to-static) 
         bool isValid() const __attribute__((deprecated)) { return true; }
 
         /**

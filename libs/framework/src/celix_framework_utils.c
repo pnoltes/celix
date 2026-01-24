@@ -142,8 +142,7 @@ static celix_status_t celix_framework_utils_extractBundlePath(celix_framework_t 
         if (abs == NULL) {
             status = CELIX_ERROR_MAKE(CELIX_FACILITY_CERRNO,errno);
             err = "Could not get real path for bundle";
-        }
-        if (status == CELIX_SUCCESS) {
+        } else {
             if(symlink(abs, extractPath) == -1) {
                 status = CELIX_ERROR_MAKE(CELIX_FACILITY_CERRNO,errno);
                 err = "Could not add symbolic link";

@@ -1974,7 +1974,7 @@ static celix_status_t celix_framework_uninstallBundleEntryImpl(celix_framework_t
         if(permanent) {
             celix_bundleArchive_invalidate(archive);
         }
-        (void)celix_bundleCache_destroyArchive(framework->cache, archive);
+        celix_bundleCache_destroyArchive(framework->cache, archive);
     }
     framework_logIfError(framework->logger, status, "", "Cannot uninstall bundle");
     return status;

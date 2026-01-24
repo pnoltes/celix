@@ -35,6 +35,8 @@ namespace celix { namespace dm {
         BaseProvidedService(const BaseProvidedService&) = delete;
         BaseProvidedService& operator=(const BaseProvidedService&) = delete;
 
+        ~BaseProvidedService() = default;
+
         const std::string& getName() const;
         const std::string& getVersion() const;
         bool isCppService() const;

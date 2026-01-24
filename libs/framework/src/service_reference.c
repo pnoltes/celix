@@ -31,6 +31,8 @@
 #include "service_reference_private.h"
 #include "service_registration_private.h"
 
+// NOLINTBEGIN(clang-analyzer-core.uninitialized.Branch,clang-analyzer-core.UndefinedBinaryOperatorResult)
+
 static bool serviceReference_doRelease(struct celix_ref *);
 static void serviceReference_destroy(service_reference_pt);
 
@@ -269,14 +271,16 @@ celix_status_t serviceReference_compareTo(service_reference_pt reference, servic
 	other_id = atol(other_id_str);
 
 
-	long rank, other_rank;
+	long rank;
+    long other_rank;
 	const char *rank_str;
     const char* other_rank_str;
 	serviceReference_getProperty(reference, CELIX_FRAMEWORK_SERVICE_RANKING, &rank_str);
 	serviceReference_getProperty(compareTo, CELIX_FRAMEWORK_SERVICE_RANKING, &other_rank_str);
 
 	rank = rank_str == NULL ? 0 : atol(rank_str);
-	other_rank = other_rank_str == NULL ? 0 : atol(other_rank_str);
+	other_rank =
+     other_rank_str == NULL ? 0 : atol(other_rank_str);
 
     *compare = celix_utils_compareServiceIdsAndRanking(id, rank, other_id, other_rank);
 
@@ -326,3 +330,4 @@ celix_status_t serviceReference_getUsingBundles(service_reference_pt ref, celix_
     return status;
 }
 
+// NOLINTEND(clang-analyzer-core.uninitialized.Branch,clang-analyzer-core.UndefinedBinaryOperatorResult)

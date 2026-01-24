@@ -110,7 +110,7 @@ namespace celix {
             return cFw.get();
         }
     private:
-        const std::shared_ptr<celix::BundleContext> fwCtx;
-        const std::shared_ptr<celix_framework_t> cFw;
+        std::shared_ptr<celix::BundleContext> fwCtx;
+        std::shared_ptr<celix_framework_t> cFw;
     };
 }

@@ -60,6 +60,7 @@ void celix_ei_expect_##name(void *caller, unsigned int level, ret_type ret, size
     name ## _ordinal = (ordinal);                                                           \
 }
 
+// NOLINTBEGIN
 #define CELIX_EI_IMPL(name)                                                                              \
 do {                                                                                                     \
     void *addr = CELIX_EI_UNKNOWN_CALLER;                                                                \
@@ -104,7 +105,7 @@ do {                                                                            
         }                                                                                                \
     }                                                                                                    \
 } while(0)
-
+// NOLINTEND
 
 #ifdef __cplusplus
 }

@@ -196,11 +196,11 @@ namespace celix {
         /**
          * @brief Convert a C string to a std::string and ensure RAII for the C string.
          */
-        std::string convertCStringToStdString(char* str) const {
+        static std::string convertCStringToStdString(char* str) {
             std::unique_ptr<char, void(*)(void*)> strGuard{str, free};
             return std::string{str == nullptr ? "" : str};
         }
 
-        const std::shared_ptr<celix_bundle_t> cBnd;
+        std::shared_ptr<celix_bundle_t> cBnd;
     };
 }

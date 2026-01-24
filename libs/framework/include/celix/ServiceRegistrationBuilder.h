@@ -59,6 +59,8 @@ namespace celix {
         ServiceRegistrationBuilder(const ServiceRegistrationBuilder&) = delete;
         ServiceRegistrationBuilder operator=(const ServiceRegistrationBuilder&) = delete;
 
+        ~ServiceRegistrationBuilder() = default;
+
         /**
          * @brief Set the service version.
          *
@@ -168,8 +170,8 @@ namespace celix {
             return ServiceRegistration::create(
                     cCtx,
                     std::move(svc),
-                    std::move(name),
-                    std::move(version),
+                    name,
+                    version,
                     std::move(properties),
                     registerAsync,
                     unregisterAsync,
@@ -177,7 +179,7 @@ namespace celix {
                     std::move(onUnregisteredCallbacks));
         }
     private:
-        const std::shared_ptr<celix_bundle_context_t> cCtx;
+        std::shared_ptr<celix_bundle_context_t> cCtx;
         std::shared_ptr<I> svc;
         std::string name;
         std::string version;

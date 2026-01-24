@@ -26,6 +26,8 @@
 
 #include "etcd.h"
 
+// NOLINT(readability-function-size)
+
 #define ETCD_JSON_NODE                  "node"
 #define ETCD_JSON_PREVNODE              "prevNode"
 #define ETCD_JSON_NODES                 "nodes"
@@ -308,7 +310,7 @@ int etcdlib_get_directory(etcdlib_t *etcdlib, const char *directory, etcdlib_key
             } else {
                 ptrModIndex = &modIndex;
             }
-            retVal = etcd_get_recursive_values(js_rootnode, callback, arg, (json_int_t *) ptrModIndex);
+            retVal = etcd_get_recursive_values(js_rootnode, callback, arg, ptrModIndex);
             long long indexFromHeader = etcd_get_current_index(reply.header);
             if (indexFromHeader > *ptrModIndex) {
                 *ptrModIndex = indexFromHeader;

@@ -57,7 +57,7 @@ namespace celix { namespace dm {
 
     class BaseComponent {
     public:
-        BaseComponent(celix_bundle_context_t *con, celix_dependency_manager_t* cdm, std::string name, std::string uuid) : context{con}, cDepMan{cdm}, cCmp{nullptr} {
+        BaseComponent(celix_bundle_context_t *con, celix_dependency_manager_t* cdm, const std::string& name, const std::string& uuid) : context{con}, cDepMan{cdm} {
             this->cCmp = celix_dmComponent_createWithUUID(this->context, name.c_str(), uuid.empty() ? nullptr : uuid.c_str());
             celix_dmComponent_setImplementation(this->cCmp, this);
             cmpUUID = std::string{celix_dmComponent_getUUID(this->cCmp)};
@@ -66,7 +66,10 @@ namespace celix { namespace dm {
         virtual ~BaseComponent() noexcept;
 
         BaseComponent(const BaseComponent&) = delete;
+        BaseComponent(BaseComponent&&) = delete;
+
         BaseComponent& operator=(const BaseComponent&) = delete;
+        BaseComponent& operator=(BaseComponent&&) = delete;
 
         /**
          * Returns the C DM Component
@@ -143,9 +146,9 @@ namespace celix { namespace dm {
 
         friend std::ostream& operator<<(std::ostream& out, const BaseComponent& cmp);
     protected:
-        celix_bundle_context_t* context;
-        celix_dependency_manager_t* cDepMan;
-        celix_dm_component_t *cCmp;
+        celix_bundle_context_t* context{nullptr};
+        celix_dependency_manager_t* cDepMan{nullptr};
+        celix_dm_component_t *cCmp{nullptr};
         std::string cmpUUID{};
         std::string cmpName{};
 
@@ -188,6 +191,12 @@ namespace celix { namespace dm {
          * @param name
          */
         Component(celix_bundle_context_t *context, celix_dependency_manager_t* cDepMan, std::string name, std::string uuid);
+
+        Component(Component&&) noexcept = default;
+        Component(const Component&) = default;
+
+        Component& operator=(Component&&) noexcept = default;
+        Component& operator=(const Component&) = default;
     public:
         ~Component() override;
 

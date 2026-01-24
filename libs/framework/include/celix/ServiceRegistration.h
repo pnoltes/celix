@@ -161,7 +161,7 @@ namespace celix {
 
                     //NOTE: As long this unregister event is in the queue, the ServiceRegistration will wait in its dtor
                     celix_bundleContext_unregisterServiceAsync(cCtx.get(), svcId, this, [](void *data) {
-                        auto reg = static_cast<ServiceRegistration*>(data);
+                        auto* reg = static_cast<ServiceRegistration*>(data);
                         {
                             std::lock_guard<std::mutex> lck{reg->mutex};
                             reg->state = ServiceRegistrationState::UNREGISTERED;

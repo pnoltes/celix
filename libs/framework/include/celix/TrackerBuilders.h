@@ -50,6 +50,8 @@ namespace celix {
         ServiceTrackerBuilder(const ServiceTrackerBuilder&) = delete;
         ServiceTrackerBuilder operator=(const ServiceTrackerBuilder&) = delete;
 
+        ~ServiceTrackerBuilder() = default;
+
         /**
          * @brief Set filter to be used to matching services.
          *
@@ -215,7 +217,7 @@ namespace celix {
             return ServiceTracker<I>::create(cCtx, std::move(name), std::move(versionRange), std::move(filter), std::move(setCallbacks), std::move(addCallbacks), std::move(remCallbacks));
         }
     private:
-        const std::shared_ptr<celix_bundle_context_t> cCtx;
+        std::shared_ptr<celix_bundle_context_t> cCtx;
         std::string name;
         celix::Filter filter{};
         std::string versionRange{};
@@ -242,6 +244,8 @@ namespace celix {
         BundleTrackerBuilder &operator=(BundleTrackerBuilder &&) = delete;
         BundleTrackerBuilder(const BundleTrackerBuilder &) = delete;
         BundleTrackerBuilder operator=(const BundleTrackerBuilder &) = delete;
+
+        ~BundleTrackerBuilder() = default;
 
         BundleTrackerBuilder& includeFrameworkBundleInCallback() {
             includeFrameworkBundle = true;
@@ -290,7 +294,7 @@ namespace celix {
             return BundleTracker::create(cCtx, includeFrameworkBundle, std::move(onInstallCallbacks), std::move(onStartCallbacks), std::move(onStopCallbacks));
         }
     private:
-        const std::shared_ptr<celix_bundle_context_t> cCtx;
+        std::shared_ptr<celix_bundle_context_t> cCtx;
         bool includeFrameworkBundle{false};
         std::vector<std::function<void(const celix::Bundle&)>> onInstallCallbacks{};
         std::vector<std::function<void(const celix::Bundle&)>> onStartCallbacks{};
@@ -314,9 +318,11 @@ namespace celix {
                 cCtx{std::move(_cCtx)},
                 serviceName{std::move(_serviceName)} {}
 
-        MetaTrackerBuilder &operator=(MetaTrackerBuilder &&) = delete;
+        MetaTrackerBuilder& operator=(MetaTrackerBuilder &&) = delete;
         MetaTrackerBuilder(const MetaTrackerBuilder &) = delete;
         MetaTrackerBuilder operator=(const MetaTrackerBuilder &) = delete;
+
+        ~MetaTrackerBuilder() = default;
 
         /**
          * @brief Adds a "on tracker created" callback function, which will be called - on the Celix event thread -
@@ -349,7 +355,7 @@ namespace celix {
             return MetaTracker::create(cCtx, std::move(serviceName), std::move(onTrackerCreated), std::move(onTrackerDestroyed));
         }
     private:
-        const std::shared_ptr<celix_bundle_context_t> cCtx;
+        std::shared_ptr<celix_bundle_context_t> cCtx;
         std::string serviceName;
         std::vector<std::function<void(const ServiceTrackerInfo&)>> onTrackerCreated{};
         std::vector<std::function<void(const ServiceTrackerInfo&)>> onTrackerDestroyed{};

@@ -206,7 +206,7 @@ void celix_bundleCache_destroyArchive(celix_bundle_cache_t* cache, celix_bundle_
         const char* loc = celix_bundleArchive_getLocation(archive);
         (void) celix_stringHashMap_remove(cache->locationToBundleIdLookupMap, loc);
     }
-    (void)celix_bundleArchive_removeInvalidDirs(archive);
+    celix_bundleArchive_removeInvalidDirs(archive);
     celixThreadMutex_unlock(&cache->mutex);
     celix_bundleArchive_destroy(archive);
 }

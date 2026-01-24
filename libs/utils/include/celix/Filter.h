@@ -78,6 +78,8 @@ namespace celix {
             return *this;
         }
 
+        ~Filter() = default;
+
         /**
          * @brief Warps a C filter to a C++ filter
          * @warning Takes no ownership. Dealloction still has to be done the "C way".
@@ -90,7 +92,7 @@ namespace celix {
          * @brief Gets the filter string
          */
         std::string getFilterString() const {
-            auto cStr = getFilterCString();
+            const auto *const cStr = getFilterCString();
             return cStr == nullptr ? std::string{} : std::string{cStr};
         }
 
@@ -113,7 +115,7 @@ namespace celix {
          * @return The found attribute value or an empty string if the attribute was not found.
          */
         std::string findAttribute(const std::string& attributeKey) const {
-            auto* cValue = celix_filter_findAttribute(cFilter.get(), attributeKey.data());
+            const auto* cValue = celix_filter_findAttribute(cFilter.get(), attributeKey.data());
             return cValue == nullptr ? std::string{} : std::string{cValue};
         }
 

@@ -33,6 +33,8 @@
 #include "service_registration_private.h"
 #include "service_registry_private.h"
 
+//NOLINTBEGIN(performance-no-int-to-ptr)
+
 static celix_status_t serviceRegistry_registerServiceInternal(service_registry_pt registry, bundle_pt bundle, const char* serviceName, const void * serviceObject, celix_properties_t* dictionary, long reservedId, enum celix_service_type svcType, service_registration_pt *registration);
 static celix_status_t serviceRegistry_unregisterService(service_registry_pt registry, bundle_pt bundle, service_registration_pt registration);
 static bool serviceRegistry_tryRemoveServiceReference(service_registry_pt registry, service_reference_pt ref);
@@ -127,7 +129,7 @@ void celix_serviceRegistry_destroy(celix_service_registry_t* registry) {
 
     //destroy listener hooks
     size = celix_arrayList_size(registry->listenerHooks);
-    for (int i = 0; i < celix_arrayList_size(registry->listenerHooks); ++i) {
+    for (int i = 0; i < size; ++i) {
         celix_service_registry_listener_hook_entry_t *entry = celix_arrayList_get(registry->listenerHooks, i);
         celix_waitAndDestroyHookEntry(entry);
     }
@@ -1189,3 +1191,5 @@ void celix_serviceRegistry_unregisterService(celix_service_registry_t* registry,
         fw_log(registry->framework->logger, CELIX_LOG_LEVEL_ERROR, "Cannot unregister service for service id %li. This id is not present or owned by the provided bundle (bnd id %li)", serviceId, celix_bundle_getId(bnd));
     }
 }
+
+//NOLINTEND(performance-no-int-to-ptr)

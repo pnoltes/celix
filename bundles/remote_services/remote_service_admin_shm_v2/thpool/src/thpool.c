@@ -8,6 +8,8 @@
  *
  ********************************/
 
+ //ignore readability-isolate-declaration
+
 #if defined(__APPLE__)
 #include <AvailabilityMacros.h>
 #else
@@ -27,6 +29,8 @@
 #endif
 
 #include "thpool.h"
+
+// NOLINTBEGIN
 
 #ifdef THPOOL_DEBUG
 #define THPOOL_DEBUG 1
@@ -551,3 +555,5 @@ static void bsem_wait(bsem* bsem_p) {
 	bsem_p->v = 0;
 	pthread_mutex_unlock(&bsem_p->mutex);
 }
+
+// NOLINTEND

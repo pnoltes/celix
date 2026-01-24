@@ -683,7 +683,7 @@ namespace celix {
             opts.versionRange = versionRange;
 
             std::vector<long> result{};
-            auto cList = celix_bundleContext_findServicesWithOptions(cCtx.get(), &opts);
+            auto* cList = celix_bundleContext_findServicesWithOptions(cCtx.get(), &opts);
             for (int i = 0; i < celix_arrayList_size(cList); ++i) {
                 long svcId = celix_arrayList_getLong(cList, i);
                 result.push_back(svcId);
@@ -692,9 +692,9 @@ namespace celix {
             return result;
         }
 
-        const std::shared_ptr<celix_bundle_context_t> cCtx;
-        const std::shared_ptr<celix::dm::DependencyManager> dm;
-        const Bundle bnd;
+        std::shared_ptr<celix_bundle_context_t> cCtx;
+        std::shared_ptr<celix::dm::DependencyManager> dm;
+        Bundle bnd;
     };
 }
 

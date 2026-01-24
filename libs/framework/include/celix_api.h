@@ -27,14 +27,9 @@
 #include "celix_bundle_context.h"
 #include "celix_framework.h"
 
-#include "celix_properties.h"
-#include "celix_array_list.h"
 #include "celix_constants.h"
 #include "celix_utils_api.h"
-#include "celix_bundle.h"
-#include "celix_bundle_context.h"
 
-#include "celix_framework.h"
 #include "celix_framework_factory.h"
 #include "celix_launcher.h"
 #include "celix_framework_utils.h"
@@ -44,7 +39,6 @@
 #include "dm_service_dependency.h"
 
 #include "celix_bundle_activator.h"
-#include "celix_framework_factory.h"
 
 #ifdef __cplusplus
 #include "celix/BundleActivator.h"

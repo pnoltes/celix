@@ -343,7 +343,7 @@ char* celix_bundle_getLocation(const celix_bundle_t *bnd) {
         const char* loc = celix_bundleArchive_getLocation(bnd->archive);
         result = celix_utils_strdup(loc);
         if (!result) {
-            fw_log(bnd->framework->logger, CELIX_BUNDLE_EXCEPTION, "Failed to allocate memory for bundle location");
+            fw_log(bnd->framework->logger, CELIX_LOG_LEVEL_ERROR, "Failed to allocate memory for bundle location");
         }
     }
     return result;

@@ -194,7 +194,8 @@ static celix_status_t celix_utils_convertStringToArrayList(const char* val,
             }
             fflush(entryStream);
             status = addEntry(list, buf);
-            rewind(entryStream);
+            //NOLINTNEXTLINE(cert-msc24-c,cert-msc33-c)
+            rewind(entryStream); 
         } else {
             //normal char
             int rc = fputc(val[i], entryStream);

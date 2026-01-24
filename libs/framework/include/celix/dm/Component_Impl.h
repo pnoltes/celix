@@ -45,7 +45,7 @@ inline void BaseComponent::runBuild() {
     }
 }
 
-inline BaseComponent::~BaseComponent() noexcept = default;
+BaseComponent::~BaseComponent() noexcept = default;
 
 inline void BaseComponent::wait() const {
     celix_dependencyManager_wait(cDepMan);
@@ -259,7 +259,7 @@ Component<T>& Component<T>::setInstance(T&& inst) {
     this->instance = std::unique_ptr<T> {nullptr};
     this->sharedInstance = std::shared_ptr<T> {nullptr};
     this->valInstance.clear();
-    this->valInstance.push_back(std::forward<T>(inst));
+    this->valInstance.push_back(std::move<T>(inst));
     return *this;
 }
 

@@ -58,6 +58,8 @@ namespace celix {
             cVersion{createVersion(celix_version_create(major, minor, micro, qualifier.empty() ? "" : qualifier.c_str()))},
             qualifier{celix_version_getQualifier(cVersion.get())} {}
 
+        ~Version() = default;
+
         /**
          * @brief Move-constructs a new version from an existing one.
          */

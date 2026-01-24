@@ -63,6 +63,8 @@ namespace celix {
         UseServiceBuilder(const UseServiceBuilder&) = delete;
         UseServiceBuilder operator=(const UseServiceBuilder&) = delete;
 
+        ~UseServiceBuilder() = default;
+
         /**
          * @brief Set filter to be used to select a service.
          *
@@ -153,6 +155,7 @@ namespace celix {
             opts.useWithOwner = [](void* data, void *voidSvc, const celix_properties_t* cProps, const celix_bundle_t* cBnd) {
                 auto* builder = static_cast<UseServiceBuilder<I>*>(data);
                 auto* svc = static_cast<I*>(voidSvc);
+                //NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
                 const Bundle bnd{const_cast<celix_bundle_t*>(cBnd)};
                 auto props = celix::Properties::wrap(cProps);
                 for (const auto& func : builder->callbacks) {
@@ -174,9 +177,9 @@ namespace celix {
             }
         }
     private:
-        const std::shared_ptr<celix_bundle_context_t> cCtx;
-        const std::string name;
-        const bool useSingleService;
+        std::shared_ptr<celix_bundle_context_t> cCtx;
+        std::string name;
+        bool useSingleService;
         double timeoutInSeconds{0};
         celix::Filter filter{};
         std::string versionRange{};
