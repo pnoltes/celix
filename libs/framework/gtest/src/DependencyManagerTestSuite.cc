@@ -257,7 +257,7 @@ class TestComponent {
 };
 
 struct TestService {
-    void *handle = nullptr;
+    int dummy{0};
 };
 
 class Cmp1 : public TestService {
@@ -738,7 +738,7 @@ TEST_F(DependencyManagerTestSuite, IntermediateStatesDuringInitDeinitStartingAnd
             .setCallbacks(&LifecycleComponent::init, &LifecycleComponent::start, &LifecycleComponent::stop, &LifecycleComponent::deinit);
     cmp.createServiceDependency<TestService>()
             .setStrategy(celix::dm::DependencyUpdateStrategy::suspend)
-            .setCallbacks([](std::shared_ptr<TestService> /*service*/, const std::shared_ptr<const celix::Properties>& /*properties*/){ std::cout << "Dummy set for svc callback\n"; })
+            .setCallbacks([](const std::shared_ptr<TestService>& /*service*/, const std::shared_ptr<const celix::Properties>& /*properties*/){ std::cout << "Dummy set for svc callback\n"; })
             .setRequired(false);
     cmp.createServiceDependency<TestService>("RequiredTestService")
             .setStrategy(celix::dm::DependencyUpdateStrategy::locking)
@@ -1065,7 +1065,7 @@ TEST_F(DependencyManagerTestSuite, ExceptionsInLifecycle) {
         }
 
     private:
-        const LifecycleMethod failAt;
+        LifecycleMethod failAt;
     };
 
     celix::dm::DependencyManager dm{ctx};

@@ -55,7 +55,7 @@ celix::UnbufferedPushStream<T>::UnbufferedPushStream(std::shared_ptr<PromiseFact
 
 template<typename T>
 void celix::UnbufferedPushStream<T>::setConnector(ConnectorFunction _connector) {
-    connector =  _connector;
+    connector =  std::move(_connector);
 }
 
 template<typename T>

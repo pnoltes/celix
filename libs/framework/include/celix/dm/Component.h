@@ -63,7 +63,7 @@ namespace celix { namespace dm {
             cmpUUID = std::string{celix_dmComponent_getUUID(this->cCmp)};
             cmpName = std::string{celix_dmComponent_getName(this->cCmp)};
         }
-        virtual ~BaseComponent() noexcept;
+        virtual ~BaseComponent() noexcept = default;
 
         BaseComponent(const BaseComponent&) = delete;
         BaseComponent(BaseComponent&&) = delete;
@@ -198,7 +198,7 @@ namespace celix { namespace dm {
         Component& operator=(Component&&) noexcept = default;
         Component& operator=(const Component&) = default;
     public:
-        ~Component() override;
+        ~Component() noexcept override = default;
 
         /**
          * Creates a Component using the provided bundle context

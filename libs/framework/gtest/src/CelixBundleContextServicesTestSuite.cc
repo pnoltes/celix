@@ -1095,7 +1095,7 @@ TEST_F(CelixBundleContextServicesTestSuite, TrackAllServices) {
     opts.filter.serviceName = nullptr;
     opts.callbackHandle = (void *) &count;
     opts.add = [](void *handle, void *) {
-        auto c = (std::atomic<size_t> *) handle;
+        auto* c = (std::atomic<size_t> *) handle;
         c->fetch_add(1);
     };
     long trackerId = celix_bundleContext_trackServicesWithOptions(ctx, &opts);
@@ -1168,7 +1168,7 @@ TEST_F(CelixBundleContextServicesTestSuite, ServiceFactoryTest) {
     struct calc {
         int (*calc)(int);
     };
-    auto name = "CALC";
+    const auto* name = "CALC";
 
     int count = 0;
     celix_service_factory_t fac;
@@ -1209,7 +1209,7 @@ TEST_F(CelixBundleContextServicesTestSuite, AsyncServiceFactoryTest) {
     struct calc {
         int (*calc)(int);
     };
-    auto name = "CALC";
+    const auto* name = "CALC";
 
     int count = 0;
     celix_service_factory_t fac;
@@ -1558,7 +1558,7 @@ TEST_F(CelixBundleContextServicesTestSuite, UnregisterSvcBeforeAsyncRegistration
             "registerAsync",
             (void*)&cbData,
             [](void *data) {
-                auto cbd = static_cast<struct callback_data*>(data);
+                auto* cbd = static_cast<struct callback_data*>(data);
 
                 //note register async. So a event on the event queue, but because this is done on the event queue this cannot be completed
                 long svcId = celix_bundleContext_registerServiceAsync(cbd->ctx, (void*)0x42, "test-service", nullptr);
@@ -1589,7 +1589,7 @@ TEST_F(CelixBundleContextServicesTestSuite, StopSvcTrackerBeforeAsyncTrackerIsCr
             "create tracker async",
             (void*)&cbData,
             [](void *data) {
-                auto cbd = static_cast<struct callback_data*>(data);
+                auto* cbd = static_cast<struct callback_data*>(data);
 
                 celix_service_tracking_options_t opts{};
                 opts.filter.serviceName = "test-service";
@@ -1626,7 +1626,7 @@ TEST_F(CelixBundleContextServicesTestSuite, WaitForTrackerOnLoop) {
             "create tracker async",
             (void*)&cbData,
             [](void *data) {
-                auto cbd = static_cast<struct callback_data*>(data);
+                auto* cbd = static_cast<struct callback_data*>(data);
 
                 celix_service_tracking_options_t opts{};
                 opts.filter.serviceName = "test-service";
@@ -1664,7 +1664,7 @@ TEST_F(CelixBundleContextServicesTestSuite, StopBundleTrackerBeforeAsyncTrackerI
             "create tracker async",
             (void*)&cbData,
             [](void *data) {
-                auto cbd = static_cast<struct callback_data*>(data);
+                auto* cbd = static_cast<struct callback_data*>(data);
 
                 celix_bundle_tracking_options_t opts{};
                 opts.trackerCreatedCallbackData = data;
@@ -1700,7 +1700,7 @@ TEST_F(CelixBundleContextServicesTestSuite, StopMetaTrackerBeforeAsyncTrackerIsC
             "create tracker async",
             (void*)&cbData,
             [](void *data) {
-                auto cbd = static_cast<struct callback_data*>(data);
+                auto* cbd = static_cast<struct callback_data*>(data);
 
                 //note create async. So a event on the event queue, but because this is done on the event queue this cannot be completed
                 long trkId = celix_bundleContext_trackServiceTrackersAsync(cbd->ctx, "test-service", nullptr, nullptr, nullptr, data, [](void *data) {
@@ -1819,14 +1819,14 @@ TEST_F(CelixBundleContextServicesTestSuite, UseTrackedServiceTest) {
     };
     useOpts.useWithProperties = [](void* handle, void* svc, const celix_properties_t* props) {
         EXPECT_EQ((void*)0x42, svc);
-        auto* val = celix_properties_get(props, "key", nullptr);
+        const auto* val = celix_properties_get(props, "key", nullptr);
         EXPECT_TRUE(val != nullptr);
         auto *d = static_cast<use_data*>(handle);
         d->count++;
     };
     useOpts.useWithOwner = [](void* handle, void* svc, const celix_properties_t* props, const celix_bundle_t* owner) {
         EXPECT_EQ((void*)0x42, svc);
-        auto* val = celix_properties_get(props, "key", nullptr);
+        const auto* val = celix_properties_get(props, "key", nullptr);
         EXPECT_TRUE(val != nullptr);
         auto *d = static_cast<use_data*>(handle);
         d->count++;
@@ -1866,7 +1866,7 @@ TEST_F(CelixBundleContextServicesTestSuite, UseTrackedServiceTest) {
     useOpts.useWithOwner = nullptr;
     useOpts.useWithProperties = [](void* handle, void* svc, const celix_properties_t* props) {
         EXPECT_EQ((void*)0x42, svc);
-        auto* val = celix_properties_get(props, "key", nullptr);
+        const auto* val = celix_properties_get(props, "key", nullptr);
         EXPECT_TRUE(val != nullptr);
         EXPECT_STREQ("1", val);
         auto *d = static_cast<use_data*>(handle);
@@ -1976,7 +1976,7 @@ TEST_F(CelixBundleContextServicesTestSuite, UseTrackedServiceOnTheCelixEventThre
     };
     callback_data cbData{ctx, trkId};
     auto eventCallback = [](void *data) {
-        auto d = static_cast<callback_data*>(data);
+        auto* d = static_cast<callback_data*>(data);
         bool called = celix_bundleContext_useTrackedService(d->ctx, d->trkId, nullptr, nullptr);
         EXPECT_TRUE(called);
     };
@@ -2007,7 +2007,7 @@ TEST_F(CelixBundleContextServicesTestSuite, CreateServiceTrackedOnUseServiceTrac
 
     //Then I can create and destroy an additional service tracker on the callback of the useTrackedService function
     auto useCallback = [](void *data, void* /*svc*/) {
-        auto c = static_cast<celix_bundle_context_t *>(data);
+        auto* c = static_cast<celix_bundle_context_t *>(data);
         long additionalTrkId = celix_bundleContext_trackServices(c, "foo");
         EXPECT_GT(additionalTrkId, 0);
         celix_bundleContext_stopTracker(c, additionalTrkId);
@@ -2076,7 +2076,7 @@ TEST_F(CelixBundleContextServicesTestSuite, UnregisterServiceFactoryWhenUsingIts
     struct calc {
         int (*calc)(int);
     };
-    auto name = "CALC";
+    const auto* name = "CALC";
 
     struct fac_ctx {
         void *svc;
@@ -2085,14 +2085,14 @@ TEST_F(CelixBundleContextServicesTestSuite, UnregisterServiceFactoryWhenUsingIts
     memset(&fac, 0, sizeof(fac));
     fac.handle = (void*)&facCtx;
     fac.getService = [](void *handle, const celix_bundle_t *, const celix_properties_t *) -> void* {
-        auto facCtx = (struct fac_ctx*)handle;
-        auto svc = (struct calc*)malloc(sizeof(struct calc));
+        auto* facCtx = (struct fac_ctx*)handle;
+        auto* svc = (struct calc*)malloc(sizeof(struct calc));
         svc->calc = [](int arg) { return arg * 10; };
         facCtx->svc = svc;
         return svc;
     };
     fac.ungetService = [](void *handle, const celix_bundle_t *, const celix_properties_t *) {
-        auto facCtx = (struct fac_ctx*)handle;
+        auto* facCtx = (struct fac_ctx*)handle;
         free(facCtx->svc);
     };
     long facId = celix_bundleContext_registerServiceFactory(ctx, &fac, name, nullptr);
@@ -2103,7 +2103,7 @@ TEST_F(CelixBundleContextServicesTestSuite, UnregisterServiceFactoryWhenUsingIts
         long facId;
     } useCtx{ctx, facId};
     bool called = celix_bundleContext_useService(ctx, name, &useCtx, [](void *handle, void* svc) {
-        auto useCtx = (struct use_ctx*)(handle);
+        auto* useCtx = (struct use_ctx*)(handle);
         celix_bundleContext_unregisterServiceAsync(useCtx->ctx, useCtx->facId, nullptr, nullptr);
         usleep(10000);
         auto *calc = (struct calc*)svc;
@@ -2117,7 +2117,7 @@ TEST_F(CelixBundleContextServicesTestSuite, UnregisterServiceFactoryBeforeTracke
     struct calc {
         int (*calc)(int);
     };
-    auto name = "CALC";
+    const auto* name = "CALC";
 
     struct fac_ctx {
         void *svc;
@@ -2126,14 +2126,14 @@ TEST_F(CelixBundleContextServicesTestSuite, UnregisterServiceFactoryBeforeTracke
     memset(&fac, 0, sizeof(fac));
     fac.handle = (void*)&facCtx;
     fac.getService = [](void *handle, const celix_bundle_t *, const celix_properties_t *) -> void* {
-        auto facCtx = (struct fac_ctx*)handle;
-        auto svc = (struct calc*)malloc(sizeof(struct calc));
+        auto* facCtx = (struct fac_ctx*)handle;
+        auto* svc = (struct calc*)malloc(sizeof(struct calc));
         svc->calc = [](int arg) { return arg * 10; };
         facCtx->svc = svc;
         return svc;
     };
     fac.ungetService = [](void *handle, const celix_bundle_t *, const celix_properties_t *) {
-        auto facCtx = (struct fac_ctx*)handle;
+        auto* facCtx = (struct fac_ctx*)handle;
         free(facCtx->svc);
     };
     long facId = celix_bundleContext_registerServiceFactory(ctx, &fac, name, nullptr);

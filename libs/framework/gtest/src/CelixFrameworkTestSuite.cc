@@ -38,7 +38,7 @@ class CelixFrameworkTestSuite : public ::testing::Test {
         auto status = celix_properties_load("config.properties", 0, &config);
         EXPECT_EQ(CELIX_SUCCESS, status);
 
-        auto fw = celix_frameworkFactory_createFramework(config);
+        auto* fw = celix_frameworkFactory_createFramework(config);
         EXPECT_TRUE(fw != nullptr);
 
         framework = std::shared_ptr<celix_framework_t>{
@@ -181,7 +181,7 @@ TEST_F(CelixFrameworkTestSuite, AsyncInstallStartStopUpdateAndUninstallBundleTes
 }
 
 TEST_F(CelixFrameworkTestSuite, ListBundlesTest) {
-    auto list = celix_framework_listBundles(framework.get());
+    auto* list = celix_framework_listBundles(framework.get());
     EXPECT_EQ(0, celix_arrayList_size(list));
     celix_arrayList_destroy(list);
     list = celix_framework_listInstalledBundles(framework.get());

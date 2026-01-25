@@ -94,7 +94,7 @@ namespace celix { namespace dm {
          * @return Returns a reference to the DM Component
          */
         template<class T>
-        Component<T>& createComponent(T rhs, std::string name = std::string{}, std::string uuid = {});
+        Component<T>& createComponent(T&& rhs, std::string name = std::string{}, std::string uuid = {});
 
         /**
          * Build the dependency manager.

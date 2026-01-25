@@ -121,7 +121,9 @@ TEST_F(CelixFrameworkUtilsTestSuite, ExtractUncompressedBundleTest) {
     //valid bundle path -> install a symbolic link
     auto status = celix_framework_utils_extractBundle(framework->getCFramework(), testExtractDir, testLinkDir);
     EXPECT_EQ(status, CELIX_SUCCESS);
-    struct stat st1, st2, st3;
+    struct stat st1{};
+    struct stat st2{};
+    struct stat st3{};
     EXPECT_EQ(0, lstat(testLinkDir, &st1));
     EXPECT_TRUE(S_ISLNK(st1.st_mode));
     EXPECT_EQ(0, stat(testLinkDir, &st2));

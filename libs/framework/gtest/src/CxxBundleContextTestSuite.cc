@@ -28,6 +28,8 @@
 #include "celix_framework.h"
 #include "service_tracker_customizer.h"
 
+//NOLINTBEGIN(performance-unnecessary-value-param)
+
 class CxxBundleContextTestSuite : public ::testing::Test {
 public:
     static constexpr const char * const TEST_BND1_LOC = "" SIMPLE_TEST_BUNDLE1_LOCATION "";
@@ -887,3 +889,5 @@ TEST_F(CxxBundleContextTestSuite, UseTrackedServidesTest) {
     });
     EXPECT_TRUE(called);
 }
+
+//NOLINTEND(performance-unnecessary-value-param)

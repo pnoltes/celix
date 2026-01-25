@@ -36,8 +36,8 @@ class ManifestTestSuite : public ::testing::Test {
                                                 const char* bundleName,
                                                 const char* symbolicName) {
         celix_properties_t* properties = celix_properties_create();
-        auto mVer = celix_version_createVersionFromString(manifestVersion);
-        auto bVer = celix_version_createVersionFromString(bundleVersion);
+        auto* mVer = celix_version_createVersionFromString(manifestVersion);
+        auto* bVer = celix_version_createVersionFromString(bundleVersion);
         celix_properties_assignVersion(properties, "CELIX_BUNDLE_MANIFEST_VERSION", mVer);
         celix_properties_assignVersion(properties, "CELIX_BUNDLE_VERSION", bVer);
         celix_properties_set(properties, "CELIX_BUNDLE_NAME", bundleName);
@@ -224,9 +224,9 @@ TEST_F(ManifestTestSuite, CreateFrameworkManifestTest) {
 
         //And the manifest contains at least the mandatory attributes for a framework bundle
         EXPECT_GE(celix_properties_size(celix_bundleManifest_getAttributes(manifest)), 4);
-        auto manifestVersion = celix_bundleManifest_getManifestVersion(manifest);
+        const auto* manifestVersion = celix_bundleManifest_getManifestVersion(manifest);
         ASSERT_NE(nullptr, manifestVersion);
-        auto bundleVersion = celix_bundleManifest_getBundleVersion(manifest);
+        const auto* bundleVersion = celix_bundleManifest_getBundleVersion(manifest);
         ASSERT_NE(nullptr, bundleVersion);
         celix_autofree char* mv = celix_version_toString(manifestVersion);
         celix_autofree char* bv = celix_version_toString(bundleVersion);

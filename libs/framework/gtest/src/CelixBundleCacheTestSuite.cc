@@ -51,7 +51,7 @@ TEST_F(CelixBundleCacheTestSuite, ArchiveCreateDestroyTest) {
     celix_bundle_archive_t* archive = nullptr;
     EXPECT_EQ(CELIX_SUCCESS, celix_bundleCache_createArchive(fw.cache, 1, SIMPLE_TEST_BUNDLE1_LOCATION, &archive));
     EXPECT_NE(nullptr, archive);
-    auto location = celix_bundleArchive_getLocation(archive);
+    const auto* location = celix_bundleArchive_getLocation(archive);
     EXPECT_STREQ(SIMPLE_TEST_BUNDLE1_LOCATION, location);
     long bndId;
     auto status = celix_bundleCache_findBundleIdForLocation(fw.cache, SIMPLE_TEST_BUNDLE1_LOCATION, &bndId);

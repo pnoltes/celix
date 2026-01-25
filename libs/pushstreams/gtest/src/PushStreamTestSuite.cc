@@ -330,7 +330,7 @@ TEST_F(PushStreamTestSuite, ForEachTestBasicType) {
                     consumeSum = consumeSum + event;
                 });
 
-        done.wait(lk, [&](){ return allEventsDone==true;});
+        done.wait(lk, [&](){ return allEventsDone.load();});
         promiseFactory->getExecutor()->wait();
         ses->close();
         streamEnded.wait();
@@ -363,7 +363,7 @@ TEST_F(PushStreamTestSuite, ForEachTestBasicType_Buffered) {
                     consumeSum = consumeSum + event;
                 });
 
-        done.wait(lk, [&](){ return allEventsDone;});
+        done.wait(lk, [&](){ return allEventsDone.load();});
         promiseFactory->getExecutor()->wait();
         ses->close();
         streamEnded.wait();
@@ -388,7 +388,7 @@ TEST_F(PushStreamTestSuite, ForEachTestObjectType) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -416,7 +416,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_true) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -443,7 +443,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_false) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -470,7 +470,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_simple) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -499,7 +499,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_and) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -524,7 +524,7 @@ TEST_F(PushStreamTestSuite, MapTestObjectType) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -550,7 +550,7 @@ TEST_F(PushStreamTestSuite, MapTestObjectType_async) {
             consumeSum += + event;
         });
 
-        done.wait(lk, [&](){ return allEventsDone;});
+        done.wait(lk, [&](){ return allEventsDone.load();});
         promiseFactory->getExecutor()->wait();
         ses->close();
         streamEnded.wait();
@@ -610,7 +610,7 @@ TEST_F(PushStreamTestSuite, MultipleStreamsTest_CloseSource) {
     });
 
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded1.wait();
@@ -718,7 +718,7 @@ TEST_F(PushStreamTestSuite, SplitStreamsTest) {
     }
 
 
-    done.wait(lk, [&](){ return allEventsDone;});
+    done.wait(lk, [&](){ return allEventsDone.load();});
     promiseFactory->getExecutor()->wait();
     ses->close();
     promiseFactory->getExecutor()->wait();

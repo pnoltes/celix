@@ -60,7 +60,7 @@ Component<T>& DependencyManager::createComponent(std::shared_ptr<T> rhs, std::st
 }
 
 template<class T>
-Component<T>& DependencyManager::createComponent(T rhs, std::string name, std::string uuid) {
+Component<T>& DependencyManager::createComponent(T&& rhs, std::string name, std::string uuid) {
     return createComponentInternal<T>(std::move(name), std::move(uuid)).setInstance(std::forward<T>(rhs));
 }
 
