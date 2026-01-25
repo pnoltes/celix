@@ -89,8 +89,10 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif()
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    set(CMAKE_C_FLAGS "-Wno-unused-result ${CMAKE_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "-Wno-unused-result ${CMAKE_CXX_FLAGS}")
+    #TODO added for clang-tidy, check if this can be fixed
+    set(CMAKE_C_FLAGS "-Wno-unused-result -Wno-unknown-warning-option ${CMAKE_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-Wno-unused-result -Wno-unknown-warning-option ${CMAKE_CXX_FLAGS}")
+
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 7.0)
         set(CMAKE_C_FLAGS "-Wno-format-truncation -Wno-stringop-overflow ${CMAKE_C_FLAGS}")
         set(CMAKE_CXX_FLAGS "-Wno-format-truncation -Wno-stringop-overflow ${CMAKE_CXX_FLAGS}")
