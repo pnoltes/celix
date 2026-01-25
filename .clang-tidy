@@ -24,6 +24,7 @@ Checks: >
   -readability-braces-around-statements,
   -readability-implicit-bool-conversion,
   -readability-redundant-member-init,
+  -readability-convert-member-functions-to-static,
   -bugprone-narrowing-conversions,
   -bugprone-easily-swappable-parameters,
   -bugprone-macro-parentheses,
