@@ -34,7 +34,7 @@ public:
         fprintf(outStream, "Hello from bundle %s with command line '%s'\n", name.c_str(), commandLine.c_str());
     }
 private:
-    const std::string name;
+    std::string name;
 };
 
 class MyShellCommandProviderBundleActivator {

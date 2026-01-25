@@ -30,7 +30,7 @@ struct DummyService {
 
 class Phase1Activator {
 public:
-    Phase1Activator(std::shared_ptr<celix::dm::DependencyManager> mng);
+    Phase1Activator(const std::shared_ptr<celix::dm::DependencyManager>& mng);
     Phase1Activator(const Phase1Activator&) = delete;
     Phase1Activator& operator=(const Phase1Activator&) = delete;
 private:

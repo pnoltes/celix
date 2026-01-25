@@ -26,7 +26,7 @@
 
 using namespace celix::dm;
 
-Phase3LockingActivator::Phase3LockingActivator(std::shared_ptr<DependencyManager> mng) {
+Phase3LockingActivator::Phase3LockingActivator(const std::shared_ptr<DependencyManager>& mng) {
     auto inst = std::shared_ptr<Phase3LockingCmp> {new Phase3LockingCmp {}};
 
     Component<Phase3LockingCmp>& cmp = mng->createComponent<Phase3LockingCmp>(inst)  //set inst using a shared ptr

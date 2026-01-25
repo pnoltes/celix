@@ -23,7 +23,7 @@
 #include "IAnotherExample.h"
 
 class Bar : public IAnotherExample {
-    const double seed = 42;
+    double seed = 42;
 public:
     Bar() = default;
     virtual ~Bar() = default;
@@ -33,7 +33,7 @@ public:
     void stop();
     void deinit();
 
-    virtual double method(int arg1, double arg2) override; //implementation of IAnotherExample::method
+    double method(int arg1, double arg2) override; //implementation of IAnotherExample::method
     int cMethod(int arg1, double arg2, double *out); //implementation of example_t->method;
 };
 

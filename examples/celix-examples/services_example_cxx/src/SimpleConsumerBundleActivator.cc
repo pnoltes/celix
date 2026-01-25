@@ -112,8 +112,8 @@ private:
                 .build();
     }
 
-    const std::shared_ptr<SimpleConsumer> consumer;
-    const std::shared_ptr<celix::GenericServiceTracker> tracker;
+    std::shared_ptr<SimpleConsumer> consumer;
+    std::shared_ptr<celix::GenericServiceTracker> tracker;
 };
 
 CELIX_GEN_CXX_BUNDLE_ACTIVATOR(SimpleConsumerBundleActivator)

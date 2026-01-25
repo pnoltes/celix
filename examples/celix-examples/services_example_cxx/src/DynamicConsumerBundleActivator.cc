@@ -152,8 +152,8 @@ namespace /*anon*/ {
                 ctx->logInfo("Creating dynamic consumer nr %zu", consumers.size());
                 auto consumer = DynamicConsumer::create(nextConsumerId++);
                 consumers[consumer] = ctx->trackServices<examples::ICalc>()
-                        .addSetWithPropertiesCallback([consumer](std::shared_ptr<examples::ICalc> calc, std::shared_ptr<const celix::Properties> properties) {
-                            consumer->setCalc(std::move(calc), std::move(properties));
+                        .addSetWithPropertiesCallback([consumer](const std::shared_ptr<examples::ICalc>& calc, const std::shared_ptr<const celix::Properties>& properties) {
+                            consumer->setCalc(calc, properties);
                         })
                         .build();
             }

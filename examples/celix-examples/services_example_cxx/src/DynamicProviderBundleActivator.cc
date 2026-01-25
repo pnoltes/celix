@@ -38,7 +38,7 @@ public:
         return seed * input;
     }
 private:
-    const int seed;
+    int seed;
 };
 
 /**
@@ -93,6 +93,7 @@ private:
     }
 
     const std::shared_ptr<celix::BundleContext> ctx;
+    //NOLINTNEXTLINE
     std::default_random_engine generator{};
     std::uniform_int_distribution<int> distribution{-100,100};
 
@@ -105,7 +106,7 @@ private:
  */
 class DynamicProviderBundleActivator {
 public:
-    explicit DynamicProviderBundleActivator(std::shared_ptr<celix::BundleContext> ctx) : factory{std::make_shared<DynamicProviderFactory>(ctx)} {
+    explicit DynamicProviderBundleActivator(const std::shared_ptr<celix::BundleContext>& ctx) : factory{std::make_shared<DynamicProviderFactory>(ctx)} {
         cmdReg = ctx->registerService<celix::IShellCommand>(factory)
                 .addProperty(celix::IShellCommand::COMMAND_NAME, "providers_reset")
                 .build();

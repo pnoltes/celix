@@ -26,7 +26,7 @@
 class IAnotherExample {
 protected:
     IAnotherExample() = default;
-    virtual ~IAnotherExample() = default;
+    ~IAnotherExample() = default;
 public:
     virtual double method(int arg1, double arg2) = 0;
 };

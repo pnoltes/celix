@@ -26,7 +26,7 @@ using namespace celix::dm;
 
 class Phase3LockingActivator {
 public:
-    Phase3LockingActivator(std::shared_ptr<DependencyManager> mng);
+    Phase3LockingActivator(const std::shared_ptr<DependencyManager>& mng);
 };
 
 #endif //CELIX_PHASE3LOCKINGAACTIVATOR_H

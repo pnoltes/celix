@@ -26,9 +26,10 @@ using namespace celix::dm;
 
 class Phase3BaseActivator  {
 public:
-    Phase3BaseActivator(std::shared_ptr<DependencyManager> mng);
+    Phase3BaseActivator(const std::shared_ptr<DependencyManager>&mng);
     virtual ~Phase3BaseActivator() = default;
 protected:
+    //NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     celix::dm::Component<Phase3Cmp>& cmp;
 };
 

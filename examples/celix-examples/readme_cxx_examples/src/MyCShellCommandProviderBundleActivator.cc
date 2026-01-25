@@ -30,7 +30,7 @@ struct MyCShellCommand : public celix_shell_command {
         };
     }
 
-    const std::shared_ptr<celix::BundleContext> ctx;
+    std::shared_ptr<celix::BundleContext> ctx;
 };
 
 class MyCShellCommandProviderBundleActivator {

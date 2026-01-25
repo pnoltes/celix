@@ -83,7 +83,7 @@ public:
     }
 
     void TestAddEventHandlerServiceErrorInjection(const std::function<void()>& errorInjection, const std::function<void(celix_status_t status)>& checkResult) {
-        auto earpm = celix_earpm_create(ctx.get());
+        auto* earpm = celix_earpm_create(ctx.get());
         ASSERT_NE(nullptr, earpm);
 
         celix_event_handler_service_t eventHandlerService;
@@ -104,7 +104,7 @@ public:
     }
 
     void TestRemoveEventHandlerServiceErrorInjection(const std::function<void()>& errorInjection, const std::function<void(celix_status_t status)>& checkResult) {
-        auto earpm = celix_earpm_create(ctx.get());
+        auto* earpm = celix_earpm_create(ctx.get());
         ASSERT_NE(nullptr, earpm);
 
         celix_event_handler_service_t eventHandlerService;
@@ -182,78 +182,78 @@ public:
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToAllocMemoryForEventAdminRemoteProviderTest) {
     celix_ei_expect_calloc((void*)&celix_earpm_create, 0, nullptr);
-    auto provider = celix_earpm_create(ctx.get());
+    auto* provider = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, provider);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateLogHelperTest) {
     celix_ei_expect_celix_logHelper_create((void*)&celix_earpm_create, 0, nullptr);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToGetFrameworkUUIDTest) {
     celix_ei_expect_celix_bundleContext_getProperty((void*)&celix_earpm_create, 0, nullptr);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToGenerateSyncEventAckTopicTest) {
     celix_ei_expect_asprintf((void*)&celix_earpm_create, 0, -1);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateMutexTest) {
     celix_ei_expect_celixThreadMutex_create((void*)&celix_earpm_create, 0, ENOMEM);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateSyncEventAckConditionTest) {
     celix_ei_expect_celixThreadCondition_init((void*)&celix_earpm_create, 0, ENOMEM);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateEventHandlerMapTest) {
     celix_ei_expect_celix_longHashMap_createWithOptions((void*)&celix_earpm_create, 0, nullptr);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateEventSubscriptionMapTest) {
     celix_ei_expect_celix_stringHashMap_createWithOptions((void*)&celix_earpm_create, 0, nullptr);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateRemoteFrameworkMapTest) {
     celix_ei_expect_celix_stringHashMap_createWithOptions((void*)&celix_earpm_create, 0, nullptr, 2);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateEventDeliveryTest) {
     celix_ei_expect_calloc((void*)&celix_earpmDeliverer_create, 0, nullptr);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToCreateMqttClientTest) {
     celix_ei_expect_calloc((void*)&celix_earpmClient_create, 0, nullptr);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToSubscribeCtrlMessageOfEventAdminRemoteProviderTest) {
     celix_ei_expect_celix_stringHashMap_putLong((void*)&celix_earpmClient_subscribe, 0, ENOMEM);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(nullptr, earpm);
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToDupDebugCommandTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_NE(earpm, nullptr);
 
     celix_ei_expect_celix_utils_strdup((void*)&celix_earpm_executeCommand, 0, nullptr);
@@ -518,7 +518,7 @@ TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToPublishHandlerInfoRemoveMe
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, NotFoundSubscriptionWhenRemoveEventHandlerTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_NE(nullptr, earpm);
 
     celix_event_handler_service_t eventHandlerService;
@@ -544,7 +544,7 @@ TEST_F(CelixEarpmImplErrorInjectionTestSuite, NotFoundSubscriptionWhenRemoveEven
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, NotFoundHandlerInfoWhenRemoveEventHandlerTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_NE(nullptr, earpm);
 
     celix_event_handler_service_t eventHandlerService;
@@ -572,7 +572,7 @@ TEST_F(CelixEarpmImplErrorInjectionTestSuite, NotFoundHandlerInfoWhenRemoveEvent
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToChangeSubscribedTopicQOSWhenRemoveEventHandlerTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -604,7 +604,7 @@ TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToChangeSubscribedTopicQOSWh
 }
 
 TEST_F(CelixEarpmImplErrorInjectionTestSuite, FailedToUnsubscribeTopicWhenRemoveEventHandlerTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_NE(nullptr, earpm);
 
     celix_event_handler_service_t eventHandlerService;

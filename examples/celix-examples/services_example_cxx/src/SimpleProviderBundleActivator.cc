@@ -36,7 +36,7 @@ public:
         return seed * input;
     }
 private:
-    const int seed;
+    int seed;
 };
 
 /**
@@ -58,7 +58,7 @@ private:
                 .build();
     }
 
-    const std::shared_ptr<celix::ServiceRegistration> registration;
+    std::shared_ptr<celix::ServiceRegistration> registration;
 };
 
 CELIX_GEN_CXX_BUNDLE_ACTIVATOR(SimpleProviderBundleActivator)

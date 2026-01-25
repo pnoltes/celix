@@ -65,6 +65,7 @@ void * run(void *handle) {
     while (isRunning(data)) {
         if (up) {
             celix_properties_t *props = celix_properties_create();
+            //NOLINTNEXTLINE(cert-msc30-c,cert-msc50-cpp)
             celix_properties_setLong(props, CELIX_FRAMEWORK_SERVICE_RANKING, rand());
             data->svcIds[i++] = celix_bundleContext_registerService(data->ctx, &data->svc, EXAMPLE_CALC_NAME, props);
         } else { //down

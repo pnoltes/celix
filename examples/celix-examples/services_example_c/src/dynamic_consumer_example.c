@@ -62,32 +62,6 @@ static void useCalc(void *handle, void *svc) {
     i->count += 1;
 }
 
-static void gccExample(activator_data_t *data) {
-#ifdef USE_NESTED_FUNCTION_EXAMPLE
-
-    int result = 0;
-    long rank = 0;
-    long svcId = 0;
-
-    void use(void *handle, void *svc, const celix_properties_t *props) {
-        example_calc_t *calc = svc;
-        rank = celix_properties_getAsLong(props, CELIX_FRAMEWORK_SERVICE_RANKING, -1L);
-        svcId = celix_properties_getAsLong(props, CELIX_FRAMEWORK_SERVICE_ID, -1L);
-        result = calc->calc(calc->handle, 1);
-    }
-
-    celix_service_use_options_t opts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
-
-    opts.filter.serviceName = EXAMPLE_CALC_NAME;
-    opts.callbackHandle = NULL; //can be null
-    opts.useWithProperties = use;
-    bool called = celix_bundleContext_useServiceWithOptions(data->ctx, &opts);
-
-    printf("Called func %s. Result is %i, rank is %li and svc id is %li\n", called ? "called" : "not called", result, rank, svcId);
-
-#endif
-}
-
 static void addSvc(activator_data_t *data, void *svc CELIX_UNUSED) {
     pthread_mutex_lock(&data->mutex);
     data->trackCount += 1;
@@ -107,7 +81,6 @@ static void useHighest(activator_data_t *data CELIX_UNUSED, example_calc_t *svc,
     printf("Called highest ranking service. Result is %i, svc id is %li, svc ranking is %li\n", result, svcId, rank);
 }
 
-
 void * run(void *handle) {
     activator_data_t *data = handle;
 
@@ -125,8 +98,6 @@ void * run(void *handle) {
         info.count = 0;
         celix_bundleContext_useServices(data->ctx, EXAMPLE_CALC_NAME, &info, useCalc);
         printf("Called calc services %i times, total result is %i\n", info.count, info.result);
-
-        gccExample(data); //gcc trampolines example (nested functions)
 
         celix_service_use_options_t opts = CELIX_EMPTY_SERVICE_USE_OPTIONS;
 

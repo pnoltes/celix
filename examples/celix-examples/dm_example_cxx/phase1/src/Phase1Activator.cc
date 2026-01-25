@@ -38,7 +38,7 @@ struct InvalidCServ {
     virtual void baz(double arg CELIX_UNUSED) {} //not a valid pod
 };
 
-Phase1Activator::Phase1Activator(std::shared_ptr<celix::dm::DependencyManager> mng) {
+Phase1Activator::Phase1Activator(const std::shared_ptr<celix::dm::DependencyManager>& mng) {
     dm = mng;
     auto& cmp = mng->createComponent<Phase1Cmp>();
     cmpUUID = cmp.getUUID();
