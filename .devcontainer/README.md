@@ -27,6 +27,22 @@ dependencies, this DevContainer setup only supports Conan.
 Please note, the DevContainer setup is not broadly tested and might not work on all systems.
 It has been tested on Ubuntu 23.10 and Fedora 40.
 
+## Mounts
+
+The devcontainer uses the following container volumes to ensure dependency build and project building is more efficient, 
+even after recreating a devcontainer:
+
+- celixdev-conan-package-cache
+- celixdev-conan-download-cache
+- celixdev-ccache-cache
+
+Use `podman volume rm` / `docker volume rm` to remove the volumes if you do not longer use them.
+
+The following bind mounts are used to ensure the development environment has a working git and ssh setup:
+
+- `${HOME}/.gitconfig`
+- `${HOME}/.ssh`
+
 ## VSCode Usage
 
 VSCode has built-in support for DevContainers.
@@ -41,11 +57,16 @@ CLion 2025.3.1 includes DevContainer support (including Podman), so you can open
 using the IDE's DevContainer workflow. Once the container is built, select the Conan-generated profile
 from `CMakeUserPresets.json` in "Settings -> Build, Execution, Deployment -> CMake".
 
+## Building
+Build can be done from the roor workspace dir:
+```shell
+cmake --build build --parallel
+```
+
 ## Running tests
 Tests can be run using ctest.
 When building with Conan, run tests from the build directory after configuring/building:
 
 ```shell
-cd build
-ctest --output-on-failure
+ctest --output-on-failure --test-dir build
 ```
