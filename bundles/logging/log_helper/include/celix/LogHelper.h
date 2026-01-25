@@ -115,14 +115,14 @@ namespace celix {
         }
 
     private:
-        std::shared_ptr<celix_log_helper> createHelper(const std::shared_ptr<celix::BundleContext>& ctx, const std::string& logName) {
+        static std::shared_ptr<celix_log_helper> createHelper(const std::shared_ptr<celix::BundleContext>& ctx, const std::string& logName) {
             return std::shared_ptr<celix_log_helper>{
                 celix_logHelper_create(ctx->getCBundleContext(), logName.c_str()),
                 [](celix_log_helper* lh) {celix_logHelper_destroy(lh);}
             };
         }
 
-        const std::shared_ptr<celix_log_helper> logHelper;
+        std::shared_ptr<celix_log_helper> logHelper;
     };
 
 

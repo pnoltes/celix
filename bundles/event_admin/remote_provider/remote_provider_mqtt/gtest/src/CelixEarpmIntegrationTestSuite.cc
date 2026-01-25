@@ -52,7 +52,7 @@ public:
     }
     CelixEarpmIntegrationTestSuite() {
         {
-            auto props = celix_properties_create();
+            auto* props = celix_properties_create();
             celix_properties_set(props, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
             celix_properties_set(props, CELIX_FRAMEWORK_CACHE_DIR, ".earpm_publisher");
             celix_properties_set(props, CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL_CONFIG_NAME, "trace");
@@ -64,7 +64,7 @@ public:
             celix_framework_utils_installBundleSet(publisherFw.get(), INTEGRATED_BUNDLES, true);
         }
         {
-            auto props = celix_properties_create();
+            auto* props = celix_properties_create();
             celix_properties_set(props, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
             celix_properties_set(props, CELIX_FRAMEWORK_CACHE_DIR, ".earpm_subscriber");
             celix_properties_set(props, CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL_CONFIG_NAME, "trace");
@@ -82,14 +82,14 @@ public:
     void TestEventPublish(bool testAsyncEvent) {
         std::promise<void> receivedEventPromise;
         std::future<void> receivedEventFuture = receivedEventPromise.get_future();
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_EVENT_TOPIC, "testEvent");
         celix_event_handler_service_t handler = {
                 .handle = &receivedEventPromise,
                 .handleEvent = [](void* handle, const char* topic, const celix_properties_t* properties) {
                     EXPECT_STREQ("testEvent", topic);
                     EXPECT_STREQ("value", celix_properties_get(properties, "key", ""));
-                    auto promise = static_cast<std::promise<void> *>(handle);
+                    auto* promise = static_cast<std::promise<void> *>(handle);
                     try {
                         promise->set_value();
                     } catch (...) {
@@ -108,6 +108,7 @@ public:
 
         struct use_service_callback_handle {
             bool publishAsyncEvent;
+            //NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
             std::future<void>& future;
         };
         struct use_service_callback_handle handle{testAsyncEvent, receivedEventFuture};
@@ -122,7 +123,7 @@ public:
             celix_properties_set(props, CELIX_EVENT_TOPIC, "testEvent");
             celix_properties_set(props, "key", "value");
             celix_properties_setBool(props, CELIX_EVENT_REMOTE_ENABLE, true);
-            auto callbackHandle = static_cast<struct use_service_callback_handle*>(handle);
+            auto* callbackHandle = static_cast<struct use_service_callback_handle*>(handle);
             int tryCount = 300;
             while (tryCount-- > 0) {//wait remote handler online, and try again.
                 auto status = callbackHandle->publishAsyncEvent ?

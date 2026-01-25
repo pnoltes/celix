@@ -52,7 +52,7 @@ static celix_status_t RpcFacCreateEndpoint(void *handle, const endpoint_descript
 static void RpcFacDestroyEndpoint(void *handle, long epId) {
     (void)handle; //unused
     (void)epId; //unused
-    return;
+    
 }
 
 static celix_status_t RpcFacHandleRequest(void *handle, long endpointId, celix_properties_t *metadata,

@@ -42,6 +42,8 @@
 #include "celix_earpm_constants.h"
 #include "celix_earpm_broker_discovery.h"
 
+//NOLINTBEGIN(readability-redundant-control-flow)
+
 /**
  * @brief The remote sync event default timeout in seconds. Remote event can use CELIX_EVENT_REMOTE_EXPIRY_INTERVAL to override this value.
  * If the event remote provider does not receive an ack within this time, the event will be delivered failed.
@@ -1475,3 +1477,5 @@ size_t celix_earpm_currentRemoteFrameworkCount(celix_event_admin_remote_provider
     size_t cnt = celix_stringHashMap_size(earpm->remoteFrameworks);
     return cnt;
 }
+
+//NOLINTEND(readability-redundant-control-flow)

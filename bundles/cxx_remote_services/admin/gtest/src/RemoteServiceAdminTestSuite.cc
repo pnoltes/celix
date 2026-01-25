@@ -83,7 +83,7 @@ public:
         cmpUUID = "";
     }
 private:
-    const std::shared_ptr<celix::BundleContext> ctx;
+    std::shared_ptr<celix::BundleContext> ctx;
     std::string cmpUUID{};
 };
 
@@ -98,7 +98,7 @@ public:
     }
 
 private:
-    const std::weak_ptr<StubExportedServiceEntry> entry;
+    std::weak_ptr<StubExportedServiceEntry> entry;
 };
 
 class IDummyService {
@@ -281,7 +281,7 @@ public:
         cmpUUID = "";
     }
 private:
-    const std::shared_ptr<celix::BundleContext> ctx;
+    std::shared_ptr<celix::BundleContext> ctx;
     std::string cmpUUID{};
 };
 
@@ -296,7 +296,7 @@ public:
     }
 
 private:
-    const std::weak_ptr<StubImportedServiceEntry> entry;
+    std::weak_ptr<StubImportedServiceEntry> entry;
 };
 
 class StubImportServiceFactory : public celix::rsa::IImportServiceFactory {

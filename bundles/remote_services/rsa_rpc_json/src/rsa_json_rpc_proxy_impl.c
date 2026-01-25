@@ -162,7 +162,7 @@ static void rsaJsonRpcProxy_unregisterFacSvcDone(void *data) {
     celix_longHashMap_destroy(proxyFactory->proxies);
     celixThreadRwlock_destroy(&proxyFactory->sendRequestLock);
     free(proxyFactory);
-    return;
+    
 }
 
 static void* rsaJsonRpcProxy_getService(void *handle, const celix_bundle_t *requestingBundle,
@@ -202,7 +202,7 @@ static void rsaJsonRpcProxy_ungetService(void *handle, const celix_bundle_t *req
             rsaJsonRpcProxy_destroy(proxy);
         }
     }
-    return;
+    
 }
 
 static void rsaJsonRpcProxy_serviceFunc(void *userData, void *args[], void *returnVal) {
@@ -299,8 +299,6 @@ static void rsaJsonRpcProxy_serviceFunc(void *userData, void *args[], void *retu
     }
 
     *(celix_status_t *) returnVal = status;
-
-    return;
 }
 
 static celix_status_t rsaJsonRpcProxy_create(rsa_json_rpc_proxy_factory_t *proxyFactory,
@@ -375,8 +373,7 @@ static celix_status_t rsaJsonRpcProxy_create(rsa_json_rpc_proxy_factory_t *proxy
 static void rsaJsonRpcProxy_destroy(rsa_json_rpc_proxy_t *proxy) {
     free(proxy->service);
     dynInterface_destroy(proxy->intfType);
-    free(proxy);
-    return;
+    free(proxy); 
 }
 
 

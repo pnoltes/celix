@@ -59,7 +59,7 @@ struct remote_service_admin {
 class TopologyManagerTestSuiteBaseClass : public ::testing::Test {
 public:
     TopologyManagerTestSuiteBaseClass() {
-        auto config = celix_properties_create();
+        auto*config = celix_properties_create();
         celix_properties_set(config, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
         celix_properties_set(config, CELIX_FRAMEWORK_CACHE_DIR, ".tm_unit_test_cache");
         fw = std::shared_ptr<celix_framework_t>{celix_frameworkFactory_createFramework(config), [](auto f) {celix_frameworkFactory_destroyFramework(f);}};
@@ -73,7 +73,7 @@ public:
         tm = std::shared_ptr<topology_manager_t>{tmPtr, [](auto t) {topologyManager_destroy(t);}};
     }
 
-    ~TopologyManagerTestSuiteBaseClass() = default;
+    ~TopologyManagerTestSuiteBaseClass() override= default;
 
     void TestExportService(void (*testBody)(topology_manager_t* tm, service_reference_pt rsaSvcRef, void* rsaSvc, service_reference_pt exportedSvcRef,
                                             void* exportedSvc, service_reference_pt eplSvcRef, void* eplSvc, celix_bundle_context_t* ctx), bool testDynamicIp = false,
@@ -98,8 +98,8 @@ public:
             EXPECT_EQ(CELIX_SUCCESS, status);
             reference = (service_reference_pt)celix_arrayList_get(references, 0);
             EXPECT_TRUE(reference != nullptr);
-            auto exportReg = (export_registration_t*)malloc(sizeof(export_registration_t));
-            auto endpointProps = celix_properties_create();
+            auto* exportReg = (export_registration_t*)malloc(sizeof(export_registration_t));
+            auto* endpointProps = celix_properties_create();
             unsigned int size = 0;
             char **keys;
             serviceReference_getPropertyKeys(reference, &keys, &size);
@@ -148,7 +148,7 @@ public:
             *endpoint = reference->endpoint;
             return CELIX_SUCCESS;
         };
-        auto rsaProps = celix_properties_create();
+        auto* rsaProps = celix_properties_create();
         if (testDynamicIp) {
             celix_properties_setBool(rsaProps, CELIX_RSA_DYNAMIC_IP_SUPPORT, true);
         }
@@ -158,7 +158,7 @@ public:
         struct TmTestService {
             void* handle;
         } exportedService{};
-        auto exportedSvcProps = celix_properties_create();
+        auto* exportedSvcProps = celix_properties_create();
         celix_properties_set(exportedSvcProps, "service.exported.interfaces", "*");
         auto exportedSvcId = celix_bundleContext_registerService(ctx.get(), &exportedService, "tmTestService", exportedSvcProps);
         EXPECT_TRUE(exportedSvcId > 0);
@@ -181,7 +181,7 @@ public:
         char scope[256] = {0};
         (void)snprintf(scope, sizeof(scope), "(&(%s=*)(%s=%s))", CELIX_FRAMEWORK_SERVICE_NAME,
                        CELIX_RSA_ENDPOINT_FRAMEWORK_UUID, fwUuid);
-        auto elpProps = celix_properties_create();
+        auto* elpProps = celix_properties_create();
         celix_properties_set(elpProps, CELIX_RSA_ENDPOINT_LISTENER_SCOPE, scope);
         if (testDynamicIp) {
             celix_properties_setBool(elpProps, CELIX_RSA_DISCOVERY_INTERFACE_SPECIFIC_ENDPOINTS_SUPPORT, true);
@@ -224,7 +224,7 @@ public:
         rsaSvc.admin = &rsa;
         rsaSvc.importService = [](remote_service_admin_t* admin, endpoint_description_t* endpoint, import_registration_t** registration) -> celix_status_t {
             (void)admin;
-            auto importReg = (import_registration_t*)calloc(1, sizeof(import_registration_t));
+            auto* importReg = (import_registration_t*)calloc(1, sizeof(import_registration_t));
             importReg->endpoint = endpoint;
             *registration = importReg;
             return CELIX_SUCCESS;
@@ -237,7 +237,7 @@ public:
         auto rsaId = celix_bundleContext_registerService(ctx.get(), &rsaSvc, CELIX_RSA_REMOTE_SERVICE_ADMIN, nullptr);
         EXPECT_TRUE(rsaId > 0);
 
-        auto endpointProps = celix_properties_create();
+        auto* endpointProps = celix_properties_create();
         celix_properties_set(endpointProps, CELIX_FRAMEWORK_SERVICE_NAME, "tmTestService");
         celix_properties_set(endpointProps, CELIX_RSA_ENDPOINT_FRAMEWORK_UUID, "1fb0bb2a-95ad-4cf9-8e79-072ec8bd4a85");
         celix_properties_setLong(endpointProps, CELIX_RSA_ENDPOINT_SERVICE_ID, 100);

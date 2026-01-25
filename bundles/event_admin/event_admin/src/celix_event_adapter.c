@@ -28,6 +28,8 @@
 #include "celix_stdlib_cleanup.h"
 #include "celix_event_constants.h"
 
+//NOLINTBEGIN(readability-redundant-control-flow)
+
 struct celix_event_adapter {
     celix_bundle_context_t* ctx;
     celix_log_helper_t* logHelper;
@@ -272,3 +274,4 @@ static void celix_eventAdapter_addFrameworkConditionServiceWithProperties(void* 
     return;
 }
 
+//NOLINTEND(readability-redundant-control-flow)

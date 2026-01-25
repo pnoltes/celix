@@ -24,6 +24,7 @@
 #include "remote_interceptor.h"
 
 typedef struct second_interceptor {
+    int dummy; //prevent empty struct
 } second_interceptor_t;
 
 celix_status_t secondInterceptor_create(second_interceptor_t **interceptor);

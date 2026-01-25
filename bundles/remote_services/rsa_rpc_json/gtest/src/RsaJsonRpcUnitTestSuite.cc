@@ -181,7 +181,7 @@ TEST_F(RsaJsonRpcUnitTestSuite, CreateRpcProxy) {
     auto status  = rsaJsonRpc_create(ctx.get(), logHelper.get(), &jsonRpc);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId = -1;
     status = rsaJsonRpc_createProxy(jsonRpc, endpoint, SendRequest, nullptr, &proxyId);
     EXPECT_EQ(CELIX_SUCCESS, status);
@@ -199,7 +199,7 @@ TEST_F(RsaJsonRpcUnitTestSuite, CreateRpcProxyWithInvalidParams) {
     auto status  = rsaJsonRpc_create(ctx.get(), logHelper.get(), &jsonRpc);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId = -1;
     status = rsaJsonRpc_createProxy(jsonRpc, nullptr, SendRequest, nullptr, &proxyId);
     EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
@@ -220,7 +220,7 @@ TEST_F(RsaJsonRpcUnitTestSuite, RpcProxyFailedToCreateProxyFactory) {
     auto status  = rsaJsonRpc_create(ctx.get(), logHelper.get(), &jsonRpc);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId = -1;
     celix_ei_expect_calloc((void*)&rsaJsonRpcProxy_factoryCreate, 0, nullptr);
     status = rsaJsonRpc_createProxy(jsonRpc, endpoint, SendRequest, nullptr, &proxyId);
@@ -240,7 +240,7 @@ TEST_F(RsaJsonRpcUnitTestSuite, CreateEndpoint) {
     auto status  = rsaJsonRpc_create(ctx.get(), logHelper.get(), &jsonRpc);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long requestHandlerSvcId = -1;
     status = rsaJsonRpc_createEndpoint(jsonRpc, endpoint, &requestHandlerSvcId);
     EXPECT_EQ(CELIX_SUCCESS, status);
@@ -258,7 +258,7 @@ TEST_F(RsaJsonRpcUnitTestSuite, CreateRpcEndpointWithInvalidParams) {
     auto status  = rsaJsonRpc_create(ctx.get(), logHelper.get(), &jsonRpc);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long requestHandlerSvcId = -1;
     status = rsaJsonRpc_createEndpoint(jsonRpc, nullptr, &requestHandlerSvcId);
     EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
@@ -279,7 +279,7 @@ TEST_F(RsaJsonRpcUnitTestSuite, RpcEndpointFailedToCreateEndpoint) {
     auto status  = rsaJsonRpc_create(ctx.get(), logHelper.get(), &jsonRpc);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long requestHandlerSvcId = -1;
     celix_ei_expect_calloc((void*)&rsaJsonRpcEndpoint_create, 0, nullptr);
     status = rsaJsonRpc_createEndpoint(jsonRpc, endpoint, &requestHandlerSvcId);
@@ -313,7 +313,7 @@ public:
 };
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToGetServiceVersionFromEndpointDescription) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     celix_properties_unset(endpoint->properties, CELIX_FRAMEWORK_SERVICE_VERSION);
     long proxyId = -1;
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, SendRequest, nullptr, &proxyId);
@@ -329,7 +329,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToGetServiceVersionFromEndpointDescri
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, ServiceVersionUncompatible) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     celix_properties_set(endpoint->properties, CELIX_FRAMEWORK_SERVICE_VERSION, "2.0.0");//It is 1.0.0 in the descriptor file of consumer
     long proxyId = -1;
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, SendRequest, nullptr, &proxyId);
@@ -347,7 +347,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, ServiceVersionUncompatible) {
 class  RsaJsonRpcProxyUnitTestSuite2 : public RsaJsonRpcProxyUnitTestSuite {
 public:
     RsaJsonRpcProxyUnitTestSuite2() {
-        auto endpoint = CreateEndpointDescription();
+        auto* endpoint = CreateEndpointDescription();
         auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, SendRequest, nullptr, &proxyId);
         EXPECT_EQ(CELIX_SUCCESS, status);
         endpointDescription_destroy(endpoint);
@@ -369,7 +369,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToCreateSendRequestMethodLock) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToCreateProxiesHashMap) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId = -1L;
     celix_ei_expect_celix_longHashMap_create((void*)&rsaJsonRpc_createProxy, 1, nullptr);
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, SendRequest, nullptr, &proxyId);
@@ -379,7 +379,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToCreateProxiesHashMap) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToCloneEndpointDescription) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId = -1L;
     celix_ei_expect_calloc((void*)&endpointDescription_clone, 0, nullptr);
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, SendRequest, nullptr, &proxyId);
@@ -397,7 +397,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToCreateProxyServiceProperties) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToRegisterProxyService) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId = -1L;
     celix_ei_expect_celix_bundleContext_registerServiceFactoryAsync((void*)&rsaJsonRpcProxy_factoryCreate, 0, -1);
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, SendRequest, nullptr, &proxyId);
@@ -407,12 +407,14 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToRegisterProxyService) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToCreateAllocMmeoryForProxyWhenGetService) {
+    //NOLINTNEXTLINE(performance-no-int-to-ptr,-warnings-as-errors)
     celix_ei_expect_calloc((void*)-1, 0, nullptr);
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void*, void*) {});
     EXPECT_FALSE(found);
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToCreateAllocMmeoryForProxyServiceWhenGetService) {
+    //NOLINTNEXTLINE(performance-no-int-to-ptr,-warnings-as-errors)
     celix_ei_expect_calloc((void*)-1, 0, nullptr, 2);
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void*, void*) {});
     EXPECT_FALSE(found);
@@ -421,7 +423,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToCreateAllocMmeoryForProxyServiceWh
 TEST_F(RsaJsonRpcProxyUnitTestSuite2, CallProxyService) {
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_SUCCESS, proxySvc->test(proxySvc->handle));
     });
@@ -450,7 +452,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToCreateFunctionClosure) {
 TEST_F(RsaJsonRpcProxyUnitTestSuite2, InvokeProxyServiceWithInvalidParams) {
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, proxySvc->test(nullptr));
     });
@@ -459,9 +461,9 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, InvokeProxyServiceWithInvalidParams) {
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite2, InvokeProxyServiceWhenProxyIsDestroying) {
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, this, [](void *handle, void *svc) {
-        auto self = static_cast<RsaJsonRpcProxyUnitTestSuite2*>(handle);
+        auto* self = static_cast<RsaJsonRpcProxyUnitTestSuite2*>(handle);
         rsaJsonRpc_destroyProxy(self->jsonRpc.get(), self->proxyId);
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_ILLEGAL_STATE, proxySvc->test(proxySvc->handle));
     });
@@ -472,7 +474,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToPrepareInvokeRequest) {
     celix_ei_expect_jsonRpc_prepareInvokeRequest(CELIX_EI_UNKNOWN_CALLER, 0, 1);
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_SERVICE_EXCEPTION, proxySvc->test(proxySvc->handle));
     });
@@ -482,7 +484,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToPrepareInvokeRequest) {
 TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToCreateMetadata) {
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         celix_ei_expect_celix_properties_create(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
         EXPECT_EQ(CELIX_ENOMEM, proxySvc->test(proxySvc->handle));
@@ -491,7 +493,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, FailedToCreateMetadata) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToSendRequest) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId{-1};
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, [](void*, const endpoint_description_t*, celix_properties_t*,
             const struct iovec*, struct iovec*) { return CELIX_ILLEGAL_STATE;}, nullptr, &proxyId);
@@ -501,7 +503,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToSendRequest) {
 
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_ILLEGAL_STATE, proxySvc->test(proxySvc->handle));
     });
@@ -511,7 +513,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, FailedToSendRequest) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, ResponseIsNull) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId{-1};
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, [](void*, const endpoint_description_t*, celix_properties_t*,
                                                                      const struct iovec*, struct iovec* response) {
@@ -524,7 +526,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, ResponseIsNull) {
 
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr,[](void *handle, void *svc) {
             (void) handle;//unused
-            auto proxySvc = static_cast<rsa_rpc_json_test_service_t *>(svc);
+            auto* proxySvc = static_cast<rsa_rpc_json_test_service_t *>(svc);
             EXPECT_NE(nullptr, proxySvc);
             EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, proxySvc->test(proxySvc->handle));
         });
@@ -534,7 +536,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, ResponseIsNull) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, ResponseIsInvalid) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId{-1};
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, [](void*, const endpoint_description_t*, celix_properties_t*,
                                                                      const struct iovec*, struct iovec* response) {
@@ -547,7 +549,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, ResponseIsInvalid) {
 
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_SERVICE_EXCEPTION, proxySvc->test(proxySvc->handle));
     });
@@ -557,7 +559,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, ResponseIsInvalid) {
 }
 
 TEST_F(RsaJsonRpcProxyUnitTestSuite, RemoteServiceReturnsError) {
-    auto endpoint = CreateEndpointDescription();
+    auto* endpoint = CreateEndpointDescription();
     long proxyId{-1};
     auto status = rsaJsonRpc_createProxy(jsonRpc.get(), endpoint, [](void*, const endpoint_description_t*, celix_properties_t*,
                                                                      const struct iovec*, struct iovec* response) {
@@ -570,7 +572,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite, RemoteServiceReturnsError) {
 
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(70003, proxySvc->test(proxySvc->handle));
     });
@@ -593,7 +595,6 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, ServiceInvocationIsIntercepted) {
                 (void)svcProperties;//unused
                 (void)functionName;//unused
                 (void)metadata;//unused
-                return;
             };
 
     celix_service_registration_options_t opts{};
@@ -605,7 +606,7 @@ TEST_F(RsaJsonRpcProxyUnitTestSuite2, ServiceInvocationIsIntercepted) {
 
     auto found = celix_bundleContext_useService(ctx.get(), RSA_RPC_JSON_TEST_SERVICE, nullptr, [](void *handle, void *svc) {
         (void)handle;//unused
-        auto proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
+        auto* proxySvc = static_cast<rsa_rpc_json_test_service_t*>(svc);
         EXPECT_NE(nullptr, proxySvc);
         EXPECT_EQ(CELIX_INTERCEPTOR_EXCEPTION, proxySvc->test(proxySvc->handle));
     });
@@ -652,7 +653,7 @@ public:
 };
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToCreateEndpointLock) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
 
     celix_ei_expect_celixThreadRwlock_create((void*)&rsaJsonRpcEndpoint_create, 0, CELIX_ENOMEM);
     long svcId = -1L;
@@ -663,7 +664,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToCreateEndpointLock) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToCloneEndpointDescription) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     celix_ei_expect_calloc((void *)&endpointDescription_clone, 0, nullptr);
     long svcId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &svcId);
@@ -673,7 +674,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToCloneEndpointDescription) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToTrackEndpointService) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
 
     celix_ei_expect_celix_bundleContext_trackServicesWithOptions((void*)&rsaJsonRpcEndpoint_create, 0, -1);
     long svcId = -1L;
@@ -684,7 +685,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToTrackEndpointService) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, HandleRequest) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
     EXPECT_EQ(CELIX_SUCCESS, status);
@@ -710,7 +711,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, HandleRequest) {
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToFindInterfaceDescriptor) {
     setenv("CELIX_FRAMEWORK_EXTENDER_PATH", RESOURCES_DIR"/non-exist", true);
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
     EXPECT_EQ(CELIX_SUCCESS, status);
@@ -736,7 +737,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, FailedToFindInterfaceDescriptor) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, ServiceVersionMismatched) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     celix_properties_set(endpoint->properties, CELIX_FRAMEWORK_SERVICE_VERSION, "2.0.0");//Its 1.0.0 in the interface descriptor
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
@@ -762,7 +763,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, ServiceVersionMismatched) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, EndpointLostServiceVersion) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     celix_properties_unset(endpoint->properties, CELIX_FRAMEWORK_SERVICE_VERSION);
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
@@ -788,7 +789,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, EndpointLostServiceVersion) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, UseRequestHandlerWithInvalidParams) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
     EXPECT_EQ(CELIX_SUCCESS, status);
@@ -832,7 +833,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, UseRequestHandlerWithInvalidParams) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, ServiceInvocationIsIntercepted) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     celix_properties_unset(endpoint->properties, CELIX_FRAMEWORK_SERVICE_VERSION);
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
@@ -882,7 +883,7 @@ TEST_F(RsaJsonRpcEndPointUnitTestSuite, ServiceInvocationIsIntercepted) {
 }
 
 TEST_F(RsaJsonRpcEndPointUnitTestSuite, JsonRpcCallFailed) {
-    auto endpoint = CreateEndpointDescription(rpcTestSvcId);
+    auto* endpoint = CreateEndpointDescription(rpcTestSvcId);
     long epId = -1L;
     auto status = rsaJsonRpc_createEndpoint(jsonRpc.get(), endpoint, &epId);
     EXPECT_EQ(CELIX_SUCCESS, status);

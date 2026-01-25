@@ -32,6 +32,8 @@
 #include "discovery.h"
 #include "endpoint_descriptor_writer.h"
 
+//NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
+
 // defines how often the webserver is restarted (with an increased port number)
 #define MAX_NUMBER_OF_RESTARTS     15
 #define DEFAULT_SERVER_THREADS     "5"
@@ -424,7 +426,8 @@ static int endpointDiscoveryServer_callback(struct mg_connection* conn) {
 static celix_status_t endpointDiscoveryServer_getIpAddress(char* interface, char** ip) {
     celix_status_t status = CELIX_BUNDLE_EXCEPTION;
 
-    struct ifaddrs *ifaddr, *ifa;
+    struct ifaddrs *ifaddr;
+    struct ifaddrs *ifa;
     char host[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) != -1)
@@ -452,3 +455,5 @@ static celix_status_t endpointDiscoveryServer_getIpAddress(char* interface, char
     return status;
 }
 #endif
+
+//NOLINTEND(clang-analyzer-deadcode.DeadStores)

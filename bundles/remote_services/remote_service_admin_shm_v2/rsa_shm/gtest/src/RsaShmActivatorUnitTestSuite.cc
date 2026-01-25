@@ -41,7 +41,7 @@ public:
         ctx = std::shared_ptr<celix_bundle_context_t>{ctxPtr, [](auto*){/*nop*/}};
     }
 
-    ~RsaShmActivatorUnitTestSuite() {
+    ~RsaShmActivatorUnitTestSuite() override {
         celix_ei_expect_calloc(nullptr, 0, nullptr);
         celix_ei_expect_celix_properties_create(nullptr, 0, nullptr);
         celix_ei_expect_celix_properties_set(nullptr, 0, 0);

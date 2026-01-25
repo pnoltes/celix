@@ -158,7 +158,7 @@ void rsaShm_destroy(rsa_shm_t *admin) {
     celix_logHelper_destroy(admin->logHelper);
     free(admin);
 
-    return;
+    
 }
 
 celix_status_t celix_rsaShm_addRpcFactorySvc(void* handle, void* svc, const celix_properties_t* props) {
@@ -292,7 +292,8 @@ static bool rsaShm_isConfigTypeMatched(celix_properties_t *properties) {
 
         celix_autofree char *ecCopy = strndup(exportConfigs, strlen(exportConfigs));
         const char delimiter[2] = ",";
-        char *token, *savePtr;
+        char *token;
+        char *savePtr;
 
         token = strtok_r(ecCopy, delimiter, &savePtr);
         while (token != NULL) {
@@ -480,7 +481,7 @@ celix_status_t rsaShm_removeExportedService(rsa_shm_t *admin, export_registratio
         assert(status == CELIX_SUCCESS);
         celix_logHelper_info(admin->logHelper, "Remove exported service %s", endpoint->serviceName);
         celix_array_list_t *registrations = (celix_array_list_t *)celix_longHashMap_get(admin->exportedServices,
-                (long)endpoint->serviceId);
+                endpoint->serviceId);
         if (registrations != NULL) {
             celix_arrayList_remove(registrations, registration);
             if (celix_arrayList_size(registrations) == 0) {
@@ -577,7 +578,8 @@ celix_status_t rsaShm_importService(rsa_shm_t *admin, endpoint_description_t *en
         // Check whether this RSA must be imported
         celix_autofree char *ecCopy = strndup(importConfigs, strlen(importConfigs));
         const char delimiter[2] = ",";
-        char *token, *savePtr;
+        char *token;
+        char *savePtr;
 
         token = strtok_r(ecCopy, delimiter, &savePtr);
         while (token != NULL) {
@@ -611,7 +613,7 @@ celix_status_t rsaShm_importService(rsa_shm_t *admin, endpoint_description_t *en
     }
 
     status = rsaShmClientManager_createOrAttachClient(admin->shmClientManager,
-                                                      shmServerName, (long)endpointDesc->serviceId);
+                                                      shmServerName, endpointDesc->serviceId);
     if (status != CELIX_SUCCESS) {
         celix_logHelper_error(admin->logHelper, "Error Creating shm client for service %s. %d", endpointDesc->serviceName, status);
         return status;
@@ -622,7 +624,7 @@ celix_status_t rsaShm_importService(rsa_shm_t *admin, endpoint_description_t *en
     if (status != CELIX_SUCCESS) {
         celix_logHelper_error(admin->logHelper, "Error Creating import registration for service %s. %d", endpointDesc->serviceName, status);
         rsaShmClientManager_destroyOrDetachClient(admin->shmClientManager, shmServerName,
-                                                  (long)endpointDesc->serviceId);
+                                                  endpointDesc->serviceId);
         return status;
     }
 
@@ -645,7 +647,7 @@ celix_status_t rsaShm_removeImportedService(rsa_shm_t *admin, import_registratio
                 RSA_SHM_SERVER_NAME_KEY, NULL);
         if (shmServerName != NULL) {
             rsaShmClientManager_destroyOrDetachClient(admin->shmClientManager,
-                    shmServerName, (long)endpoint->serviceId);
+                    shmServerName, endpoint->serviceId);
         } else {
             celix_logHelper_error(admin->logHelper, "Error getting shm server name for service %s. It maybe cause resource leaks.", endpoint->serviceName);
         }

@@ -66,7 +66,7 @@ static celix_status_t RpcFacCreateProxy(void *handle, const endpoint_description
 static void RpcFacDestroyProxy(void *handle, long proxyId) {
     celix_bundle_context_t *ctx = (celix_bundle_context_t *) handle;
     celix_bundleContext_unregisterServiceAsync(ctx, proxyId, nullptr, nullptr);
-    return;
+    
 }
 
 static celix_status_t SendRequest(void *handle, const endpoint_description_t *endpointDescription,

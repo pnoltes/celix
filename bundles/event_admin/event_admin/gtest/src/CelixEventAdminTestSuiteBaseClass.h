@@ -35,10 +35,10 @@ class CelixEventAdminTestSuiteBaseClass : public ::testing::Test {
 public:
     CelixEventAdminTestSuiteBaseClass() {
 
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
         celix_properties_set(props, CELIX_FRAMEWORK_CACHE_DIR, ".event_admin_test_cache");
-        auto fwPtr = celix_frameworkFactory_createFramework(props);
+        auto* fwPtr = celix_frameworkFactory_createFramework(props);
         fw = std::shared_ptr<celix_framework_t>{fwPtr, [](celix_framework_t* f) {celix_frameworkFactory_destroyFramework(f);}};
         ctx = std::shared_ptr<celix_bundle_context_t>{celix_framework_getFrameworkContext(fw.get()), [](celix_bundle_context_t*){/*nop*/}};
     }
@@ -46,7 +46,7 @@ public:
     ~CelixEventAdminTestSuiteBaseClass() override = default;
 
     void TestEventAdmin(void (*testBody)(celix_event_admin_t *ea, celix_bundle_context_t *ctx)) {
-        auto ea = celix_eventAdmin_create(ctx.get());
+        auto* ea = celix_eventAdmin_create(ctx.get());
         EXPECT_TRUE(ea != nullptr);
         auto status = celix_eventAdmin_start(ea);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -59,7 +59,7 @@ public:
     }
 
     void TestAddEventHandler(void (*addHandler)(void *handle, void *svc, const celix_properties_t *props), void (*removeHandler)(void *handle, void *svc, const celix_properties_t *props)) {
-        auto ea = celix_eventAdmin_create(ctx.get());
+        auto* ea = celix_eventAdmin_create(ctx.get());
         EXPECT_TRUE(ea != nullptr);
         auto status = celix_eventAdmin_start(ea);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -72,7 +72,7 @@ public:
             (void)props;
             return CELIX_SUCCESS;
         };
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props, CELIX_EVENT_TOPIC, "org/celix/test");
         auto handlerSvcId = celix_bundleContext_registerService(ctx.get(), &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props);
@@ -96,7 +96,7 @@ public:
     }
 
     void TestSubscribeEvent(const char *topics) {
-        auto ea = celix_eventAdmin_create(ctx.get());
+        auto* ea = celix_eventAdmin_create(ctx.get());
         EXPECT_TRUE(ea != nullptr);
         auto status = celix_eventAdmin_start(ea);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -109,7 +109,7 @@ public:
             (void)props;
             return CELIX_SUCCESS;
         };
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props, CELIX_EVENT_TOPIC, topics);
 
@@ -139,9 +139,10 @@ public:
         celix_eventAdmin_destroy(ea);
     }
 
+    //NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     void TestPublishEvent(const char *handlerTopics, const char *eventFilter, const std::function<void (celix_event_admin_t*)>& testBody,
                           const std::function<celix_status_t(void*, const char*, const celix_properties_t*)>& onHandleEvent, bool asyncUnordered = false) {
-        auto ea = celix_eventAdmin_create(ctx.get());
+        auto* ea = celix_eventAdmin_create(ctx.get());
         EXPECT_TRUE(ea != nullptr);
         auto status = celix_eventAdmin_start(ea);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -152,10 +153,10 @@ public:
         celix_event_handler_service_t handler;
         handler.handle = &data;
         handler.handleEvent = [](void *handle, const char *topic, const celix_properties_t *props) {
-            auto data = static_cast<celix_handle_event_callback_data*>(handle);
+            auto* data = static_cast<celix_handle_event_callback_data*>(handle);
             return data->onHandleEvent(data->handle, topic, props);
         };
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props, CELIX_EVENT_TOPIC, handlerTopics);
         if (eventFilter) {
@@ -192,6 +193,7 @@ public:
         EXPECT_EQ(CELIX_SUCCESS, status);
         celix_eventAdmin_destroy(ea);
     }
+    //NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
     void TestPublishEventToRemote(const std::function<void(celix_event_admin_t*)>& testBody, celix_event_remote_provider_service_t* remoteProviderService) {
         TestPublishEvent("*", nullptr, [&testBody, remoteProviderService](celix_event_admin_t* ea) {

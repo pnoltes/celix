@@ -155,7 +155,6 @@ void celix_earpmDeliverer_destroy(celix_earpm_event_deliverer_t* deliverer) {
     celixThreadMutex_destroy(&deliverer->mutex);
     celixThreadRwlock_destroy(&deliverer->eaLock);
     free(deliverer);
-    return;
 }
 
 celix_status_t celix_earpmDeliverer_setEventAdminSvc(celix_earpm_event_deliverer_t* deliverer, celix_event_admin_service_t *eventAdminSvc) {

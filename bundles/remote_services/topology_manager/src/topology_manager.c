@@ -47,11 +47,11 @@
 #include "service_reference.h"
 #include "service_registration.h"
 #include "celix_log_helper.h"
-#include "topology_manager.h"
 #include "scope.h"
 #include "hash_map.h"
 #include "celix_array_list.h"
 
+//NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
 
 //The prefix of the config property which is used to store the interfaces of a port. e.g. CELIX_RSA_INTERFACES_OF_PORT_8080. The value is a comma-separated list of interface names.
 #define CELIX_RSA_INTERFACES_OF_PORT_PREFIX "CELIX_RSA_INTERFACES_OF_PORT_"
@@ -413,7 +413,7 @@ static void topologyManager_notifyListenersDynamicIpEndpointAdded(topology_manag
     }
     hashMapIterator_destroy(iter);
 
-    return;
+    
 }
 
 static void topologyManager_notifyListenersDynamicIpEndpointRemoved(topology_manager_t* tm, celix_array_list_t* endpoints) {
@@ -441,7 +441,7 @@ static void topologyManager_notifyListenersDynamicIpEndpointRemoved(topology_man
     }
     hashMapIterator_destroy(iter);
 
-    return;
+    
 }
 
 static celix_long_hash_map_t* topologyManager_getDynamicIpEndpointMapForRsa(topology_manager_t* tm, long rsaSvcId) {
@@ -469,7 +469,7 @@ static void topologyManager_addDynamicIpEndpointsForExportedService(topology_man
     celix_status_t status = CELIX_SUCCESS;
     int regSize = celix_arrayList_size(registrations);
     if (regSize == 0) {
-        return;
+        return;  
     }
     celix_long_hash_map_t* endpointMap = topologyManager_getDynamicIpEndpointMapForRsa(tm, rsaSvcId);
     if (endpointMap == NULL) {
@@ -486,7 +486,7 @@ static void topologyManager_addDynamicIpEndpointsForExportedService(topology_man
         celix_arrayList_destroy(endpointList);
         celix_logHelper_logTssErrors(tm->loghelper, CELIX_LOG_LEVEL_ERROR);
         celix_logHelper_error(tm->loghelper, "TOPOLOGY_MANAGER: Error adding dynamic ip endpoints list to map.");
-        return;
+        
     }
 
     celix_rsa_service_entry_t* rsaSvcEntry = celix_longHashMap_get(tm->rsaMap, rsaSvcId);
@@ -509,13 +509,13 @@ static void topologyManager_addDynamicIpEndpointsForExportedService(topology_man
         topologyManager_notifyListenersDynamicIpEndpointAdded(tm, endpointList);
     }
 
-    return;
+    
 }
 
 static void topologyManager_removeDynamicIpEndpointsForExportedService(topology_manager_t* tm, long rsaSvcId, long exportedSvcId) {
     celix_long_hash_map_t* endpointMap = celix_longHashMap_get(tm->dynamicIpEndpoints, rsaSvcId);
     if (endpointMap == NULL) {
-        return;
+        
     }
     celix_array_list_t* endpointList = celix_longHashMap_get(endpointMap, exportedSvcId);
     if (endpointList != NULL) {
@@ -532,7 +532,7 @@ static void topologyManager_removeDynamicIpEndpointsForExportedService(topology_
         celix_longHashMap_remove(tm->dynamicIpEndpoints, rsaSvcId);
         celix_longHashMap_destroy(endpointMap);
     }
-    return;
+    
 }
 
 celix_status_t topologyManager_rsaAdded(void * handle, service_reference_pt rsaSvcRef, void * service) {
@@ -904,8 +904,7 @@ static celix_exported_service_entry_t* exportedServiceEntry_create(topology_mana
 
 static void exportedServiceEntry_destroy(celix_exported_service_entry_t* entry) {
     celix_longHashMap_destroy(entry->registrations);
-    free(entry);
-    return;
+    free(entry); 
 }
 
 static celix_status_t topologyManager_addExportedService_nolock(void * handle, service_reference_pt reference) {
@@ -1025,8 +1024,6 @@ static void topologyManager_removeExportedService_nolock(void * handle, service_
 
     celix_longHashMap_remove(manager->exportedServices, serviceId);
     exportedServiceEntry_destroy(svcEntry);
-
-	return;
 }
 
 celix_status_t topologyManager_removeExportedService(void * handle, service_reference_pt reference, void * service CELIX_UNUSED) {
@@ -1085,8 +1082,7 @@ static void topologyManager_notifyDynamicIpEndpointsToListener(topology_manager_
                 }
             }
         }
-    }
-    return;
+    } 
 }
 
 celix_status_t topologyManager_endpointListenerAdded(void* handle, service_reference_pt reference, void* service) {
@@ -1276,7 +1272,8 @@ celix_status_t topologyManager_listenerAdded(void *handle, celix_array_list_t* l
 
 	for (int i = 0; i < celix_arrayList_size(listeners); i++) {
 		listener_hook_info_pt info = celix_arrayList_get(listeners, i);
-		celix_bundle_t *bundle = NULL, *self = NULL;
+		celix_bundle_t *bundle = NULL;
+        celix_bundle_t *self = NULL;
 		bundleContext_getBundle(info->context, &bundle);
 		bundleContext_getBundle(manager->context, &self);
 		if (bundle == self) {
@@ -1327,7 +1324,8 @@ celix_status_t topologyManager_listenerRemoved(void *handle, celix_array_list_t*
 	for (int i = 0; i < celix_arrayList_size(listeners); i++) {
 		listener_hook_info_pt info = celix_arrayList_get(listeners, i);
 
-		celix_bundle_t *bundle = NULL, *self = NULL;
+		celix_bundle_t *bundle = NULL;
+        celix_bundle_t *self = NULL;
 		bundleContext_getBundle(info->context, &bundle);
 		bundleContext_getBundle(manager->context, &self);
 		if (bundle == self) {
@@ -1364,3 +1362,4 @@ celix_status_t topologyManager_listenerRemoved(void *handle, celix_array_list_t*
 	return status;
 }
 
+//NOLINTEND(clang-analyzer-deadcode.DeadStores)

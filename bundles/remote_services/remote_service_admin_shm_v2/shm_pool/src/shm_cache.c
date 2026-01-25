@@ -103,7 +103,7 @@ void shmCache_setShmPeerClosedCB(shm_cache_t *shmCache, shmCache_shmPeerClosedCB
         shmCache->closedCbHandle = closedCBHandle;
         celixThreadMutex_unlock(&shmCache->mutex);
     }
-    return ;
+    
 }
 
 static shm_cache_block_t * shmCache_createBlock(shm_cache_t *shmCache, int shmId) {
@@ -114,7 +114,7 @@ static shm_cache_block_t * shmCache_createBlock(shm_cache_t *shmCache, int shmId
     } else {
         shmStartAddr = shmat(shmId, NULL, 0);
     }
-    if (shmStartAddr != (void*)-1) {
+    if (shmStartAddr != (void*)-1) { //NOLINT(performance-no-int-to-ptr)
         shmBlock = (shm_cache_block_t *)malloc(sizeof(shm_cache_block_t));
         assert(shmBlock != NULL);
         shmBlock->shmId = shmId;
@@ -133,7 +133,7 @@ static void shmCache_destroyBlock(shm_cache_t *shmCache, shm_cache_block_t *shmB
     (void)shmCache;//unused
     shmdt(shmBlock->shmStartAddr);
     free(shmBlock);
-    return ;
+    
 }
 
 void * shmCache_getMemoryPtr(shm_cache_t *shmCache, int shmId, ssize_t memoryOffset) {
@@ -177,7 +177,7 @@ void shmCache_releaseMemoryPtr(shm_cache_t *shmCache, void *ptr) {
         }
         celixThreadMutex_unlock(&shmCache->mutex);
     }
-    return;
+    
 }
 
 void shmCache_destroy(shm_cache_t *shmCache) {
@@ -197,7 +197,7 @@ void shmCache_destroy(shm_cache_t *shmCache) {
         celixThreadMutex_destroy(&shmCache->mutex);
         free(shmCache);
     }
-    return ;
+    
 }
 
 static void * shmCache_WatcherThread(void *data) {

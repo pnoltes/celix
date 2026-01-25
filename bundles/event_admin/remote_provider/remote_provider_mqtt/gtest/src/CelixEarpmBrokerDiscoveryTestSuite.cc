@@ -35,7 +35,7 @@ public:
     ~CelixEarpmBrokerDiscoveryTestSuite() override = default;
 
     static celix_properties_t* CreateBrokerEndpointListenerServiceProperties(void) {
-        auto properties = celix_properties_create();
+        auto* properties = celix_properties_create();
         char scope[512] = {0};
         snprintf(scope, 512, R"((&(%s=%s)(%s=%s)))", CELIX_FRAMEWORK_SERVICE_NAME, CELIX_EARPM_MQTT_BROKER_INFO_SERVICE_NAME,
                  CELIX_RSA_SERVICE_IMPORTED_CONFIGS, CELIX_EARPM_MQTT_BROKER_SERVICE_CONFIG_TYPE);
@@ -53,7 +53,7 @@ public:
         listener.endpointAdded = endpointAdded;
         listener.endpointRemoved = endpointRemoved != nullptr ? endpointRemoved :
                 [](void*, endpoint_description_t*, char*) { return CELIX_SUCCESS; };
-        auto properties = CreateBrokerEndpointListenerServiceProperties();
+        auto* properties = CreateBrokerEndpointListenerServiceProperties();
         return celix_bundleContext_registerService(ctx.get(), &listener, CELIX_RSA_ENDPOINT_LISTENER_SERVICE_NAME, properties);
     }
 
@@ -72,7 +72,7 @@ public:
 
     void ParseBrokerProfileTest(const char* profile, const std::function<void(endpoint_description_t*)>& checkBrokerInfoFp = nullptr) {
         setenv(CELIX_EARPM_BROKER_PROFILE, profile, 1);
-        auto discovery = celix_earpmDiscovery_create(ctx.get());
+        auto* discovery = celix_earpmDiscovery_create(ctx.get());
         ASSERT_NE(discovery, nullptr);
 
         std::promise<void> endpointPromise;
@@ -90,7 +90,7 @@ public:
             }
         };
         auto eplId = RegisterBrokerEndpointListenerService(&checkBrokerInfoWrapper, [](void* handle, endpoint_description_t* endpoint, char*) {
-            auto checkBrokerInfoFunc = static_cast<std::function<void(endpoint_description_t*)>*>(handle);
+            auto* checkBrokerInfoFunc = static_cast<std::function<void(endpoint_description_t*)>*>(handle);
             (*checkBrokerInfoFunc)(endpoint);
             return CELIX_SUCCESS;
         });
@@ -111,7 +111,7 @@ public:
 
     void ParseInvalidBrokerProfileTest(const char* profile) {
         setenv(CELIX_EARPM_BROKER_PROFILE, profile, 1);
-        auto discovery = celix_earpmDiscovery_create(ctx.get());
+        auto* discovery = celix_earpmDiscovery_create(ctx.get());
         ASSERT_NE(discovery, nullptr);
 
         auto eplId = RegisterBrokerEndpointListenerService(nullptr, [](void*, endpoint_description_t*, char*) {
@@ -133,7 +133,7 @@ public:
 };
 
 TEST_F(CelixEarpmBrokerDiscoveryTestSuite, CreateBrokerDiscoveryTest) {
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(discovery, nullptr);
     celix_earpmDiscovery_destroy(discovery);
 }
@@ -243,7 +243,7 @@ TEST_F(CelixEarpmBrokerDiscoveryTestSuite, ParseInvalidBrokerProfileTest) {
 TEST_F(CelixEarpmBrokerDiscoveryTestSuite, LoadBrokerProfileAfterEndpointListenerAddedTest) {
     const char* confLinkPath = "./mosquitto.conf.link";
     setenv(CELIX_EARPM_BROKER_PROFILE, confLinkPath, 1);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(discovery, nullptr);
 
     std::promise<void> endpointPromise;
@@ -255,7 +255,7 @@ TEST_F(CelixEarpmBrokerDiscoveryTestSuite, LoadBrokerProfileAfterEndpointListene
         EXPECT_STREQ("", celix_properties_get(endpoint->properties, CELIX_RSA_IP_ADDRESSES, nullptr));
         EXPECT_STREQ("all", celix_properties_get(endpoint->properties, CELIX_RSA_EXPORTED_ENDPOINT_EXPOSURE_INTERFACE, nullptr));
 
-        auto promise = static_cast<std::promise<void>*>(handle);
+        auto* promise = static_cast<std::promise<void>*>(handle);
         promise->set_value();
         return CELIX_SUCCESS;
     });
@@ -279,7 +279,7 @@ TEST_F(CelixEarpmBrokerDiscoveryTestSuite, LoadBrokerProfileAfterEndpointListene
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryTestSuite, EndpointListenerServicePropertiesInvalidTest) {
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(discovery, nullptr);
 
     celix_autoptr(celix_properties_t) properties = celix_properties_create();
@@ -299,7 +299,7 @@ TEST_F(CelixEarpmBrokerDiscoveryTestSuite, EndpointListenerServicePropertiesInva
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryTestSuite, RemoveNotExistedEndpointListenerServiceTest) {
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(discovery, nullptr);
 
     celix_autoptr(celix_properties_t) properties = celix_properties_create();

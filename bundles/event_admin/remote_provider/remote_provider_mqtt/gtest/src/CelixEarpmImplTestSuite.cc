@@ -43,14 +43,14 @@ public:
 };
 
 TEST_F(CelixEarpmImplTestSuite, CreateEarpmTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_NE(earpm, nullptr);
     celix_earpm_destroy(earpm);
 }
 
 TEST_F(CelixEarpmImplTestSuite, CreateEarpmWithInvalidDefaultEventQosTest) {
     setenv(CELIX_EARPM_EVENT_DEFAULT_QOS, std::to_string(CELIX_EARPM_QOS_MAX).c_str(), 1);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(earpm, nullptr);
 
     setenv(CELIX_EARPM_EVENT_DEFAULT_QOS, std::to_string(CELIX_EARPM_QOS_UNKNOWN).c_str(), 1);
@@ -61,14 +61,14 @@ TEST_F(CelixEarpmImplTestSuite, CreateEarpmWithInvalidDefaultEventQosTest) {
 
 TEST_F(CelixEarpmImplTestSuite, CreateEarpmWithInvalidNoAckThresholdTest) {
     setenv(CELIX_EARPM_SYNC_EVENT_CONTINUOUS_NO_ACK_THRESHOLD, "0", 1);
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_EQ(earpm, nullptr);
 
     unsetenv(CELIX_EARPM_SYNC_EVENT_CONTINUOUS_NO_ACK_THRESHOLD);
 }
 
 TEST_F(CelixEarpmImplTestSuite, AddMqttBrokerEndpointTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_autoptr(endpoint_description_t) endpoint = CreateMqttBrokerEndpoint();
     auto status = celix_earpm_mqttBrokerEndpointAdded(earpm, endpoint, nullptr);
@@ -81,7 +81,7 @@ TEST_F(CelixEarpmImplTestSuite, AddMqttBrokerEndpointTest) {
 }
 
 TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -100,7 +100,7 @@ TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceTest) {
 }
 
 TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServicesThatHaveSameEventTopicTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -129,7 +129,7 @@ TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServicesThatHaveSameEventTopicTes
 }
 
 TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceWithInvalidServiceIdTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -144,7 +144,7 @@ TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceWithInvalidServiceIdTest) 
 }
 
 TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceWithInvalidQosTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -164,7 +164,7 @@ TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceWithInvalidQosTest) {
 }
 
 TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceWithInvalidTopicTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -188,7 +188,7 @@ TEST_F(CelixEarpmImplTestSuite, AddEventHandlerServiceWithInvalidTopicTest) {
 }
 
 TEST_F(CelixEarpmImplTestSuite, RemoveEventHandlerServiceWithInvalidServiceIdTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -203,7 +203,7 @@ TEST_F(CelixEarpmImplTestSuite, RemoveEventHandlerServiceWithInvalidServiceIdTes
 }
 
 TEST_F(CelixEarpmImplTestSuite, RemoveNotExistedEventHandlerServiceTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_handler_service_t eventHandlerService;
     eventHandlerService.handle = nullptr;
@@ -218,7 +218,7 @@ TEST_F(CelixEarpmImplTestSuite, RemoveNotExistedEventHandlerServiceTest) {
 }
 
 TEST_F(CelixEarpmImplTestSuite, SetEventAdminServiceTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
 
     celix_event_admin_service_t eventAdminService;
     eventAdminService.handle = nullptr;
@@ -680,7 +680,7 @@ TEST_F(CelixEarpmImplTestSuite, ProcessAsyncEventTest) {
         eventAdminService.postEvent = [](void* handle, const char* topic, const celix_properties_t* properties) {
             EXPECT_STREQ(topic, "asyncEvent");
             EXPECT_STREQ("value", celix_properties_get(properties, "key", ""));
-            auto promise = static_cast<std::promise<void>*>(handle);
+            auto* promise = static_cast<std::promise<void>*>(handle);
             promise->set_value();
             return CELIX_SUCCESS;
         };
@@ -1021,7 +1021,7 @@ TEST_F(CelixEarpmImplTestSuite, ExecuteCommandTest) {
 }
 
 TEST_F(CelixEarpmImplTestSuite, ExecuteCommandFailedTest) {
-    auto earpm = celix_earpm_create(ctx.get());
+    auto* earpm = celix_earpm_create(ctx.get());
     ASSERT_NE(earpm, nullptr);
 
     auto res = celix_earpm_executeCommand(earpm, "celix::earpm unexpectedSubCmd", stdout, stderr);

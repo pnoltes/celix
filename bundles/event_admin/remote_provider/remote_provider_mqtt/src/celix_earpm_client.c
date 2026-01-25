@@ -46,6 +46,8 @@
 #include "celix_earpm_constants.h"
 #include "celix_earpm_broker_discovery.h"
 
+//NOLINTBEGIN(readability-redundant-control-flow)
+
 #define CELIX_EARPM_SESSION_EXPIRY_INTERVAL (10*60) //seconds
 #define CELIX_EARPM_CLIENT_KEEP_ALIVE 60 //seconds
 #define CELIX_EARPM_CLIENT_RECONNECT_DELAY_MAX 30 //seconds
@@ -1161,7 +1163,7 @@ static int celix_earpmClient_connectBroker(celix_earpm_client_t* client) {
     celix_status_t status = CELIX_ILLEGAL_STATE;
     CELIX_STRING_HASH_MAP_ITERATE(brokerInfoMap, iter) {
         celix_earpm_client_broker_info_t* info = iter.value.ptrValue;
-        const char* address = "";
+        const char* address;
         if (info->bindInterface != NULL) {
             status = celix_earpmClient_connectBrokerWithInterface(client, info->bindInterface, info->port, info->family);
         } else {
@@ -1247,3 +1249,5 @@ static void* celix_earpmClient_worker(void* data) {
     }
     return NULL;
 }
+
+//NOLINTEND(readability-redundant-control-flow)

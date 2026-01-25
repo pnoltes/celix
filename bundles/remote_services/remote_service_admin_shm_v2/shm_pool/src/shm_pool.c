@@ -147,7 +147,7 @@ void shmPool_destroy(shm_pool_t *pool) {
         celixThreadMutex_destroy(&pool->mutex);
         free(pool);
     }
-    return ;
+    
 }
 
 void *shmPool_malloc(shm_pool_t *pool, size_t size) {
@@ -167,7 +167,7 @@ void shmPool_free(shm_pool_t *pool, void *ptr) {
         tlsf_free(pool->allocator, ptr);
         celixThreadMutex_unlock(&pool->mutex);
     }
-    return ;
+    
 }
 
 ssize_t shmPool_getMemoryOffset(shm_pool_t *pool, void *ptr) {

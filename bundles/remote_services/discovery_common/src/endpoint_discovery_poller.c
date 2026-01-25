@@ -40,6 +40,7 @@
 #include "endpoint_descriptor_reader.h"
 #include "discovery.h"
 
+//NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
 
 #define DISCOVERY_POLL_INTERVAL "DISCOVERY_CFG_POLL_INTERVAL"
 #define DEFAULT_POLL_INTERVAL "10" // seconds
@@ -357,6 +358,7 @@ static size_t endpointDiscoveryPoller_writeMemory(void *contents, size_t size, s
 	return realsize;
 }
 
+//NOLINTBEGIN(readability-function-size)
 static celix_status_t endpointDiscoveryPoller_getEndpoints(endpoint_discovery_poller_t *poller, char *url, celix_array_list_t** updatedEndpoints) {
 	celix_status_t status = CELIX_SUCCESS;
 
@@ -406,6 +408,7 @@ static celix_status_t endpointDiscoveryPoller_getEndpoints(endpoint_discovery_po
 
 	return status;
 }
+//NOLINTEND(readability-function-size)
 
 static bool endpointDiscoveryPoller_endpointDescriptionEquals(celix_array_list_entry_t endpointEntry,
                                                               celix_array_list_entry_t compareEntry) {
@@ -413,3 +416,5 @@ static bool endpointDiscoveryPoller_endpointDescriptionEquals(celix_array_list_e
     endpoint_description_t* compare = (endpoint_description_t*)compareEntry.voidPtrVal;
     return strcmp(endpoint->id, compare->id) == 0;
 }
+
+//NOLINTEND(clang-analyzer-deadcode.DeadStores)

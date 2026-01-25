@@ -173,13 +173,11 @@ void discoveryZeroconfAnnouncer_destroy(discovery_zeroconf_announcer_t *announce
     celixThreadMutex_destroy(&announcer->mutex);
     close(announcer->eventFd);
     free(announcer);
-    return;
 }
 
 static void discoveryZeroconfAnnouncer_eventNotify(discovery_zeroconf_announcer_t *announcer) {
     eventfd_t val = 1;
     eventfd_write(announcer->eventFd, val);
-    return;
 }
 
 static bool isLoopBackNetInterface(const char *ifName) {
@@ -323,7 +321,6 @@ static void endpointEntry_destroy(announce_endpoint_entry_t *entry) {
     celix_properties_destroy(entry->properties);
     free(entry->serviceType);
     free(entry);
-    return;
 }
 CELIX_DEFINE_AUTOPTR_CLEANUP_FUNC(announce_endpoint_entry_t, endpointEntry_destroy)
 
@@ -421,7 +418,6 @@ static void OnDNSServiceRegisterCallback(DNSServiceRef sdRef, DNSServiceFlags fl
     } else {
         celix_logHelper_error(announcer->logHelper, "Announcer: Failed to register service, %d.", errorCode);
     }
-    return;
 }
 
 
@@ -437,7 +433,6 @@ static void discoveryZeroconfAnnouncer_revokeEndpoints(discovery_zeroconf_announ
         }
         endpointEntry_destroy(entry);
     }
-    return;
 }
 
 static bool discoveryZeroconfAnnouncer_copyPropertiesToTxtRecord(discovery_zeroconf_announcer_t *announcer, celix_properties_iterator_t *propIter, TXTRecordRef *txtRecord, uint16_t maxTxtLen, bool splitTxtRecord) {
@@ -527,7 +522,6 @@ static void discoveryZeroconfAnnouncer_announceEndpoints(discovery_zeroconf_anno
             TXTRecordDeallocate(&txtRecord);
         }
     }
-    return;
 }
 
 static void discoveryZeroconfAnnouncer_handleMDNSEvent(discovery_zeroconf_announcer_t *announcer) {
@@ -555,7 +549,6 @@ static void discoveryZeroconfAnnouncer_handleMDNSEvent(discovery_zeroconf_announ
     } else if (dnsErr != kDNSServiceErr_NoError) {
         celix_logHelper_error(announcer->logHelper, "Announcer: Failed to process mDNS result, %d.", dnsErr);
     }
-    return;
 }
 
 static void *discoveryZeroconfAnnouncer_refreshEndpointThread(void *data) {

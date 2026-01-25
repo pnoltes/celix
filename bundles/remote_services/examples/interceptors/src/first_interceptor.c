@@ -54,7 +54,7 @@ void firstInterceptor_postExportCall(void *handle, const celix_properties_t *svc
 
 bool firstInterceptor_preProxyCall(void *handle, const celix_properties_t *svcProperties, const char *functionName, celix_properties_t *metadata) {
     first_interceptor_t *interceptor = handle;
-    celix_properties_setLong((celix_properties_t *) metadata, SEQUENCE_NUMBER, interceptor->sequenceNumber++);
+    celix_properties_setLong(metadata, SEQUENCE_NUMBER, interceptor->sequenceNumber++);
 
     uint64_t sequence = celix_properties_getAsLong(metadata, SEQUENCE_NUMBER, 0);
     printf("Invoked preProxyCall on first interceptor, for message with sequenceNumber [%"PRIu64"]\n", sequence);

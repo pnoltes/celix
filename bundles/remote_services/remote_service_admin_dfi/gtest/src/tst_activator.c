@@ -35,7 +35,8 @@
 #define TIMED_EXPR(expr) \
     double diff; \
     do { \
-        struct timespec _begin, _end; \
+        struct timespec _begin; \
+        struct timespec _end; \
         clock_gettime(CLOCK_MONOTONIC, &_begin); \
         expr; \
         clock_gettime(CLOCK_MONOTONIC, &_end); \

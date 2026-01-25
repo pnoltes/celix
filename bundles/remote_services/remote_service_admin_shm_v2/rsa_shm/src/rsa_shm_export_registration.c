@@ -110,13 +110,13 @@ void exportRegistration_stop(export_registration_t *export) {
 void exportRegistration_addRef(export_registration_t *export) {
     assert(export != NULL);
     celix_ref_get(&export->ref);
-    return ;
+    
 }
 
 void exportRegistration_release(export_registration_t *export) {
     assert(export != NULL);
     celix_ref_put(&export->ref, (void*)exportRegistration_destroy);
-    return ;
+    
 }
 
 static void exportRegistration_destroy(export_registration_t *export) {
@@ -125,7 +125,7 @@ static void exportRegistration_destroy(export_registration_t *export) {
     endpointDescription_destroy(export->endpointDesc);
     celixThreadRwlock_destroy(&export->rpcFacLock);
     free(export);
-    return ;
+    
 }
 
 celix_status_t exportRegistration_call(export_registration_t *export, celix_properties_t *metadata,

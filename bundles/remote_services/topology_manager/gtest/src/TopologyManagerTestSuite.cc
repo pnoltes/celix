@@ -24,7 +24,7 @@ class TopologyManagerTestSuite : public TopologyManagerTestSuiteBaseClass {
 public:
     TopologyManagerTestSuite() = default;
 
-    ~TopologyManagerTestSuite() = default;
+    ~TopologyManagerTestSuite() override = default;
 };
 
 TEST_F(TopologyManagerTestSuite, ExportService1Test) {
@@ -160,7 +160,7 @@ TEST_F(TopologyManagerTestSuite, ExportMutilServiceWithDynamicIPTest) {
         struct TmTestService {
             void* handle;
         } exportedSvc2{};
-        auto exportedSvcProps = celix_properties_create();
+        auto* exportedSvcProps = celix_properties_create();
         celix_properties_set(exportedSvcProps, "service.exported.interfaces", "*");
         auto exportedSvcId = celix_bundleContext_registerService(ctx, &exportedSvc2, "tmTestService2", exportedSvcProps);
         EXPECT_TRUE(exportedSvcId > 0);
@@ -314,8 +314,8 @@ TEST_F(TopologyManagerTestSuite, DynamicIpEndpointRsaPortNotSpecifiedTest) {
           EXPECT_EQ(CELIX_SUCCESS, status);
           reference = (service_reference_pt)celix_arrayList_get(references, 0);
           EXPECT_TRUE(reference != nullptr);
-          auto exportReg = (export_registration_t*)malloc(sizeof(export_registration_t));
-          auto endpointProps = celix_properties_create();
+          auto* exportReg = (export_registration_t*)malloc(sizeof(export_registration_t));
+          auto* endpointProps = celix_properties_create();
           unsigned int size = 0;
           char **keys;
           serviceReference_getPropertyKeys(reference, &keys, &size);
@@ -410,7 +410,7 @@ TEST_F(TopologyManagerTestSuite, EndpointListenerNotSupportInterfaceSpecificEndp
         char scope[256] = {0};
         (void)snprintf(scope, sizeof(scope), "(&(%s=*)(%s=%s))", CELIX_FRAMEWORK_SERVICE_NAME,
                        CELIX_RSA_ENDPOINT_FRAMEWORK_UUID, fwUuid);
-        auto elpProps = celix_properties_create();
+        auto* elpProps = celix_properties_create();
         celix_properties_set(elpProps, CELIX_RSA_ENDPOINT_LISTENER_SCOPE, scope);
         auto eplId = celix_bundleContext_registerService(ctx, &epl, CELIX_RSA_ENDPOINT_LISTENER_SERVICE_NAME, elpProps);
         EXPECT_TRUE(eplId > 0);
@@ -419,7 +419,7 @@ TEST_F(TopologyManagerTestSuite, EndpointListenerNotSupportInterfaceSpecificEndp
         celix_array_list_t* references{};
         status = bundleContext_getServiceReferences(ctx, nullptr, filter, &references);
         EXPECT_EQ(CELIX_SUCCESS, status);
-        auto eplRef = (service_reference_pt)celix_arrayList_get(references, 0);
+        auto* eplRef = (service_reference_pt)celix_arrayList_get(references, 0);
         EXPECT_TRUE(eplRef != nullptr);
         status = topologyManager_endpointListenerAdded(tm, eplRef, &epl);
         EXPECT_EQ(CELIX_SUCCESS, status);

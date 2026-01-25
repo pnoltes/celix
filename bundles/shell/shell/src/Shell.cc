@@ -25,7 +25,6 @@
 #include "std_commands.h"
 #include "celix_shell_command.h"
 #include "celix_log_service.h"
-#include "celix_shell_command.h"
 #include "celix_shell.h"
 
 namespace celix {
@@ -123,7 +122,7 @@ namespace celix {
             remEntry({}, command, properties);
         }
 
-        void setLogService(const std::shared_ptr<celix_log_service> ls) {
+        void setLogService(const std::shared_ptr<celix_log_service>& ls) {
             std::lock_guard<std::mutex> lck{mutex};
             logService = ls;
         }
@@ -148,7 +147,7 @@ namespace celix {
             long svcId = properties->getAsLong(celix::SERVICE_ID, -1L);
             auto it = entries.find(name);
             if (it == entries.end()) {
-                auto* nsBegin = strstr(name.c_str(), "::");
+                const auto* nsBegin = strstr(name.c_str(), "::");
                 std::string localName = nsBegin == nullptr ? name : std::string{nsBegin + 2};
                 entries.emplace(name, Entry{.svcId=svcId, .name=name, .localName=localName, .cCommand=cCommand, .cxxCommand=cxxCommand, .properties=properties});
             } else if (logService){
@@ -171,7 +170,7 @@ namespace celix {
             }
         }
 
-        std::vector<std::string> tokenize(const char* input) {
+        static std::vector<std::string> tokenize(const char* input) {
             std::vector<std::string> result{};
             char* str = celix_utils_strdup(input);
             char* savePtr = nullptr;
@@ -266,7 +265,7 @@ namespace celix {
                     .build();
         }
     private:
-        std::shared_ptr <celix_std_commands> createCommands(const std::shared_ptr <celix::BundleContext> &ctx) {
+        static std::shared_ptr <celix_std_commands> createCommands(const std::shared_ptr <celix::BundleContext> &ctx) {
             return std::shared_ptr<celix_std_commands>
                    {celix_stdCommands_create(ctx->getCBundleContext()), [](celix_std_commands *cmds) {
                        celix_stdCommands_destroy(cmds);

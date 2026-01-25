@@ -45,7 +45,7 @@ extern "C" {
 #include "celix_earpm_mosquitto_cleanup.h"
 #include "CelixEarpmTestSuiteBaseClass.h"
 
-
+//NOLINTNEXTLINE(cert-dcl59-cpp)
 namespace {
     constexpr const char* MQTT_BROKER_ADDRESS = "127.0.0.1";
     constexpr int MQTT_BROKER_PORT = 1883;
@@ -107,7 +107,7 @@ public:
     ~CelixEarpmClientTestSuiteBaseClass() override = default;
 
     static endpoint_description_t* CreateMqttBrokerEndpoint(void) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         EXPECT_NE(props, nullptr);
         celix_properties_setLong(props, CELIX_RSA_ENDPOINT_SERVICE_ID, INT32_MAX);
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_NAME, CELIX_EARPM_MQTT_BROKER_INFO_SERVICE_NAME);
@@ -173,11 +173,11 @@ public:
         } callbackData{connectedCallback, receiveMsgCallBack};
         opts.callbackHandle = &callbackData;
         opts.connectedCallback = [](void* handle) {
-            auto callbackData = static_cast<struct callback_data*>(handle);
+            auto* callbackData = static_cast<struct callback_data*>(handle);
             callbackData->connectedCallback();
         };
         opts.receiveMsgCallback = [](void* handle, const celix_earpm_client_request_info_t* requestInfo) {
-            auto callbackData = static_cast<struct callback_data*>(handle);
+            auto* callbackData = static_cast<struct callback_data*>(handle);
             callbackData->receiveMsgCallback(requestInfo);
         };
         auto* client = celix_earpmClient_create(&opts);

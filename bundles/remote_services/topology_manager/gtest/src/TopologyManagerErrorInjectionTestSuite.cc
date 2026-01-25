@@ -30,7 +30,7 @@
 class TopologyManagerCreatingErrorInjectionTestSuite : public ::testing::Test {
 public:
     TopologyManagerCreatingErrorInjectionTestSuite() {
-        auto config = celix_properties_create();
+        auto* config = celix_properties_create();
         celix_properties_set(config, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
         celix_properties_set(config, CELIX_FRAMEWORK_CACHE_DIR, ".tm_unit_test_cache");
         fw = std::shared_ptr<celix_framework_t>{celix_frameworkFactory_createFramework(config),

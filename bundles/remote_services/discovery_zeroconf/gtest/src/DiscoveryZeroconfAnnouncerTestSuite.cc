@@ -53,10 +53,12 @@ static int GetLoopBackIfIndex(void);
 class DiscoveryZeroconfAnnouncerTestSuite : public ::testing::Test {
 public:
     static void SetUpTestCase() {
+        //NOLINTNEXTLINE(cert-env33-c)
         (void)system("sudo " MDNSD);
     }
 
     static void TearDownTestCase() {
+        //NOLINTNEXTLINE(cert-env33-c)
         (void)system("sudo kill -s 9 `ps -aux | grep mdnsd | awk '{print $2}'`");
     }
     DiscoveryZeroconfAnnouncerTestSuite() {
@@ -264,7 +266,8 @@ TEST_F(DiscoveryZeroconfAnnouncerTestSuite, AddAndRemoveEndpointOnSpecificInterf
     auto status = discoveryZeroconfAnnouncer_create(ctx.get(), logHelper.get(), &announcer);
     EXPECT_EQ(status, CELIX_SUCCESS);
     int ifIndex = 0;
-    struct ifaddrs *ifaddr, *ifa;
+    struct ifaddrs *ifaddr;
+    struct ifaddrs *ifa;
     if (getifaddrs(&ifaddr) != -1)
     {
         for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
@@ -395,7 +398,8 @@ TEST_F(DiscoveryZeroconfAnnouncerTestSuite, HandleMDNSEventFailed2) {
 static int GetLoopBackIfIndex(void) {
     int ifIndex = 0;
 
-    struct ifaddrs *ifaddr, *ifa;
+    struct ifaddrs *ifaddr;
+    struct ifaddrs *ifa;
     char host[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) != -1)

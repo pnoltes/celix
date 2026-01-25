@@ -43,7 +43,8 @@ static service_tree_node_t *createServiceNode(service_tree_node_t *parent, servi
 }
 
 static size_t getUriTokenCount(const char *uri, const char *separator) {
-    char *saveptr, *token;
+    char *saveptr;
+    char *token;
     char *uri_cpy = strdup(uri);
     size_t tokenCount = 0;
 

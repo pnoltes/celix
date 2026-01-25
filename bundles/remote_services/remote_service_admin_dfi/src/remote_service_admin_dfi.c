@@ -587,7 +587,8 @@ celix_status_t remoteServiceAdmin_exportService(remote_service_admin_t *admin, c
 
         char *ecCopy = strndup(exportConfigs, strlen(exportConfigs));
         const char delimiter[2] = ",";
-        char *token, *savePtr;
+        char *token;
+        char *savePtr;
 
         token = strtok_r(ecCopy, delimiter, &savePtr);
         while (token != NULL) {
@@ -800,7 +801,8 @@ static celix_status_t remoteServiceAdmin_createEndpointDescription(remote_servic
 static celix_status_t remoteServiceAdmin_getIpAddress(char* interface, char** ip) {
     celix_status_t status = CELIX_BUNDLE_EXCEPTION;
 
-    struct ifaddrs *ifaddr, *ifa;
+    struct ifaddrs *ifaddr;
+    struct ifaddrs *ifa;
     char host[NI_MAXHOST];
 
     if (getifaddrs(&ifaddr) != -1)
@@ -829,7 +831,8 @@ static celix_status_t remoteServiceAdmin_getIpAddress(char* interface, char** ip
 }
 
 static char* remoteServiceAdmin_getIFNameForIP(const char *ip) {
-    struct ifaddrs *ifaddr, *ifa;
+    struct ifaddrs *ifaddr;
+    struct ifaddrs *ifa;
     char host[NI_MAXHOST];
     char *ifName = NULL;
     if (ip != NULL && getifaddrs(&ifaddr) != -1)
@@ -883,7 +886,8 @@ celix_status_t remoteServiceAdmin_importService(remote_service_admin_t *admin, e
         // Check whether this RSA must be imported
         char *ecCopy = strndup(importConfigs, strlen(importConfigs));
         const char delimiter[2] = ",";
-        char *token, *savePtr;
+        char *token;
+        char *savePtr;
 
         token = strtok_r(ecCopy, delimiter, &savePtr);
         while (token != NULL) {
@@ -942,7 +946,7 @@ static void remoteServiceAdmin_removeDynamicIpUrlOfImportedRegistration(remote_s
         celix_ref_put(&urlRef->ref, (void*)free);
         celix_stringHashMap_remove(admin->importedEndpointUrls, endpoint->id);
     }
-    return;
+    
 }
 
 celix_status_t remoteServiceAdmin_removeImportedService(remote_service_admin_t *admin, import_registration_t *registration) {
@@ -1050,6 +1054,7 @@ static celix_status_t onUseUrlCallback(void* handle, const char* url) {
     return CELIX_SUCCESS;
 }
 
+//NOLINTBEGIN(readability-function-size)
 static celix_status_t remoteServiceAdmin_send(void *handle, endpoint_description_t *endpointDescription, char *request, celix_properties_t *metadata, char **reply) {
     remote_service_admin_t * rsa = handle;
     struct celix_post_data post;
@@ -1140,6 +1145,7 @@ static celix_status_t remoteServiceAdmin_send(void *handle, endpoint_description
 
     return status;
 }
+//NOLINTEND(readability-function-size)
 
 static size_t remoteServiceAdmin_readCallback(void *voidBuffer, size_t size, size_t nmemb, void *userp) {
     struct celix_post_data *post = userp;

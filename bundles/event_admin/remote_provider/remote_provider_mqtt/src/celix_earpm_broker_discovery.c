@@ -40,6 +40,8 @@
 #include "remote_constants.h"
 #include "celix_earpm_constants.h"
 
+//NOLINTBEGIN(readability-redundant-control-flow)
+
 #define CELIX_EARPM_LOAD_PROFILE_INTERVAL 2 //seconds
 #define CELIX_EARPM_LOAD_PROFILE_TRIES_MAX (600/CELIX_EARPM_LOAD_PROFILE_INTERVAL) //10 minutes
 
@@ -459,3 +461,4 @@ static void celix_earpmDiscovery_onProfileScheduledEvent(void* data) {
     return;
 }
 
+//NOLINTEND(readability-redundant-control-flow)

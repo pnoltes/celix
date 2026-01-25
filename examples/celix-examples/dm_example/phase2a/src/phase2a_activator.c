@@ -26,7 +26,6 @@
 
 #include "phase1.h"
 #include "phase2.h"
-#include "phase2a_cmp.h"
 
 struct phase2a_activator_struct {
     phase2a_cmp_t *phase2aCmp;

@@ -51,6 +51,7 @@ extern "C" {
 #include "CelixEarpmTestSuiteBaseClass.h"
 
 
+//NOLINTNEXTLINE(cert-dcl59-cpp)
 namespace {
     constexpr const char* MQTT_BROKER_ADDRESS = "127.0.0.1";
     constexpr int MQTT_BROKER_PORT = 1883;
@@ -65,7 +66,7 @@ public:
         auto rc = mosquitto_int_option(mosq.get(), MOSQ_OPT_PROTOCOL_VERSION, MQTT_PROTOCOL_V5);
         EXPECT_EQ(rc, MOSQ_ERR_SUCCESS);
         mosquitto_connect_callback_set(mosq.get(), [](mosquitto*, void* handle, int rc) {
-            auto client = static_cast<MqttClient*>(handle);
+            auto* client = static_cast<MqttClient*>(handle);
             ASSERT_EQ(rc, MQTT_RC_SUCCESS);
             for (const auto& topic : client->subTopics) {
                 auto ret = mosquitto_subscribe_v5(client->mosq.get(), nullptr, topic.c_str(), 0, MQTT_SUB_OPT_NO_LOCAL, nullptr);
@@ -73,13 +74,13 @@ public:
             }
         });
         mosquitto_subscribe_v5_callback_set(mosq.get(), [](mosquitto*, void* handle, int, int, const int*, const mosquitto_property*) {
-            auto client = static_cast<MqttClient*>(handle);
+            auto* client = static_cast<MqttClient*>(handle);
             std::lock_guard<std::mutex> lock(client->mutex);
             client->subscribedCnt++;
             client->subscribedCond.notify_all();
         });
         mosquitto_message_v5_callback_set(mosq.get(), [](mosquitto*, void* handle, const mosquitto_message* msg, const mosquitto_property* props) {
-            auto client = static_cast<MqttClient*>(handle);
+            auto* client = static_cast<MqttClient*>(handle);
             {
                 std::lock_guard<std::mutex> lock(client->mutex);
                 client->receivedMsgTopics.emplace_back(msg->topic);
@@ -181,7 +182,7 @@ public:
     ~CelixEarpmImplTestSuiteBaseClass() override = default;
 
     static endpoint_description_t* CreateMqttBrokerEndpoint(void) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         EXPECT_NE(props, nullptr);
         celix_properties_setLong(props, CELIX_RSA_ENDPOINT_SERVICE_ID, INT32_MAX);
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_NAME, CELIX_EARPM_MQTT_BROKER_INFO_SERVICE_NAME);
@@ -202,7 +203,7 @@ public:
     }
 
     void TestRemoteProvider(const std::function<void (celix_event_admin_remote_provider_mqtt_t*)>& testBody) {
-        auto earpm = celix_earpm_create(ctx.get());
+        auto* earpm = celix_earpm_create(ctx.get());
 
         celix_autoptr(endpoint_description_t) endpoint = CreateMqttBrokerEndpoint();
         auto status = celix_earpm_mqttBrokerEndpointAdded(earpm, endpoint, nullptr);

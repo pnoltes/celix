@@ -54,7 +54,7 @@ TEST_F(CelixEarpmEventDelivererTestSuite, CreateEventDelivererTest) {
 
 TEST_F(CelixEarpmEventDelivererTestSuite, CreateEventDelivererWithInvalidSyncEventThreadSizeTest) {
     setenv(CELIX_EARPM_SYNC_EVENT_DELIVERY_THREADS, "100", 1);
-    auto deliverer = celix_earpmDeliverer_create(ctx.get(), logHelper.get());
+    auto* deliverer = celix_earpmDeliverer_create(ctx.get(), logHelper.get());
     EXPECT_EQ(deliverer, nullptr);
 
     setenv(CELIX_EARPM_SYNC_EVENT_DELIVERY_THREADS, "0", 1);
@@ -66,7 +66,7 @@ TEST_F(CelixEarpmEventDelivererTestSuite, CreateEventDelivererWithInvalidSyncEve
 
 TEST_F(CelixEarpmEventDelivererTestSuite, CreateEventDelivererWithInvalidMsgQueueSizeTest) {
     setenv(CELIX_EARPM_MSG_QUEUE_CAPACITY, std::to_string(CELIX_EARPM_MSG_QUEUE_MAX_SIZE+1).c_str(), 1);
-    auto deliverer = celix_earpmDeliverer_create(ctx.get(), logHelper.get());
+    auto* deliverer = celix_earpmDeliverer_create(ctx.get(), logHelper.get());
     EXPECT_EQ(deliverer, nullptr);
 
     setenv(CELIX_EARPM_MSG_QUEUE_CAPACITY, "0", 1);
@@ -167,7 +167,7 @@ TEST_F(CelixEarpmEventDelivererTestSuite, SendEventTest) {
         auto future = promise.get_future();
         celix_earpmDeliverer_sendEvent(deliverer, "test/topic", props,
                                        [](void *data, const char *topic, celix_status_t status) {
-                                           auto promise = static_cast<std::promise<celix_status_t> *>(data);
+                                           auto* promise = static_cast<std::promise<celix_status_t> *>(data);
                                            EXPECT_STREQ(topic, "test/topic");
                                            promise->set_value(status);
                                        }, &promise);
@@ -198,7 +198,7 @@ TEST_F(CelixEarpmEventDelivererTestSuite, EventAdminSendEventFailedTest) {
         auto future = promise.get_future();
         celix_earpmDeliverer_sendEvent(deliverer, "test/topic", props,
                                        [](void *data, const char *topic, celix_status_t status) {
-                                           auto promise = static_cast<std::promise<celix_status_t> *>(data);
+                                           auto* promise = static_cast<std::promise<celix_status_t> *>(data);
                                            (void) topic;
                                            promise->set_value(status);
                                        }, &promise);
@@ -217,7 +217,7 @@ TEST_F(CelixEarpmEventDelivererTestSuite, SendEventWithoutEventAdminServiceTest)
         auto future = promise.get_future();
         celix_earpmDeliverer_sendEvent(deliverer, "test/topic", props,
                                        [](void *data, const char *topic, celix_status_t status) {
-                                           auto promise = static_cast<std::promise<celix_status_t> *>(data);
+                                           auto* promise = static_cast<std::promise<celix_status_t> *>(data);
                                            (void) topic;
                                            promise->set_value(status);
                                        }, &promise);
@@ -272,7 +272,7 @@ TEST_F(CelixEarpmEventDelivererTestSuite, SyncEventQueueFullTest) {
                 return CELIX_SUCCESS;
             },
             .sendEvent = [](void* handle, const char*, const celix_properties_t*) {
-                auto future = static_cast<std::future<void>*>(handle);
+                auto* future = static_cast<std::future<void>*>(handle);
                 try {
                     future->get();
                 } catch (...) {

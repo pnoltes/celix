@@ -82,7 +82,6 @@ namespace celix { namespace dm {
          *
          * Deprecated -> will always return true.
          */
-        //NOLINTNEXTLINE(readability-convert-member-functions-to-static) 
         bool isValid() const __attribute__((deprecated)) { return true; }
 
         /**

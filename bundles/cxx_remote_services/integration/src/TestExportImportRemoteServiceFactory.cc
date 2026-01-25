@@ -295,7 +295,7 @@ private:
  */
 class ComponentImportRegistration final : public celix::rsa::IImportRegistration {
 public:
-    ComponentImportRegistration(std::shared_ptr<celix::BundleContext> _ctx, std::string _componentId) : ctx{std::move(_ctx)}, componentId{std::move(_componentId)} {}
+    ComponentImportRegistration(const std::shared_ptr<celix::BundleContext>& _ctx, std::string _componentId) : ctx{_ctx}, componentId{std::move(_componentId)} {}
     ~ComponentImportRegistration() noexcept override {
         auto context = ctx.lock();
         if (context) {
@@ -303,8 +303,8 @@ public:
         } //else already gone
     }
 private:
-    const std::weak_ptr<celix::BundleContext> ctx;
-    const std::string componentId;
+    std::weak_ptr<celix::BundleContext> ctx;
+    std::string componentId;
 };
 
 /**
@@ -332,7 +332,7 @@ public:
 
 private:
     std::string createImportedCalculatorComponent(const celix::rsa::EndpointDescription& endpoint) {
-        for (auto it : endpoint.getProperties()) {
+        for (const auto&it : endpoint.getProperties()) {
             logHelper.info("Endpoint property %s=%s", it.first.c_str(), it.second.c_str());
         }
         auto c2pChannelId = endpoint.getProperties().getAsLong("endpoint.client.to.provider.channel.id",  -1);
@@ -509,7 +509,7 @@ private:
  */
 class ComponentExportRegistration final : public celix::rsa::IExportRegistration {
 public:
-    ComponentExportRegistration(std::shared_ptr<celix::BundleContext> _ctx, std::string _componentId) : ctx{std::move(_ctx)}, componentId{std::move(_componentId)} {}
+    ComponentExportRegistration(const std::shared_ptr<celix::BundleContext>& _ctx, std::string _componentId) : ctx{_ctx}, componentId{std::move(_componentId)} {}
     ~ComponentExportRegistration() noexcept override {
         auto context = ctx.lock();
         if (context) {
@@ -517,8 +517,8 @@ public:
         } //else already gone
     }
 private:
-    const std::weak_ptr<celix::BundleContext> ctx;
-    const std::string componentId;
+    std::weak_ptr<celix::BundleContext> ctx;
+    std::string componentId;
 };
 
 /**

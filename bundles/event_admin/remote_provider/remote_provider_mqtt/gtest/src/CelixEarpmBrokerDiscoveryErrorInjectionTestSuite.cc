@@ -61,7 +61,7 @@ public:
 
     void TestAddingEndpointListener(const std::function<void(celix_earpm_broker_discovery_t*, void*, const celix_properties_t*)>& testBody) {
         setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
-        auto discovery = celix_earpmDiscovery_create(ctx.get());
+        auto* discovery = celix_earpmDiscovery_create(ctx.get());
         ASSERT_NE(nullptr, discovery);
 
         celix_autoptr(celix_properties_t) properties = celix_properties_create();
@@ -90,37 +90,37 @@ public:
 
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateLogHelperTest) {
     celix_ei_expect_celix_logHelper_create((void*)&celix_earpmDiscovery_create, 0, nullptr);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_EQ(nullptr, discovery);
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAllocMemoryForDiscoveryTest) {
     celix_ei_expect_calloc((void*)&celix_earpmDiscovery_create, 0, nullptr);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_EQ(nullptr, discovery);
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToGetFrameworkUUIDTest) {
     celix_ei_expect_celix_bundleContext_getProperty((void*)&celix_earpmDiscovery_create, 0, nullptr);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_EQ(nullptr, discovery);
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateMutexTest) {
     celix_ei_expect_celixThreadMutex_create((void*)&celix_earpmDiscovery_create, 0, ENOMEM);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_EQ(nullptr, discovery);
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateEndpointListenerMapTest) {
     celix_ei_expect_celix_longHashMap_createWithOptions((void*)&celix_earpmDiscovery_create, 0, nullptr);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_EQ(nullptr, discovery);
 }
 
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToScheduledProfileEventTest) {
     celix_ei_expect_celix_bundleContext_scheduleEvent((void*)&celix_earpmDiscovery_create, 0, -1);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_EQ(nullptr, discovery);
 }
 
@@ -154,7 +154,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAddEndpointList
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateBrokerListenerListTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_celix_arrayList_createWithOptions(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to create broker listeners list.");
@@ -167,7 +167,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateBrokerLis
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAllocMemoryForBrokerListenerTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_calloc(CELIX_EI_UNKNOWN_CALLER, 0, nullptr, 3);//first calloc for log helper, second for discovery
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to create broker listener");
@@ -180,7 +180,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAllocMemoryForB
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToDupBrokerListenerHostNameTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto_bind_host.conf", 1);
     celix_ei_expect_celix_utils_strdup(CELIX_EI_UNKNOWN_CALLER, 0, nullptr, 2);//first for log helper
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to create broker listener");
@@ -193,7 +193,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToDupBrokerListen
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAddBrokerListenerToListTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_celix_arrayList_add(CELIX_EI_UNKNOWN_CALLER, 0, ENOMEM);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to add broker listener");
@@ -206,7 +206,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAddBrokerListen
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToDupBrokerListenerBindInterfaceTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto_bind_if.conf", 1);
     celix_ei_expect_celix_utils_strdup(CELIX_EI_UNKNOWN_CALLER, 0, nullptr, 2);//first for log helper
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to dup bind interface");
@@ -219,7 +219,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToDupBrokerListen
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateBrokerEndpointListTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_celix_arrayList_createWithOptions(CELIX_EI_UNKNOWN_CALLER, 0, nullptr, 2);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to create broker endpoints list.");
@@ -232,7 +232,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateBrokerEnd
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreatePropertiesForBrokerEndpointTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_celix_properties_create(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to create properties for mqtt broker listener");
@@ -245,7 +245,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreatePropertie
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToSetPropertiesValForBrokerEndpointTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_celix_properties_set(CELIX_EI_UNKNOWN_CALLER, 0, ENOMEM);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to set properties for mqtt broker listener");
@@ -258,7 +258,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToSetPropertiesVa
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateBrokerEndpointTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_calloc(CELIX_EI_UNKNOWN_CALLER, 0, nullptr, 4);//first calloc for log helper, second for discovery, third broker listener
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to create endpoint for mqtt broker listener");
@@ -271,7 +271,7 @@ TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToCreateBrokerEnd
 TEST_F(CelixEarpmBrokerDiscoveryErrorInjectionTestSuite, FailedToAddBrokerEndpointToListTest) {
     setenv(CELIX_EARPM_BROKER_PROFILE, MOSQUITTO_CONF_PATH"mosquitto.conf", 1);
     celix_ei_expect_celix_arrayList_add(CELIX_EI_UNKNOWN_CALLER, 0, ENOMEM, 2);
-    auto discovery = celix_earpmDiscovery_create(ctx.get());
+    auto* discovery = celix_earpmDiscovery_create(ctx.get());
     ASSERT_NE(nullptr, discovery);
 
     auto ok = WaitForLogMessage("Failed to add endpoint for mqtt broker listener");

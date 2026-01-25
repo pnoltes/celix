@@ -39,6 +39,7 @@
 #include <string.h>
 #include <errno.h>
 
+//NOLINTBEGIN(readability-redundant-control-flow)
 
 struct rsa_shm_client_manager {
     celix_bundle_context_t *ctx;
@@ -302,7 +303,7 @@ celix_status_t rsaShmClientManager_sendMsgTo(rsa_shm_client_manager_t *clientMan
         celix_logHelper_error(clientManager->logHelper, "RsaShmClient: Error creating msg control. %d.", status);
         return status;
     }
-    msgCtrl = (rsa_shm_msg_control_t*)msgCtrlAlloc.ctrl;
+    msgCtrl = msgCtrlAlloc.ctrl;
     celix_auto(celix_shm_pool_alloc_guard_t) msgBodyAlloc =
         celix_shmPoolAllocGuard_init(shmPool_malloc(clientManager->shmPool, msgBodySize), clientManager->shmPool);
     char *msgBody = (char *)msgBodyAlloc.ptr;
@@ -747,3 +748,5 @@ static bool rsaShmClient_shouldBreakInvocation(rsa_shm_client_t *client, long se
     }while (false);
     return breaked;
 };
+
+//NOLINTEND(readability-redundant-control-flow)

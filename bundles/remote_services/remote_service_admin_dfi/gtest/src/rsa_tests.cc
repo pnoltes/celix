@@ -29,7 +29,6 @@
 extern "C" {
 
 #include "remote_service_admin.h"
-#include "calculator_service.h"
 
 #define TST_CONFIGURATION_TYPE "org.amdatu.remote.admin.http"
 

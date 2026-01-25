@@ -37,6 +37,8 @@
 #include "discovery.h"
 #include "remote_constants.h"
 
+//NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
+
 struct activator {
 	celix_bundle_context_t *context;
 	discovery_t *discovery;
@@ -179,3 +181,5 @@ celix_status_t celix_bundleActivator_destroy(void * userData, celix_bundle_conte
 
 	return status;
 }
+
+//NOLINTEND(clang-analyzer-deadcode.DeadStores)

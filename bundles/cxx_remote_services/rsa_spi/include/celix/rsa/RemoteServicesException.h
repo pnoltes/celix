@@ -33,7 +33,7 @@ namespace celix::rsa {
             return w.c_str();
         }
     private:
-        const std::string w;
+        std::string w;
     };
 
 }

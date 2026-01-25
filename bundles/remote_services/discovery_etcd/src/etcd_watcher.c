@@ -88,14 +88,11 @@ static celix_status_t etcdWatcher_getLocalNodePath(celix_bundle_context_t *conte
 
     if ((etcdWatcher_getRootPath(context, rootPath) != CELIX_SUCCESS)) {
 		status = CELIX_ILLEGAL_STATE;
-    }
-	else if (((bundleContext_getProperty(context, CELIX_FRAMEWORK_UUID, &uuid)) != CELIX_SUCCESS) || (!uuid)) {
+    } else if (((bundleContext_getProperty(context, CELIX_FRAMEWORK_UUID, &uuid)) != CELIX_SUCCESS) || (!uuid)) {
 		status = CELIX_ILLEGAL_STATE;
-	}
-	else if (rootPath[strlen(rootPath) - 1] == '/') {
+	} else if (rootPath[strlen(rootPath) - 1] == '/') {
     	snprintf(localNodePath, MAX_LOCALNODE_LENGTH, "%s%s", rootPath, uuid);
-    }
-    else {
+    } else {
     	snprintf(localNodePath, MAX_LOCALNODE_LENGTH, "%s/%s", rootPath, uuid);
     }
 

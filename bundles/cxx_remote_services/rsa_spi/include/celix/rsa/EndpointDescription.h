@@ -150,7 +150,7 @@ namespace celix::rsa {
          */
         [[nodiscard]] std::string toString() const {
             std::string result{"Endpoint["};
-            for (auto& prop : endpointProperties) {
+            for (const auto& prop : endpointProperties) {
                 result.append(prop.first);
                 result.append("=");
                 result.append(prop.second);
@@ -160,7 +160,7 @@ namespace celix::rsa {
             return result;
         }
     protected:
-        celix::Properties importedProperties(std::string_view frameworkUUID, const celix::Properties& serviceProperties, const celix::Properties& rsaProperties) {
+        static celix::Properties importedProperties(std::string_view frameworkUUID, const celix::Properties& serviceProperties, const celix::Properties& rsaProperties) {
             celix::Properties result{};
 
             for (const auto& entry: serviceProperties) {
@@ -193,11 +193,11 @@ namespace celix::rsa {
             }
         }
 
-        const celix::Properties endpointProperties;
-        const std::string endpointId;
-        const std::vector<std::string> configurationTypes;
-        const std::string frameworkUUID;
-        const std::vector<std::string> intents;
-        const std::string serviceName;
+        celix::Properties endpointProperties;
+        std::string endpointId;
+        std::vector<std::string> configurationTypes;
+        std::string frameworkUUID;
+        std::vector<std::string> intents;
+        std::string serviceName;
     };
 } // end namespace celix::rsa.

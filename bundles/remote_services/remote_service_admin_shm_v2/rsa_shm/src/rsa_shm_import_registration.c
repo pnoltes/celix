@@ -70,7 +70,7 @@ void importRegistration_destroy(import_registration_t *import) {
         endpointDescription_destroy(import->endpointDesc);
         free(import);
     }
-    return;
+    
 }
 
 //LCOV_EXCL_START

@@ -24,10 +24,10 @@
 class CelixEventAdminActTestSuite : public ::testing::Test {
 public:
     CelixEventAdminActTestSuite() {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
         celix_properties_set(props, CELIX_FRAMEWORK_CACHE_DIR, ".event_admin_act_test_cache");
-        auto fwPtr = celix_frameworkFactory_createFramework(props);
+        auto* fwPtr = celix_frameworkFactory_createFramework(props);
         fw = std::shared_ptr<celix_framework_t>{fwPtr, [](celix_framework_t* f) {celix_frameworkFactory_destroyFramework(f);}};
         ctx = std::shared_ptr<celix_bundle_context_t>{celix_framework_getFrameworkContext(fw.get()), [](celix_bundle_context_t*){/*nop*/}};
     }

@@ -43,7 +43,7 @@ public:
     }
 
     void TestEventAdapterStartStop(void (*testBody)(void)) {
-        auto adapter = celix_eventAdapter_create(ctx.get());
+        auto* adapter = celix_eventAdapter_create(ctx.get());
         ASSERT_TRUE(adapter != nullptr);
 
         testBody();
@@ -59,19 +59,19 @@ public:
 
 TEST_F(CelixEventAdapterErrorInjectionTestSuite, FailedToCreateLogHelperTest) {
     celix_ei_expect_celix_logHelper_create((void*)&celix_eventAdapter_create, 0, nullptr);
-    auto adapter = celix_eventAdapter_create(ctx.get());
+    auto* adapter = celix_eventAdapter_create(ctx.get());
     ASSERT_EQ(nullptr, adapter);
 }
 
 TEST_F(CelixEventAdapterErrorInjectionTestSuite, FailedToAllocMemoryForEventAdapterTest) {
     celix_ei_expect_calloc((void*)&celix_eventAdapter_create, 0, nullptr);
-    auto adapter = celix_eventAdapter_create(ctx.get());
+    auto* adapter = celix_eventAdapter_create(ctx.get());
     ASSERT_EQ(nullptr, adapter);
 }
 
 TEST_F(CelixEventAdapterErrorInjectionTestSuite, FailedToCreateRwLockTest) {
     celix_ei_expect_celixThreadRwlock_create((void*)&celix_eventAdapter_create, 0, CELIX_ENOMEM);
-    auto adapter = celix_eventAdapter_create(ctx.get());
+    auto* adapter = celix_eventAdapter_create(ctx.get());
     ASSERT_EQ(nullptr, adapter);
 }
 
@@ -111,7 +111,7 @@ TEST_F(CelixEventAdapterErrorInjectionTestSuite, FailedToCreateRegisteringServic
         ASSERT_TRUE(svcId >= 0);
         celix_bundleContext_unregisterService(ctx, svcId);
 
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_EVENT_SERVICE_PID, "test_dump_service");
         celix_ei_expect_celix_properties_set(CELIX_EI_UNKNOWN_CALLER, 0, CELIX_ENOMEM, 3);
         svcId = celix_bundleContext_registerService(ctx, (void*)"dump_service", "test service", props);

@@ -88,7 +88,7 @@ static bool CheckMsgWithTimeOutInS(int secs) {
 }
 
 static  celix_status_t discoveryZeroconfWatcherTest_endpointAdded(void *handle, endpoint_description_t *endpoint, char *matchedFilter) {
-    auto logHelper = static_cast<celix_log_helper_t*>(handle);
+    auto* logHelper = static_cast<celix_log_helper_t*>(handle);
     (void)matchedFilter;
     EXPECT_STREQ("dzc_test_service", endpoint->serviceName);
     celix_logHelper_info(logHelper, "Endpoint added: %s.", endpoint->id);
@@ -96,7 +96,7 @@ static  celix_status_t discoveryZeroconfWatcherTest_endpointAdded(void *handle, 
 }
 
 static  celix_status_t discoveryZeroconfWatcherTest_endpointRemoved(void *handle, endpoint_description_t *endpoint, char *matchedFilter) {
-    auto logHelper = static_cast<celix_log_helper_t*>(handle);
+    auto* logHelper = static_cast<celix_log_helper_t*>(handle);
     (void)endpoint;
     (void)matchedFilter;
     celix_logHelper_info(logHelper, "Endpoint removed: %s.", endpoint->id);
@@ -105,7 +105,8 @@ static  celix_status_t discoveryZeroconfWatcherTest_endpointRemoved(void *handle
 
 static int GetTestNetInterfaceIndex() {
     int ifIndex = 0;
-    struct ifaddrs *ifaddr, *ifa;
+    struct ifaddrs *ifaddr;
+    struct ifaddrs *ifa;
     if (getifaddrs(&ifaddr) != -1)
     {
         for (ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next)
@@ -127,10 +128,12 @@ static int GetTestNetInterfaceIndex() {
 class DiscoveryZeroconfWatcherTestSuite : public ::testing::Test {
 public:
     static void SetUpTestCase() {
+        //NOLINTNEXTLINE(cert-env33-c)
         (void)system("sudo " MDNSD);
     }
 
     static void TearDownTestCase() {
+        //NOLINTNEXTLINE(cert-env33-c)
         (void)system("sudo kill -s 9 `ps -aux | grep mdnsd | awk '{print $2}'`");
     }
 
@@ -148,7 +151,7 @@ public:
         epListener.handle = logHelperPtr;
         eplId = celix_bundleContext_registerService(ctxPtr, &epListener, CELIX_RSA_ENDPOINT_LISTENER_SERVICE_NAME, nullptr);
         EXPECT_LE(0, eplId);
-        auto rsaSvcProps = celix_properties_create();
+        auto* rsaSvcProps = celix_properties_create();
         celix_properties_set(rsaSvcProps, CELIX_RSA_REMOTE_CONFIGS_SUPPORTED, DZC_TEST_CONFIG_TYPE);
         rsaSvcId = celix_bundleContext_registerService(ctx.get(), (void*)"dummy_service", CELIX_RSA_REMOTE_SERVICE_ADMIN, rsaSvcProps);
         EXPECT_LE(0, rsaSvcId);
@@ -232,7 +235,7 @@ public:
 
         beforeAddRsaAction();
 
-        auto rsaSvcProps = celix_properties_create();
+        auto* rsaSvcProps = celix_properties_create();
         celix_properties_set(rsaSvcProps, CELIX_RSA_REMOTE_CONFIGS_SUPPORTED, remoteConfigsSupported);
         auto rsaId = celix_bundleContext_registerService(ctx.get(), (void*)"dummy_service", CELIX_RSA_REMOTE_SERVICE_ADMIN, rsaSvcProps);
         EXPECT_LE(0, rsaId);
@@ -265,7 +268,7 @@ public:
 
         auto rsaTrkId = TrackRsaService(watcher);
 
-        auto dsRef = RegisterTestService(ifIndex);
+        auto* dsRef = RegisterTestService(ifIndex);
 
         afterAddEndpoint();
 
@@ -342,6 +345,7 @@ public:
 class DiscoveryZeroconfWatcherWatchServiceTestSuite : public DiscoveryZeroconfWatcherTestSuite {
 public:
     static void SetUpTestCase() {
+        //NOLINTNEXTLINE(cert-env33-c)
         (void)system("sudo " MDNSD);
         sleep(3);//wait for mdnsd start
         testServiceRef = RegisterTestService(GetTestNetInterfaceIndex());
@@ -350,6 +354,7 @@ public:
 
     static void TearDownTestCase() {
         DNSServiceRefDeallocate(testServiceRef);
+        //NOLINTNEXTLINE(cert-env33-c)
         (void)system("sudo kill -s 9 `ps -aux | grep mdnsd | awk '{print $2}'`");
     }
 
@@ -587,7 +592,6 @@ static void OnDNSServiceRegisterCallback(DNSServiceRef sdRef, DNSServiceFlags fl
     (void)serviceType;//unused
     (void)domain;//unused
     EXPECT_EQ(errorCode, kDNSServiceErr_NoError);
-    return;
 }
 
 static DNSServiceRef RegisterTestService(int ifIndex, const char *endpointId, const char *serviceId) {
@@ -709,7 +713,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, CreateDNSServiceConnectionFailedOnce) 
     EXPECT_EQ(CELIX_SUCCESS, status);
     auto rsaTrkId = TrackRsaService(watcher);
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     auto timeOut  = CheckMsgWithTimeOutInS(30);
     EXPECT_FALSE(timeOut);
@@ -729,7 +733,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, DNSServiceBrowseFailedOnce) {
     EXPECT_EQ(CELIX_SUCCESS, status);
     auto rsaTrkId = TrackRsaService(watcher);
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     auto timeOut  = CheckMsgWithTimeOutInS(30);
     EXPECT_FALSE(timeOut);
@@ -764,7 +768,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, BrowseServicesFailed2) {
     EXPECT_EQ(CELIX_SUCCESS, status);
     auto rsaTrkId = TrackRsaService(watcher);
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     auto timeOut  = CheckMsgWithTimeOutInS(30);
     EXPECT_FALSE(timeOut);
@@ -784,7 +788,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, FailedToDeleteServiceBrowser) {
 
     ExpectMsgOutPut("Endpoint added: %s.");
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     auto timeOut  = CheckMsgWithTimeOutInS(30);
     EXPECT_FALSE(timeOut);
@@ -873,7 +877,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, UnregisterRsaWhenBrowseServices) {
 
     ExpectMsgOutPut("Endpoint added: %s.");
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     auto timeOut  = CheckMsgWithTimeOutInS(30);
     EXPECT_FALSE(timeOut);
@@ -888,7 +892,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, UnregisterRsaWhenBrowseServices) {
 TEST_F(DiscoveryZeroconfWatcherTestSuite, DNSServiceResultProcessFailed1) {
     discovery_zeroconf_watcher_t *watcher;
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     celix_ei_expect_DNSServiceProcessResult(CELIX_EI_UNKNOWN_CALLER, 0, kDNSServiceErr_ServiceNotRunning);
     ExpectMsgOutPut("Watcher: mDNS connection may be broken, %d.");
@@ -908,7 +912,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, DNSServiceResultProcessFailed1) {
 TEST_F(DiscoveryZeroconfWatcherTestSuite, DNSServiceResultProcessFailed2) {
     discovery_zeroconf_watcher_t *watcher;
 
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     celix_ei_expect_DNSServiceProcessResult(CELIX_EI_UNKNOWN_CALLER, 0, kDNSServiceErr_Unknown);
     ExpectMsgOutPut("Watcher: Failed to process mDNS result, %d.");
@@ -933,7 +937,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, DNSServiceResolveFailedOnce) {
 
     celix_ei_expect_DNSServiceResolve(CELIX_EI_UNKNOWN_CALLER, 0, kDNSServiceErr_NoMemory);
     ExpectMsgOutPut("Watcher: Failed to resolve %s on %d, %d.");
-    auto dsRef = RegisterTestService();
+    auto* dsRef = RegisterTestService();
 
     auto timeOut  = CheckMsgWithTimeOutInS(30);
     EXPECT_FALSE(timeOut);
@@ -1083,7 +1087,7 @@ TEST_F(DiscoveryZeroconfWatcherTestSuite, EndpointListenerSpesificServiceConfigT
     celix_status_t status = discoveryZeroconfWatcher_create(ctx.get(), logHelper.get(), &watcher);
     EXPECT_EQ(CELIX_SUCCESS, status);
 
-    auto props = celix_properties_create();
+    auto* props = celix_properties_create();
     status = celix_properties_set(props, CELIX_RSA_ENDPOINT_LISTENER_SCOPE, "(" CELIX_RSA_SERVICE_IMPORTED_CONFIGS "=" DZC_TEST_CONFIG_TYPE ")");
     EXPECT_EQ(CELIX_SUCCESS, status);
     long listenerId = celix_bundleContext_registerService(ctx.get(), &epListener, CELIX_RSA_ENDPOINT_LISTENER_SERVICE_NAME, props);
@@ -1237,7 +1241,7 @@ TEST_F(DiscoveryZeroconfWatcherWatchServiceTestSuite, AddMultiEndpoint) {
         EXPECT_FALSE(timeOut);
 
         //register service2
-        auto dsRef2 = RegisterTestService(kDNSServiceInterfaceIndexAny, "65d17a8c-f31b-478c-b13e-da743c96ab51", "101");
+        auto* dsRef2 = RegisterTestService(kDNSServiceInterfaceIndexAny, "65d17a8c-f31b-478c-b13e-da743c96ab51", "101");
 
         //wait for endpoint2 added
         timeOut  = CheckMsgWithTimeOutInS(30);

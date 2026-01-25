@@ -63,7 +63,6 @@ void celix_event_release(celix_event_t* event) {
     if (event != NULL) {
         celix_ref_put(&event->ref, celix_event_releaseCb);
     }
-    return;
 }
 
 celix_event_t* celix_event_retain(celix_event_t* event) {

@@ -28,7 +28,7 @@ public:
 };
 
 TEST_F(CelixEventAdapterTestSuite, CreateEventAdapterTest) {
-    auto adapter = celix_eventAdapter_create(ctx.get());
+    auto* adapter = celix_eventAdapter_create(ctx.get());
     ASSERT_TRUE(adapter != nullptr);
     celix_eventAdapter_destroy(adapter);
 }
@@ -38,7 +38,7 @@ TEST_F(CelixEventAdapterTestSuite, DestroyEventAdapterWithNullptrTest) {
 }
 
 TEST_F(CelixEventAdapterTestSuite, StartEventAdapterTest) {
-    auto adapter = celix_eventAdapter_create(ctx.get());
+    auto* adapter = celix_eventAdapter_create(ctx.get());
     ASSERT_TRUE(adapter != nullptr);
 
     auto status = celix_eventAdapter_start(adapter);
@@ -58,7 +58,7 @@ TEST_F(CelixEventAdapterTestSuite, PostServiceEventTest) {
     }, [](void *handle, const char *topic, const celix_properties_t *props) -> celix_status_t {
         (void)handle;
         (void)props;
-        auto r = strstr(topic, "celix/framework/ServiceEvent/");
+        const auto* r = strstr(topic, "celix/framework/ServiceEvent/");
         EXPECT_TRUE(r != nullptr);
         return CELIX_SUCCESS;
     });
@@ -91,7 +91,7 @@ TEST_F(CelixEventAdapterTestSuite, PostBundleEventTest) {
     }, [](void *handle, const char *topic, const celix_properties_t *props) -> celix_status_t {
         (void)handle;
         (void)props;
-        auto r = strstr(topic, "celix/framework/BundleEvent/");
+        const auto* r = strstr(topic, "celix/framework/BundleEvent/");
         EXPECT_TRUE(r != nullptr);
         return CELIX_SUCCESS;
     });
@@ -108,14 +108,14 @@ TEST_F(CelixEventAdapterTestSuite, PostBundleEventButEventAdminServiceIsNotSetTe
     }, [](void *handle, const char *topic, const celix_properties_t *props) -> celix_status_t {
         (void)handle;
         (void)props;
-        auto r = strstr(topic, "celix/framework/BundleEvent/");
+        const auto* r = strstr(topic, "celix/framework/BundleEvent/");
         EXPECT_TRUE(r != nullptr);
         return CELIX_SUCCESS;
     });
 }
 
 TEST_F(CelixEventAdapterTestSuite, PostFrameworkEventTest) {
-    auto adapter = celix_eventAdapter_create(ctx.get());
+    auto* adapter = celix_eventAdapter_create(ctx.get());
     ASSERT_TRUE(adapter != nullptr);
 
     celix_event_admin_service_t eventAdminService{};

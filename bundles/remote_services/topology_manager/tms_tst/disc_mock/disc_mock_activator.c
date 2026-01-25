@@ -33,6 +33,8 @@
 #include "celix_constants.h"
 #include "remote_constants.h"
 
+//NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
+
 celix_status_t discovery_endpointAdded(void *handle, endpoint_description_t *endpoint, char *matchedFilter);
 celix_status_t discovery_endpointRemoved(void *handle, endpoint_description_t *endpoint, char *matchedFilter);
 
@@ -152,3 +154,4 @@ celix_status_t discovery_endpointRemoved(void *handle, endpoint_description_t *e
     return status;
 }
 
+//NOLINTEND(clang-analyzer-deadcode.DeadStores)

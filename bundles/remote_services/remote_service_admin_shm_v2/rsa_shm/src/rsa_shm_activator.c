@@ -118,7 +118,8 @@ celix_status_t rsaShmActivator_start(rsa_shm_activator_t *activator, celix_bundl
         }
     } else {
         const char delimiter[2] = ",";
-        char *token, *savePtr;
+        char *token;
+        char *savePtr;
         celix_autofree char *rpcTypesCopy = celix_utils_strdup(rpcTypes);
         if (rpcTypesCopy == NULL) {
             return ENOMEM;

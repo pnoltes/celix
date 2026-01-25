@@ -110,14 +110,14 @@ static void rsaJsonRpcEndpoint_stopSvcTrackerDone(void *data) {
     (void)celixThreadRwlock_destroy(&endpoint->lock);
     endpointDescription_destroy(endpoint->endpointDesc);
     free(endpoint);
-    return;
+    
 }
 
 void rsaJsonRpcEndpoint_destroy(rsa_json_rpc_endpoint_t *endpoint) {
     if (endpoint != NULL) {
         celix_bundleContext_stopTrackerAsync(endpoint->ctx, endpoint->svcTrackerId, endpoint, rsaJsonRpcEndpoint_stopSvcTrackerDone);
     }
-    return;
+    
 }
 
 long rsaJsonRpcEndpoint_getId(rsa_json_rpc_endpoint_t *endpoint) {
@@ -141,7 +141,7 @@ static void rsaJsonRpcEndpoint_addSvcWithOwner(void *handle, void *service,
             svcOwner, endpoint->endpointDesc->serviceName, &intfType);
     if (status != CELIX_SUCCESS) {
         celix_logHelper_error(endpoint->logHelper, "Endpoint: Error Parsing service descriptor for %s.", serviceName);
-        return;
+        
     }
 
     // Check version
@@ -149,16 +149,15 @@ static void rsaJsonRpcEndpoint_addSvcWithOwner(void *handle, void *service,
     const char *serviceVersion = celix_properties_get(endpoint->endpointDesc->properties,CELIX_FRAMEWORK_SERVICE_VERSION, NULL);
     if (serviceVersion == NULL) {
         celix_logHelper_error(endpoint->logHelper, "Endpoint: Error getting service version for %s.", serviceName);
-        return;
-    }
-    if(strcmp(serviceVersion, intfVersion)!=0){
+         return;
+    } else if(strcmp(serviceVersion, intfVersion)!=0){
         celix_logHelper_error(endpoint->logHelper, "Endpoint: %s version (%s) and interface version from the descriptor (%s) are not the same!", serviceName, serviceVersion,intfVersion);
         return;
     }
 
     endpoint->service = service;
     endpoint->intfType = celix_steal_ptr(intfType);
-    return;
+    
 }
 
 static void rsaJsonRpcEndpoint_removeSvcWithOwner(void *handle, void *service,
@@ -173,7 +172,7 @@ static void rsaJsonRpcEndpoint_removeSvcWithOwner(void *handle, void *service,
         dynInterface_destroy(endpoint->intfType);
         endpoint->intfType = NULL;
     }
-    return;
+    
 }
 
 celix_status_t rsaJsonRpcEndpoint_handleRequest(rsa_json_rpc_endpoint_t *endpoint, celix_properties_t *metadata,

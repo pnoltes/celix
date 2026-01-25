@@ -75,7 +75,7 @@ static void checkHttpRequest(const char* req_str, int expectedReturnCode) {
     EXPECT_TRUE(response > 0);
 
     //If response is successful, check if the received response contains the info we expected
-    auto response_info = mg_get_response_info(connection);
+    const auto* response_info = mg_get_response_info(connection);
     EXPECT_TRUE(response_info != nullptr);
     EXPECT_EQ(expectedReturnCode, response_info->status_code) << "Unexpected return code for request: " << req_str;
 
@@ -106,7 +106,8 @@ TEST_F(HttpAndWebsocketTestSuite, http_put_echo_alias_test) {
     char err_buf[100] = {0};
     const char *data_str = "<html><body><p>Test PUT echo</p></body></html>";
     char rcv_buf[100] = {0};
-    int send_bytes, response;
+    int send_bytes;
+    int response;
     const struct mg_response_info *response_info;
     struct mg_connection *connection;
 

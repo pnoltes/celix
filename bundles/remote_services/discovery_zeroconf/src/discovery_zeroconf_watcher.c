@@ -229,7 +229,6 @@ void discoveryZeroconfWatcher_destroy(discovery_zeroconf_watcher_t *watcher) {
     celixThreadMutex_destroy(&watcher->mutex);
     close(watcher->eventFd);
     free(watcher);
-    return;
 }
 
 static bool discoveryZeroConfWatcher_addServiceBrowser(discovery_zeroconf_watcher_t *watcher, const char *serviceConfigType,
@@ -516,7 +515,6 @@ static void OnServiceResolveCallback(DNSServiceRef sdRef, DNSServiceFlags flags,
         svcEntry->resolved = true;
         celix_logHelper_trace(svcEntry->logHelper, "Watcher: Resolved service %s on %u.", svcEntry->instanceName, interfaceIndex);
     }
-    return;
 }
 
 static void OnServiceBrowseCallback(DNSServiceRef sdRef, DNSServiceFlags flags, uint32_t interfaceIndex, DNSServiceErrorType errorCode, const char *instanceName, const char *regtype, const char *replyDomain, void *context) {
@@ -548,7 +546,6 @@ static void OnServiceBrowseCallback(DNSServiceRef sdRef, DNSServiceFlags flags, 
     } else {
         celix_stringHashMap_remove(browser->watchedServices, key);
     }
-    return;
 }
 
 static void discoveryZeroconfWatcher_pickUpdatedServiceBrowsers(discovery_zeroconf_watcher_t *watcher, celix_string_hash_map_t *updatedServiceBrowsers, unsigned int *pNextWorkIntervalTime) {
@@ -602,7 +599,6 @@ static void discoveryZeroconfWatcher_pickUpdatedServiceBrowsers(discovery_zeroco
     }
 
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static void discoveryZeroconfWatcher_browseServices(discovery_zeroconf_watcher_t *watcher, celix_string_hash_map_t *updatedServiceBrowsers, unsigned int *pNextWorkIntervalTime) {
@@ -624,7 +620,6 @@ static void discoveryZeroconfWatcher_browseServices(discovery_zeroconf_watcher_t
     }
 
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static void discoveryZeroconfWatcher_resolveServices(discovery_zeroconf_watcher_t *watcher, unsigned int *pNextWorkIntervalTime) {
@@ -656,7 +651,6 @@ static void discoveryZeroconfWatcher_resolveServices(discovery_zeroconf_watcher_
         }
     }
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static void discoveryZeroconfWatcher_refreshWatchedServices(discovery_zeroconf_watcher_t *watcher, unsigned int *pNextWorkIntervalTime) {
@@ -743,7 +737,6 @@ static void discoveryZeroconfWatcher_refreshWatchedServices(discovery_zeroconf_w
     discoveryZeroconfWatcher_resolveServices(watcher, &nextWorkIntervalTime);
 
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static void onGetAddrInfoCb (DNSServiceRef sdRef, DNSServiceFlags flags, uint32_t ifIndex, DNSServiceErrorType errorCode,
@@ -782,8 +775,6 @@ static void onGetAddrInfoCb (DNSServiceRef sdRef, DNSServiceFlags flags, uint32_
     celix_logHelper_trace(hostEntry->logHelper, "Watcher: %s ip %s for host %s on %d.", (flags & kDNSServiceFlagsAdd) ? "Add" : "Remove", ip, hostEntry->hostname, hostEntry->ifIndex);
 
     hostEntry->resolved = !(flags & kDNSServiceFlagsMoreComing);
-
-    return;
 }
 
 static watched_host_entry_t *discoveryZeroconfWatcher_getHostEntry(discovery_zeroconf_watcher_t *watcher, const char *hostname, int ifIndex) {
@@ -867,7 +858,6 @@ static void discoveryZeroconfWatcher_updateWatchedHosts(discovery_zeroconf_watch
     }
 
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static void discoveryZeroconfWatcher_refreshHostsInfo(discovery_zeroconf_watcher_t *watcher, unsigned int *pNextWorkIntervalTime) {
@@ -892,7 +882,6 @@ static void discoveryZeroconfWatcher_refreshHostsInfo(discovery_zeroconf_watcher
     }
 
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static bool discoveryZeroConfWatcher_isHostResolved(discovery_zeroconf_watcher_t *watcher, const char *hostname, int ifIndex) {
@@ -1007,7 +996,6 @@ static void endpointEntry_destroy(watched_endpoint_entry_t *entry) {
     endpointDescription_destroy(entry->endpoint);
     free(entry->hostname);
     free(entry);
-    return;
 }
 
 static void discoveryZeroConfWatcher_informEPLs(discovery_zeroconf_watcher_t *watcher, endpoint_description_t *endpoint, bool epAdded) {
@@ -1023,7 +1011,6 @@ static void discoveryZeroConfWatcher_informEPLs(discovery_zeroconf_watcher_t *wa
             }
         }
     }
-    return;
 }
 
 static void discoveryZeroconfWatcher_filterSameFrameWorkServices(discovery_zeroconf_watcher_t *watcher) {
@@ -1058,7 +1045,6 @@ static void discoveryZeroconfWatcher_filterSameFrameWorkServices(discovery_zeroc
         }
         celix_stringHashMapIterator_next(&iter);
     }
-    return;
 }
 
 static bool discoveryZeroconfWatcher_checkEndpointIpAddressesChanged(discovery_zeroconf_watcher_t *watcher, watched_endpoint_entry_t *endpointEntry) {
@@ -1181,7 +1167,6 @@ static void discoveryZeroconfWatcher_refreshEndpoints(discovery_zeroconf_watcher
     }
 
     *pNextWorkIntervalTime = nextWorkIntervalTime;
-    return;
 }
 
 static void discoveryZeroconfWatcher_clearEndpoints(discovery_zeroconf_watcher_t *watcher) {
@@ -1193,7 +1178,6 @@ static void discoveryZeroconfWatcher_clearEndpoints(discovery_zeroconf_watcher_t
     }
     celix_stringHashMap_clear(watcher->watchedEndpoints);
     celixThreadMutex_unlock(&watcher->mutex);
-    return;
 }
 
 static void discoveryZeroconfWatcher_closeMDNSConnection(discovery_zeroconf_watcher_t *watcher) {
@@ -1227,7 +1211,6 @@ static void discoveryZeroconfWatcher_closeMDNSConnection(discovery_zeroconf_watc
         free(hostEntry);
     }
     celix_stringHashMap_clear(watcher->watchedHosts);
-    return;
 }
 
 static void discoveryZeroconfWatcher_handleMDNSEvent(discovery_zeroconf_watcher_t *watcher) {
@@ -1238,8 +1221,6 @@ static void discoveryZeroconfWatcher_handleMDNSEvent(discovery_zeroconf_watcher_
     } else if (dnsErr != kDNSServiceErr_NoError) {
         celix_logHelper_error(watcher->logHelper, "Watcher: Failed to process mDNS result, %d.", dnsErr);
     }
-
-    return;
 }
 
 static void *discoveryZeroconfWatcher_watchEPThread(void *data) {

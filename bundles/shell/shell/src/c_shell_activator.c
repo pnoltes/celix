@@ -27,7 +27,6 @@
 #include "celix_compiler.h"
 #include "celix_constants.h"
 #include "celix_shell_command.h"
-#include "std_commands.h"
 
 struct shell_bundle_activator {
     shell_t *shell;

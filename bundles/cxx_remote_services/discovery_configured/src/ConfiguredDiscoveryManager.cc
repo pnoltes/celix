@@ -35,7 +35,7 @@
 namespace /*anon*/
 {
     
-static std::optional<std::string> readFile(const std::string& path) {
+std::optional<std::string> readFile(const std::string& path) {
     std::string contents;
     std::ifstream file(path);
     if (!file) {
@@ -44,12 +44,13 @@ static std::optional<std::string> readFile(const std::string& path) {
     file.seekg(0, std::ios::end);
     contents.resize(file.tellg());
     file.seekg(0, std::ios::beg);
+    //NOLINTNEXTLINE(readability-container-data-pointer)
     file.read(&contents[0], (std::streamsize)contents.size());
     file.close();
     return contents;
 }
 
-static rapidjson::Document parseJSONFile(std::string& contents) {
+rapidjson::Document parseJSONFile(std::string& contents) {
     rapidjson::Document resultDocument{};
     resultDocument.ParseInsitu(contents.data());
     return resultDocument;
@@ -156,6 +157,7 @@ void celix::rsa::ConfiguredDiscoveryManager::removeConfiguredDiscoveryFile(const
 std::vector<std::string> celix::rsa::ConfiguredDiscoveryManager::getConfiguredDiscoveryFiles() const {
     std::vector<std::string> result{};
     std::lock_guard lock{mutex};
+    result.reserve(endpointRegistrations.size());
     for (const auto& pair : endpointRegistrations) {
         result.emplace_back(pair.first);
     }

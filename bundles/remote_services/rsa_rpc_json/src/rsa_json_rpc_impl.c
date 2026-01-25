@@ -127,7 +127,7 @@ void rsaJsonRpc_destroy(rsa_json_rpc_t *jsonRpc) {
         (void)celixThreadMutex_destroy(&jsonRpc->mutex);
         free(jsonRpc);
     }
-    return;
+    
 }
 
 celix_status_t rsaJsonRpc_createProxy(void* handle, const endpoint_description_t* endpointDesc,
@@ -161,7 +161,7 @@ celix_status_t rsaJsonRpc_createProxy(void* handle, const endpoint_description_t
 
 void rsaJsonRpc_destroyProxy(void *handle, long proxyId) {
     if (handle == NULL) {
-        return;
+        return;    
     }
     rsa_json_rpc_t *jsonRpc = (rsa_json_rpc_t *)handle;
     celixThreadMutex_lock(&jsonRpc->mutex);
@@ -172,7 +172,7 @@ void rsaJsonRpc_destroyProxy(void *handle, long proxyId) {
         rsaJsonRpcProxy_factoryDestroy(proxyFactory);
     }
     celixThreadMutex_unlock(&jsonRpc->mutex);
-    return;
+    
 }
 
 celix_status_t rsaJsonRpc_createEndpoint(void *handle, const endpoint_description_t *endpointDesc,
@@ -212,7 +212,7 @@ void rsaJsonRpc_destroyEndpoint(void *handle, long endpointId) {
         rsaJsonRpcEndpoint_destroy(endpoint);
     }
     celixThreadMutex_unlock(&jsonRpc->mutex);
-    return;
+    
 }
 
 celix_status_t celix_rsaJsonRpc_handleRequest(void *handle, long endpointId, celix_properties_t *metadata, const struct iovec *request, struct iovec *response) {

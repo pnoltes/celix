@@ -54,7 +54,7 @@ TEST_F(CelixEarpmClientTestSuite, CreateClientWithInvalidMsgQueueSizeTest) {
     celix_earpm_client_create_options_t opts{defaultOpts};
 
     setenv(CELIX_EARPM_MSG_QUEUE_CAPACITY, std::to_string(CELIX_EARPM_MSG_QUEUE_MAX_SIZE+1).c_str(), 1);
-    auto client = celix_earpmClient_create(&opts);
+    auto* client = celix_earpmClient_create(&opts);
     ASSERT_EQ(client, nullptr);
 
     setenv(CELIX_EARPM_MSG_QUEUE_CAPACITY, std::to_string(0).c_str(), 1);
@@ -70,7 +70,7 @@ TEST_F(CelixEarpmClientTestSuite, CreateClientWithInvalidParallelMsgSizeTest) {
     const int msgQueueCapacity = 256;
     setenv(CELIX_EARPM_MSG_QUEUE_CAPACITY, std::to_string(msgQueueCapacity).c_str(), 1);
     setenv(CELIX_EARPM_PARALLEL_MSG_CAPACITY, std::to_string(msgQueueCapacity+1).c_str(), 1);
-    auto client = celix_earpmClient_create(&opts);
+    auto* client = celix_earpmClient_create(&opts);
     ASSERT_EQ(client, nullptr);
 
     setenv(CELIX_EARPM_PARALLEL_MSG_CAPACITY, std::to_string(0).c_str(), 1);
@@ -732,7 +732,7 @@ TEST_F(CelixEarpmClientTestSuite, SubscribeBeforeConnectedToBrokerTest) {
     opts.callbackHandle = &receivedPromise;
     opts.connectedCallback = [](void*) { };
     opts.receiveMsgCallback = [](void* handle, const celix_earpm_client_request_info_t* requestInfo) {
-        auto receivedPromise = static_cast<std::promise<void>*>(handle);
+        auto* receivedPromise = static_cast<std::promise<void>*>(handle);
         EXPECT_STREQ(requestInfo->topic, "test/topic2");
         EXPECT_STREQ(requestInfo->payload, "test");
         try {
@@ -773,7 +773,7 @@ TEST_F(CelixEarpmClientTestSuite, UnsubscribeBeforeConnectedToBrokerTest) {
     opts.callbackHandle = &receivedPromise;
     opts.connectedCallback = [](void*) { };
     opts.receiveMsgCallback = [](void* handle, const celix_earpm_client_request_info_t*) {
-        auto receivedPromise = static_cast<std::promise<void>*>(handle);
+        auto* receivedPromise = static_cast<std::promise<void>*>(handle);
         receivedPromise->set_value();
     };
     auto* client = celix_earpmClient_create(&opts);

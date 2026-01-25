@@ -65,7 +65,7 @@ public:
 
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToStartEventAdminTest) {
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea != nullptr);
     celix_ei_expect_celixThread_create((void*)&celix_eventAdmin_start, 0, CELIX_ENOMEM);
 
@@ -76,7 +76,7 @@ TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToStartEventAdminTest) {
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToStartEventAdmin2Test) {
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea != nullptr);
     celix_ei_expect_celixThread_create((void*)&celix_eventAdmin_start, 0, CELIX_ENOMEM, 2);
 
@@ -88,79 +88,79 @@ TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToStartEventAdmin2Test) {
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToAllocMemoryEventAdminTest) {
     celix_ei_expect_calloc((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateLogHelperForEventAdminTest) {
     celix_ei_expect_celix_logHelper_create((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToGetFrameworkUUIDForEventAdminTest) {
     celix_ei_expect_celix_bundleContext_getProperty((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateLockForEventAdminTest) {
     celix_ei_expect_celixThreadRwlock_create((void*)&celix_eventAdmin_create, 0, CELIX_ENOMEM);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateChannelMatchingAllEventsForEventAdminTest) {
     celix_ei_expect_celix_arrayList_create((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateChannelsMatchingTopicForEventAdminTest) {
     celix_ei_expect_celix_stringHashMap_create((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateChannelsMatchingPrefixTopicForEventAdminTest) {
     celix_ei_expect_celix_stringHashMap_create((void*)&celix_eventAdmin_create, 0, nullptr, 2);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateEventHandlersMapForEventAdminTest) {
     celix_ei_expect_celix_longHashMap_create((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateEventSeqIdCacheForEventAdminTest) {
     celix_ei_expect_celix_stringHashMap_createWithOptions((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateRemoteProviderMapForEventAdminTest) {
     celix_ei_expect_celix_longHashMap_create((void*)&celix_eventAdmin_create, 0, nullptr, 2);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateMutexForEventAdminTest) {
     celix_ei_expect_celixThreadMutex_create((void*)&celix_eventAdmin_create, 0, CELIX_ENOMEM);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateCondForEventAdminTest) {
     celix_ei_expect_celixThreadCondition_init((void*)&celix_eventAdmin_create, 0, CELIX_ENOMEM);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
 TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToCreateAsyncEventQueueForEventAdminTest) {
     celix_ei_expect_celix_arrayList_createWithOptions((void*)&celix_eventAdmin_create, 0, nullptr);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_EQ(nullptr, ea);
 }
 
@@ -250,14 +250,14 @@ TEST_F(CelixEventAdminErrorInjectionTestSuite, FailedToSubscribeExistedTopicTest
             (void)props;
             return CELIX_SUCCESS;
         };
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props, CELIX_EVENT_TOPIC, "org/celix/test");
 
         auto handlerSvcId = celix_bundleContext_registerService(ctx, &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props);
         ASSERT_TRUE(handlerSvcId >= 0);
 
-        auto props2 = celix_properties_create();
+        auto* props2 = celix_properties_create();
         celix_properties_set(props2, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props2, CELIX_EVENT_TOPIC, "org/celix/test");
         auto handlerSvcId2 = celix_bundleContext_registerService(ctx, &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props2);

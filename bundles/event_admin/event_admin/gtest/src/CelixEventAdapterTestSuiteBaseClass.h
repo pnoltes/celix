@@ -29,7 +29,7 @@
 class CelixEventAdapterTestSuiteBaseClass : public ::testing::Test {
 public:
     CelixEventAdapterTestSuiteBaseClass() {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
         celix_properties_set(props, CELIX_FRAMEWORK_CACHE_DIR, ".event_adapter_test_cache");
         auto* fwPtr = celix_frameworkFactory_createFramework(props);
@@ -40,7 +40,7 @@ public:
     ~CelixEventAdapterTestSuiteBaseClass() override = default;
 
     void TestEventAdapterPostEvent(void (*testBody)(celix_bundle_context_t *ctx, celix_event_adapter_t *adapter), celix_status_t (*OnPostEvent)(void *handle, const char *topic, const celix_properties_t *props)) {
-        auto adapter = celix_eventAdapter_create(ctx.get());
+        auto* adapter = celix_eventAdapter_create(ctx.get());
         ASSERT_TRUE(adapter != nullptr);
 
         auto status = celix_eventAdapter_start(adapter);

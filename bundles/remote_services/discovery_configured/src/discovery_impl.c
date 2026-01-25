@@ -37,6 +37,7 @@
 #include "discovery.h"
 #include "discovery_impl.h"
 
+//NOLINTBEGIN(clang-analyzer-deadcode.DeadStores)
 
 celix_status_t discovery_create(celix_bundle_context_t *context, discovery_t **discovery) {
 	celix_status_t status = CELIX_SUCCESS;
@@ -116,3 +117,5 @@ celix_status_t discovery_destroy(discovery_t *discovery) {
 
 	return status;
 }
+
+//NOLINTEND(clang-analyzer-deadcode.DeadStores)

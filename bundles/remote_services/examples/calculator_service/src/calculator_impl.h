@@ -32,6 +32,7 @@
 #include "calculator_service.h"
 
 typedef struct calculator {
+    int dummy; //prevent empty struct
 } calculator_t;
 
 calculator_t* calculator_create(void);

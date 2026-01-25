@@ -99,6 +99,7 @@ static void writePrompt(shell_tui_t*);
 // Unfortunately has to be static, it is not possible to pass user defined data to the handler
 static struct OriginalSettings originalSettings;
 
+//NOLINTBEGIN(clang-analyzer-core.NonNullParamChecker)
 shell_tui_t* shellTui_create(celix_bundle_context_t* ctx, bool useAnsiControlSequences, int inputFd, int outputFd, int errorFd) {
     shell_tui_t* result = calloc(1, sizeof(*result));
     result->ctx = ctx;
@@ -117,6 +118,7 @@ shell_tui_t* shellTui_create(celix_bundle_context_t* ctx, bool useAnsiControlSeq
     celixThreadMutex_create(&result->mutex, NULL);
     return result;
 }
+//NOLINTEND(clang-analyzer-core.NonNullParamChecker)
 
 celix_status_t shellTui_start(shell_tui_t* shellTui) {
     celix_status_t status = CELIX_SUCCESS;

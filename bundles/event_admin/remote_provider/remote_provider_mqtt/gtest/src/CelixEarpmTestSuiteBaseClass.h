@@ -38,11 +38,11 @@ class CelixEarpmTestSuiteBaseClass : public ::testing::Test {
 public:
     CelixEarpmTestSuiteBaseClass() = delete;
     explicit CelixEarpmTestSuiteBaseClass(const char* testCache, const char* logServiceName = "celix_earpm") {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, "true");
         celix_properties_set(props, CELIX_FRAMEWORK_CACHE_DIR, testCache);
         celix_properties_set(props, CELIX_LOGGING_DEFAULT_ACTIVE_LOG_LEVEL_CONFIG_NAME, "trace");
-        auto fwPtr = celix_frameworkFactory_createFramework(props);
+        auto* fwPtr = celix_frameworkFactory_createFramework(props);
         fw = std::shared_ptr < celix_framework_t >
              {fwPtr, [](celix_framework_t *f) { celix_frameworkFactory_destroyFramework(f); }};
         ctx = std::shared_ptr < celix_bundle_context_t >
@@ -52,7 +52,7 @@ public:
         logService.handle = this;
         logService.vlogDetails = [](void *handle, celix_log_level_e level, const char* file, const char* function,
                 int line, const char* format, va_list formatArgs) {
-            auto self = static_cast<CelixEarpmTestSuiteBaseClass *>(handle);
+            auto* self = static_cast<CelixEarpmTestSuiteBaseClass *>(handle);
             char log[1024]{0};
             va_list formatArgsCopy;
             va_copy(formatArgsCopy, formatArgs);

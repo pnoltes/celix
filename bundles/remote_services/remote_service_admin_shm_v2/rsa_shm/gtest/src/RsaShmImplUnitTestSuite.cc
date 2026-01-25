@@ -40,6 +40,8 @@
 #include <gtest/gtest.h>
 #include <functional>
 
+//NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
+
 static int calculator_add(void *calculator, double a, double b, double *result) {
     (void) calculator;//unused
 
@@ -93,7 +95,7 @@ public:
         celix_bundleContext_unregisterService(ctx.get(), calcSvcId);
     }
 
-    endpoint_description_t *CreateEndpointDescription() {
+    static endpoint_description_t *CreateEndpointDescription() {
         celix_properties_t *properties = celix_properties_create();
         celix_properties_set(properties, CELIX_FRAMEWORK_SERVICE_NAME, RSA_SHM_CALCULATOR_SERVICE);
         celix_properties_set(properties, CELIX_FRAMEWORK_SERVICE_VERSION, RSA_SHM_CALCULATOR_SERVICE_VERSION);
@@ -534,7 +536,7 @@ TEST_F(RsaShmUnitTestSuite, RemoveExportServiceFailed2) {
 }
 
 TEST_F(RsaShmUnitTestSuite, ImportService) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -551,7 +553,7 @@ TEST_F(RsaShmUnitTestSuite, ImportService) {
 }
 
 TEST_F(RsaShmUnitTestSuite, ImportServiceWithUnmatchedConfigType) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -568,7 +570,7 @@ TEST_F(RsaShmUnitTestSuite, ImportServiceWithUnmatchedConfigType) {
 }
 
 TEST_F(RsaShmUnitTestSuite, EndpointLostConfigType) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -584,7 +586,7 @@ TEST_F(RsaShmUnitTestSuite, EndpointLostConfigType) {
 }
 
 TEST_F(RsaShmUnitTestSuite, EndpointLostShmServerName) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -600,7 +602,7 @@ TEST_F(RsaShmUnitTestSuite, EndpointLostShmServerName) {
 }
 
 TEST_F(RsaShmUnitTestSuite, FailedToCreateShmClientForImportedService) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -617,7 +619,7 @@ TEST_F(RsaShmUnitTestSuite, FailedToCreateShmClientForImportedService) {
 }
 
 TEST_F(RsaShmUnitTestSuite, FailedToCreateImportRegistration) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -633,7 +635,7 @@ TEST_F(RsaShmUnitTestSuite, FailedToCreateImportRegistration) {
 }
 
 TEST_F(RsaShmUnitTestSuite, EndpointLostRpcType) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -649,7 +651,7 @@ TEST_F(RsaShmUnitTestSuite, EndpointLostRpcType) {
 }
 
 TEST_F(RsaShmUnitTestSuite, ImportServiceWithInvalidParameters) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         auto status = rsaShm_importService(admin, nullptr, &regs);
@@ -672,7 +674,7 @@ TEST_F(RsaShmUnitTestSuite, ImportServiceWithInvalidParameters) {
 }
 
 TEST_F(RsaShmUnitTestSuite, RemoveImportedServiceWithInvalidParameters) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
         import_registration_t *regs = nullptr;
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
@@ -695,7 +697,7 @@ TEST_F(RsaShmUnitTestSuite, RemoveImportedServiceWithInvalidParameters) {
 }
 
 TEST_F(RsaShmUnitTestSuite, CallRsaShmSendWithInvalidParameters) {
-    TestRsaShm([this](rsa_shm_t* admin) {
+    TestRsaShm([](rsa_shm_t* admin) {
 
         endpoint_description_t *endpoint = CreateEndpointDescription();
         EXPECT_NE(nullptr, endpoint);
@@ -865,6 +867,4 @@ TEST_F(RsaShmRpcTestSuite, CallRemoteService) {
     EXPECT_EQ(CELIX_SUCCESS, status);
 }
 
-
-
-
+//NOLINTEND(cppcoreguidelines-pro-type-const-cast)

@@ -149,7 +149,7 @@ void rsaShmServer_destroy(rsa_shm_server_t *server) {
         free(server->name);
         free(server);
     }
-    return;
+    
 }
 
 
@@ -163,7 +163,7 @@ static void rsaShmServer_terminateMsgHandling(rsa_shm_msg_control_t *ctrl) {
     pthread_cond_signal(&ctrl->signal);
     pthread_mutex_unlock(&ctrl->lock);
 
-    return;
+    
 }
 
 static void rsaShmServer_msgHandlingWork(void *data) {
@@ -173,7 +173,7 @@ static void rsaShmServer_msgHandlingWork(void *data) {
     rsa_shm_server_t *server = workData->server;
     assert(server != NULL);
 
-    rsa_shm_msg_control_t *msgCtrl = (rsa_shm_msg_control_t *)workData->msgCtrl;
+    rsa_shm_msg_control_t *msgCtrl = workData->msgCtrl;
     char *msgBuffer = (char*)workData->msgBody;
     const char *metaDataString = msgBuffer;
     char *requestData = msgBuffer + workData->metadataSize;
@@ -252,7 +252,7 @@ call_receive_cb_failed:
     shmCache_releaseMemoryPtr(server->shmCache, msgBuffer);
     shmCache_releaseMemoryPtr(server->shmCache, msgCtrl);
     free(data);
-    return;
+    
 }
 
 static bool rsaShmServer_msgInvalid(rsa_shm_server_t *server, const rsa_shm_msg_t *msgInfo) {

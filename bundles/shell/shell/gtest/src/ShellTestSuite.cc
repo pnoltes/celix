@@ -38,7 +38,7 @@ public:
     }
 
     static std::shared_ptr<celix_bundle_context_t> createFrameworkContext() {
-        auto properties = celix_properties_create();
+        auto* properties = celix_properties_create();
         celix_properties_set(properties, "LOGHELPER_ENABLE_STDOUT_FALLBACK", "true");
         celix_properties_set(properties, CELIX_FRAMEWORK_CACHE_DIR, ".cacheShellTestSuite");
         celix_properties_setBool(properties, CELIX_FRAMEWORK_CLEAN_CACHE_DIR_ON_CREATE, true);
@@ -48,7 +48,7 @@ public:
         celix_properties_setBool(properties, CELIX_FRAMEWORK_CONDITION_SERVICES_ENABLED, false);
 
         auto* cFw = celix_frameworkFactory_createFramework(properties);
-        auto cCtx = celix_framework_getFrameworkContext(cFw);
+        auto* cCtx = celix_framework_getFrameworkContext(cFw);
 
         return std::shared_ptr<celix_bundle_context_t>{cCtx, [](celix_bundle_context_t* context) {
             auto *fw = celix_bundleContext_getFramework(context);

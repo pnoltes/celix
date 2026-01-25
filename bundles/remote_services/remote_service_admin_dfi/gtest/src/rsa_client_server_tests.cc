@@ -298,7 +298,7 @@ template<typename F>
 static void test(F&& f) {
     celix_service_use_options_t opts{};
     opts.filter.serviceName = TST_SERVICE_NAME;
-    opts.use = f;
+    opts.use = std::forward<F>(f);
     opts.waitTimeoutInSeconds = 2;
     bool called = celix_bundleContext_useServiceWithOptions(clientContext, &opts);
     ASSERT_TRUE(called);
@@ -453,7 +453,7 @@ public:
         trackintOpts.filter.serviceName = CELIX_RSA_REMOTE_SERVICE_ADMIN;
         trackintOpts.callbackHandle = &serverRsaSvc;
         trackintOpts.set = [](void* handle, void* svc) {
-            auto rsaSvc = static_cast<remote_service_admin_service_t**>(handle);
+            auto* rsaSvc = static_cast<remote_service_admin_service_t**>(handle);
             *rsaSvc = static_cast<remote_service_admin_service_t*>(svc);
         };
         serverRsaTrkId = celix_bundleContext_trackServicesWithOptions(serverCtx.get(), &trackintOpts);
@@ -461,7 +461,7 @@ public:
 
         trackintOpts.callbackHandle = &clientRsaSvc;
         trackintOpts.set = [](void* handle, void* svc){
-            auto rsaSvc = static_cast<remote_service_admin_service_t **>(handle);
+            auto* rsaSvc = static_cast<remote_service_admin_service_t **>(handle);
             *rsaSvc = static_cast<remote_service_admin_service_t*>(svc);
                 };
         clientRsaTrkId = celix_bundleContext_trackServicesWithOptions(clientCtx.get(), &trackintOpts);

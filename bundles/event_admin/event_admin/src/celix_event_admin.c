@@ -36,6 +36,8 @@
 #include "celix_stdlib_cleanup.h"
 #include "celix_event_remote_provider_service.h"
 
+//NOLINTBEGIN(readability-redundant-control-flow)
+
 #define CELIX_EVENT_ADMIN_MAX_HANDLER_THREADS 20
 #define CELIX_EVENT_ADMIN_HANDLER_THREADS_DEFAULT 5
 
@@ -830,3 +832,5 @@ static void* celix_eventAdmin_deliverEventThread(void* data) {
     }
     return NULL;
 }
+
+//NOLINTEND(readability-redundant-control-flow)

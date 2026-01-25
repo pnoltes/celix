@@ -123,7 +123,8 @@ static void* connection_listener_thread(void *data) {
     int listenSocket = 0;
     int on = 1;
 
-    struct addrinfo *result, *rp;
+    struct addrinfo *result;
+    struct addrinfo *rp;
     struct addrinfo hints;
 
     memset(&hints, 0, sizeof(struct addrinfo));

@@ -67,14 +67,14 @@ public:
 };
 
 TEST_F(CelixEventAdminTestSuite, CreateEventAdminTest) {
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea != nullptr);
     celix_eventAdmin_destroy(ea);
 }
 
 TEST_F(CelixEventAdminTestSuite, CreateEventAdminWithInvalidHandlerThreadNrTest) {
     setenv("CELIX_EVENT_ADMIN_HANDLER_THREADS", "21", 1);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea == nullptr);
 
     setenv("CELIX_EVENT_ADMIN_HANDLER_THREADS", "0", 1);
@@ -86,7 +86,7 @@ TEST_F(CelixEventAdminTestSuite, CreateEventAdminWithInvalidHandlerThreadNrTest)
 
 TEST_F(CelixEventAdminTestSuite, CreateEventAdminWithMaxHandlerThreadNrTest) {
     setenv("CELIX_EVENT_ADMIN_HANDLER_THREADS", "20", 1);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea != nullptr);
     celix_eventAdmin_destroy(ea);
     unsetenv("CELIX_EVENT_ADMIN_HANDLER_THREADS");
@@ -94,7 +94,7 @@ TEST_F(CelixEventAdminTestSuite, CreateEventAdminWithMaxHandlerThreadNrTest) {
 
 TEST_F(CelixEventAdminTestSuite, CreateEventAdminWithInvalidSeqIdCacheCleanupIntervalTest) {
     setenv("CELIX_EVENT_ADMIN_EVENT_SEQID_CACHE_CLEANUP_INTERVAL", "0", 1);
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea == nullptr);
 
     setenv("CELIX_EVENT_ADMIN_EVENT_SEQID_CACHE_CLEANUP_INTERVAL", "-1", 1);
@@ -105,7 +105,7 @@ TEST_F(CelixEventAdminTestSuite, CreateEventAdminWithInvalidSeqIdCacheCleanupInt
 }
 
 TEST_F(CelixEventAdminTestSuite, StartStopEventAdminTest) {
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea != nullptr);
 
     auto status = celix_eventAdmin_start(ea);
@@ -157,7 +157,7 @@ TEST_F(CelixEventAdminTestSuite, SendEventInHandlerTest) {
             EXPECT_EQ(CELIX_SUCCESS, status);
             return CELIX_SUCCESS;
         };
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props, CELIX_EVENT_TOPIC, "org/celix/test");
 
@@ -172,7 +172,7 @@ TEST_F(CelixEventAdminTestSuite, SendEventInHandlerTest) {
             EXPECT_STREQ("org/celix/test2", topic);
             return CELIX_SUCCESS;
         };
-        auto props2 = celix_properties_create();
+        auto* props2 = celix_properties_create();
         celix_properties_set(props2, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props2, CELIX_EVENT_TOPIC, "org/celix/test2");
         auto handlerSvcId2 = celix_bundleContext_registerService(ctx, &handler2, CELIX_EVENT_HANDLER_SERVICE_NAME, props2);
@@ -205,7 +205,7 @@ TEST_F(CelixEventAdminTestSuite, SendEventInHandlerTest) {
 
 TEST_F(CelixEventAdminTestSuite, SendEventWithPropertiesTest) {
     TestPublishEvent("org/celix/test", nullptr, [](celix_event_admin_t *ea) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, "key", "value");
         auto status = celix_eventAdmin_sendEvent(ea, "org/celix/test", props);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -220,7 +220,7 @@ TEST_F(CelixEventAdminTestSuite, SendEventWithPropertiesTest) {
 
 TEST_F(CelixEventAdminTestSuite, SendEventWithFilterTest) {
     TestPublishEvent("org/celix/test", "(key=value)", [](celix_event_admin_t *ea) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, "key", "value");
         auto status = celix_eventAdmin_sendEvent(ea, "org/celix/test", props);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -235,7 +235,7 @@ TEST_F(CelixEventAdminTestSuite, SendEventWithFilterTest) {
 
 TEST_F(CelixEventAdminTestSuite, SendEventWithFilterNoMatchTest) {
     TestPublishEvent("org/celix/test", "(key=value)", [](celix_event_admin_t *ea) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, "key", "value2");
         auto status = celix_eventAdmin_sendEvent(ea, "org/celix/test", props);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -336,7 +336,7 @@ TEST_F(CelixEventAdminTestSuite, HandlerPostEventTest) {
 
 TEST_F(CelixEventAdminTestSuite, PostEventWithPropertiesTest) {
     TestPublishEvent("org/celix/test", nullptr, [](celix_event_admin_t *ea) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, "key", "value");
         auto status = celix_eventAdmin_postEvent(ea, "org/celix/test", props);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -354,7 +354,7 @@ TEST_F(CelixEventAdminTestSuite, PostEventWithPropertiesTest) {
 
 TEST_F(CelixEventAdminTestSuite, PostEventWithFilterTest) {
     TestPublishEvent("org/celix/test", "(key=value)", [](celix_event_admin_t *ea) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, "key", "value");
         auto status = celix_eventAdmin_postEvent(ea, "org/celix/test", props);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -372,7 +372,7 @@ TEST_F(CelixEventAdminTestSuite, PostEventWithFilterTest) {
 
 TEST_F(CelixEventAdminTestSuite, PostEventWithFilterNoMatchTest) {
     TestPublishEvent("org/celix/test", "(key=value)", [](celix_event_admin_t *ea) {
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, "key", "value2");
         auto status = celix_eventAdmin_postEvent(ea, "org/celix/test", props);
         EXPECT_EQ(CELIX_SUCCESS, status);
@@ -519,7 +519,7 @@ TEST_F(CelixEventAdminTestSuite, PostRemoteEnableEventTest) {
     celix_event_remote_provider_service_t remoteProviderService;
     remoteProviderService.handle = &remoteProviderCalled;
     remoteProviderService.postEvent = [](void* handle, const char* topic, const celix_properties_t* props) {
-        auto called = static_cast<std::atomic<bool> *>(handle);
+        auto* called = static_cast<std::atomic<bool> *>(handle);
         called->store(true);
         EXPECT_STREQ("org/celix/test", topic);
         EXPECT_NE(nullptr, celix_properties_get(props, CELIX_EVENT_REMOTE_FRAMEWORK_UUID, nullptr));
@@ -546,7 +546,7 @@ TEST_F(CelixEventAdminTestSuite, SendRemoteEnableEventTest) {
     celix_event_remote_provider_service_t remoteProviderService;
     remoteProviderService.handle = &remoteProviderCalled;
     remoteProviderService.sendEvent = [](void* handle, const char* topic, const celix_properties_t* props) {
-        auto called = static_cast<std::atomic<bool> *>(handle);
+        auto* called = static_cast<std::atomic<bool> *>(handle);
         called->store(true);
         EXPECT_STREQ("org/celix/test", topic);
         EXPECT_NE(nullptr, celix_properties_get(props, CELIX_EVENT_REMOTE_FRAMEWORK_UUID, nullptr));
@@ -573,7 +573,7 @@ TEST_F(CelixEventAdminTestSuite, FailedToDelieverAsyncEventToRemoteProviderTest)
     celix_event_remote_provider_service_t remoteProviderService;
     remoteProviderService.handle = &remoteProviderCalled;
     remoteProviderService.postEvent = [](void* handle, const char*, const celix_properties_t*) {
-        auto called = static_cast<std::atomic<bool> *>(handle);
+        auto* called = static_cast<std::atomic<bool> *>(handle);
         called->store(true);
         return ENOMEM;
     };
@@ -595,7 +595,7 @@ TEST_F(CelixEventAdminTestSuite, FailedToDelieverSyncEventToRemoteProviderTest) 
     celix_event_remote_provider_service_t remoteProviderService;
     remoteProviderService.handle = &remoteProviderCalled;
     remoteProviderService.sendEvent = [](void* handle, const char*, const celix_properties_t*) {
-        auto called = static_cast<std::atomic<bool> *>(handle);
+        auto* called = static_cast<std::atomic<bool> *>(handle);
         called->store(true);
         return ENOMEM;
     };
@@ -758,20 +758,20 @@ TEST_F(CelixEventAdminTestSuite, MutilpleEventHandlerSubscribeMutilpleTopicTest)
             (void)props;
             return CELIX_SUCCESS;
         };
-        auto props = celix_properties_create();
+        auto* props = celix_properties_create();
         celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props, CELIX_EVENT_TOPIC, "org/celix/test");
 
         auto handlerSvcId = celix_bundleContext_registerService(ctx, &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props);
         ASSERT_TRUE(handlerSvcId >= 0);
 
-        auto props2 = celix_properties_create();
+        auto* props2 = celix_properties_create();
         celix_properties_set(props2, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props2, CELIX_EVENT_TOPIC, "org/celix/test");
         auto handlerSvcId2 = celix_bundleContext_registerService(ctx, &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props2);
         ASSERT_TRUE(handlerSvcId2 >= 0);
 
-        auto props3 = celix_properties_create();
+        auto* props3 = celix_properties_create();
         celix_properties_set(props3, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
         celix_properties_set(props3, CELIX_EVENT_TOPIC, "org/celix/test2");
         auto handlerSvcId3 = celix_bundleContext_registerService(ctx, &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props3);
@@ -909,7 +909,7 @@ TEST_F(CelixEventAdminTestSuite, RemoveEventHandlerAfterEventAdminStopTest) {
     celix_event_handler_service_t handler;
     handler.handle = &future;
     handler.handleEvent = [](void *handle, const char *topic, const celix_properties_t *props) {
-        auto feature = static_cast<std::future<void>*>(handle);
+        auto* feature = static_cast<std::future<void>*>(handle);
         (void)topic;
         (void)props;
         static bool firstCalled{true};
@@ -919,14 +919,14 @@ TEST_F(CelixEventAdminTestSuite, RemoveEventHandlerAfterEventAdminStopTest) {
         }
         return CELIX_SUCCESS;
     };
-    auto props = celix_properties_create();
+    auto* props = celix_properties_create();
     celix_properties_set(props, CELIX_FRAMEWORK_SERVICE_VERSION, CELIX_EVENT_HANDLER_SERVICE_VERSION);
     celix_properties_set(props, CELIX_EVENT_TOPIC, "org/celix/test");
 
     auto handlerSvcId = celix_bundleContext_registerService(ctx.get(), &handler, CELIX_EVENT_HANDLER_SERVICE_NAME, props);
     ASSERT_TRUE(handlerSvcId >= 0);
 
-    auto ea = celix_eventAdmin_create(ctx.get());
+    auto* ea = celix_eventAdmin_create(ctx.get());
     EXPECT_TRUE(ea != nullptr);
     auto status = celix_eventAdmin_start(ea);
     EXPECT_EQ(CELIX_SUCCESS, status);
