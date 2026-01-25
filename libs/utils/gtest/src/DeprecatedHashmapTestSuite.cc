@@ -22,6 +22,7 @@
 #include "hash_map.h"
 #include "hash_map_private.h"
 
+//NOLINTBEGIN
 
 static unsigned int test_hashKeyChar(const void * k);
 static unsigned int test_hashValueChar(const void * v);
@@ -1424,3 +1425,5 @@ TEST_F(DeprecatedHashmapTestSuite, containsValueTest){
 
     hashMap_clear(map, true, true);
 }
+
+//NOLINTEND

@@ -30,6 +30,8 @@
 #include <string>
 #include <gtest/gtest.h>
 
+//NOLINTBEGIN(cert-msc24-c,cert-msc33-c)
+
 class DynInterfaceErrorInjectionTestSuite : public ::testing::Test {
 public:
     DynInterfaceErrorInjectionTestSuite() = default;
@@ -99,3 +101,5 @@ TEST_F(DynInterfaceErrorInjectionTestSuite, ParseError) {
     msg = "Error parsing, expected token";
     ASSERT_TRUE(msg.compare(0, msg.length(), celix_err_popLastError()));
 }
+
+//NOLINTEND(cert-msc24-c,cert-msc33-c)

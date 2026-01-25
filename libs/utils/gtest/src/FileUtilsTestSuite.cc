@@ -90,7 +90,7 @@ TEST_F(FileUtilsTestSuite, CreateAndDeleteDirectory) {
     EXPECT_EQ(status, CELIX_SUCCESS);
 
     //Can I create and delete a dir that begins with a /
-    auto cwd = getcwd(nullptr, 0);
+    auto* cwd = getcwd(nullptr, 0);
     std::string testDir4 = cwd;
     free(cwd);
     testDir4 += "/";
@@ -287,6 +287,7 @@ TEST_F(FileUtilsTestSuite, ExtractBadZipDataTest) {
     celix_utils_deleteDirectory(extractLocation, nullptr);
 
     EXPECT_FALSE(celix_utils_fileExists(extractLocation));
+    //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     std::vector<uint8_t> zipData(test_data_start, test_data_start+(test_data_end-test_data_start)/2);
     auto status = celix_utils_extractZipData(zipData.data(), zipData.size(), extractLocation, nullptr);
     EXPECT_NE(status, CELIX_SUCCESS);

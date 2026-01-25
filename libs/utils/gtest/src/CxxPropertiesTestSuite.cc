@@ -135,8 +135,8 @@ TEST_F(CxxPropertiesTestSuite, GetTypeTest) {
     auto v3 = celix::Version{1, 2, 4};
 
     props.set("bool", true);
-    props.set("long1", 1l);
-    props.set("long2", (int)1); //should lead to long;
+    props.set("long1", 1L);
+    props.set("long2", 1); //should lead to long;
     props.set("long3", (unsigned int)1); //should lead to long;
     props.set("long4", (short)1); //should lead to long;
     props.set("long5", (unsigned short)1); //should lead to long;

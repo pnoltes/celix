@@ -75,7 +75,8 @@ TEST_F(ThreadsTestSuite, CreateTest) {
 }
 
 TEST_F(ThreadsTestSuite, ExitTest) {
-    int ret, *status;
+    int ret;
+    int* status;
     celix_thread_t thread;
 
     ret = celixThread_create(&thread, nullptr, &thread_test_func_exit, nullptr);
@@ -133,8 +134,8 @@ TEST_F(ThreadsTestSuite, OnceTest) {
 
 TEST_F(ThreadsTestSuite, KillTest){
     //setup signal handler to ignore SIGUSR1
-    struct sigaction sigact;
-    struct sigaction sigactold;
+    struct sigaction sigact{};
+    struct sigaction sigactold{};
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = [](int) {/*nop*/};;
     sigaction(SIGUSR1, &sigact, &sigactold);

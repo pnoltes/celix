@@ -59,7 +59,7 @@ class PropertiesErrorInjectionTestSuite : public ::testing::Test {
      * Fills the optimization cache of the given properties object to ensure the next added entries will need
      * allocation.
      */
-    void fillOptimizationCache(celix_properties_t* props) {
+    void static fillOptimizationCache(celix_properties_t* props) {
         int index = 0;
         size_t written = 0;
         size_t nrOfEntries = 0;

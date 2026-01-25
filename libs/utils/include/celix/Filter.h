@@ -175,7 +175,8 @@ namespace celix {
         static std::shared_ptr<celix_filter_t> createFilter(const char* filterStr) {
             auto* cf = celix_filter_create(filterStr);
             if (cf == nullptr) {
-                throw celix::FilterException{"Cannot create filter: '" + std::string{filterStr} + "'"};
+                const char *f = filterStr ? filterStr : "";
+                throw celix::FilterException{"Cannot create filter: '" + std::string{f} + "'"};
             }
             return std::shared_ptr<celix_filter_t>{cf, [](celix_filter_t *f) {
                 celix_filter_destroy(f);

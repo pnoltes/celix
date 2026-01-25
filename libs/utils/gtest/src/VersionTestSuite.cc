@@ -28,7 +28,7 @@ public:
     ~VersionTestSuite() override {
         celix_err_resetErrors();
     }
-    void expectVersion(const celix_version_t* version, int major, int minor, int micro, const char* qualifier = "") {
+    void static expectVersion(const celix_version_t* version, int major, int minor, int micro, const char* qualifier = "") {
         if (version) {
             EXPECT_EQ(major, celix_version_getMajor(version));
             EXPECT_EQ(minor, celix_version_getMinor(version));

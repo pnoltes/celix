@@ -37,7 +37,7 @@ namespace celix {
     public:
         explicit SynchronousPushEventSource(std::shared_ptr<PromiseFactory>& promiseFactory);
 
-        virtual ~SynchronousPushEventSource() noexcept;
+        ~SynchronousPushEventSource() override noexcept;
 
     protected:
         void execute(std::function<void()> task) override;

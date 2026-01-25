@@ -29,6 +29,8 @@ extern "C" {
 #include <dlfcn.h>
 #include <stddef.h>
 
+//NOLINTBEGIN
+
 /**
  * @brief This macro find the address of target function's caller, or caller's caller.
  * The level argument is number of frames to scan up the call stack: 0 means caller, 1 means caller's caller.
@@ -60,7 +62,6 @@ void celix_ei_expect_##name(void *caller, unsigned int level, ret_type ret, size
     name ## _ordinal = (ordinal);                                                           \
 }
 
-// NOLINTBEGIN
 #define CELIX_EI_IMPL(name)                                                                              \
 do {                                                                                                     \
     void *addr = CELIX_EI_UNKNOWN_CALLER;                                                                \
@@ -105,7 +106,8 @@ do {                                                                            
         }                                                                                                \
     }                                                                                                    \
 } while(0)
-// NOLINTEND
+
+//NOLINTEND
 
 #ifdef __cplusplus
 }

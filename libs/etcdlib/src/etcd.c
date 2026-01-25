@@ -26,7 +26,7 @@
 
 #include "etcd.h"
 
-// NOLINT(readability-function-size)
+//NOLINTBEGIN(readability-function-size,(readability-function-size)
 
 #define ETCD_JSON_NODE                  "node"
 #define ETCD_JSON_PREVNODE              "prevNode"
@@ -364,13 +364,13 @@ int etcdlib_set(etcdlib_t *etcdlib, const char *key, const char *value, int ttl,
 
     asprintf(&url, "http://%s:%d/v2/keys/%s", etcdlib->host, etcdlib->port, key);
 
-    requestPtr += snprintf(requestPtr, req_len, "value=%s", value);
+    (void)snprintf(requestPtr, req_len, "value=%s", value);
     if (ttl > 0) {
-        requestPtr += snprintf(requestPtr, req_len - (requestPtr - request), ";ttl=%d", ttl);
+        (void)snprintf(requestPtr, req_len - (requestPtr - request), ";ttl=%d", ttl);
     }
 
     if (prevExist) {
-        requestPtr += snprintf(requestPtr, req_len - (requestPtr - request), ";prevExist=true");
+        (void)snprintf(requestPtr, req_len - (requestPtr - request), ";prevExist=true");
     }
 
     res = performRequest(&etcdlib->curl, &etcdlib->mutex, url, PUT, request, (void *) &reply);
@@ -722,3 +722,5 @@ performRequest(CURL **curl, pthread_mutex_t *mutex, char *url, request_t request
 
     return res;
 }
+
+//NOLINTEND(readability-function-size,(readability-function-size)

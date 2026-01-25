@@ -304,7 +304,7 @@ static int dynType_parseComplex(FILE* stream, dyn_type* type) {
         type->complex.structType.elements[index++] = dynType_ffiType(entry->type);
     }
 
-    type->complex.types = calloc(nbEntries, sizeof(dyn_type *));
+    type->complex.types = calloc(nbEntries > 0 ? nbEntries : 1, sizeof(dyn_type *));
     if (type->complex.types == NULL) {
         celix_err_pushf("Error allocating memory for complex types");
         return MEM_ERROR;

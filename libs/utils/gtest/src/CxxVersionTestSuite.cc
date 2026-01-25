@@ -23,10 +23,9 @@
 
 #include "celix/Version.h"
 
-class CxxVersionTestSuite : public ::testing::Test {};
+//NOLINTBEGIN(performance-unnecessary-copy-initialization)
 
-#include "gtest/gtest.h"
-#include "celix/Version.h"
+class CxxVersionTestSuite : public ::testing::Test {};
 
 TEST_F(CxxVersionTestSuite, DefaultConstructorTest) {
     celix::Version v;
@@ -85,3 +84,5 @@ TEST_F(CxxVersionTestSuite, UnorderedMapKeyTest) {
     EXPECT_EQ(unorderedMap[(celix::Version{1, 2, 3})], 1);
     EXPECT_EQ(unorderedMap[(celix::Version{3, 2, 1})], 2);
 }
+
+//NOLINTEND(performance-unnecessary-copy-initialization)

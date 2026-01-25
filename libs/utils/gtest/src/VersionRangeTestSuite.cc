@@ -22,7 +22,6 @@
 #include "celix_version.h"
 #include "celix_version_range.h" 
 #include "celix_stdlib_cleanup.h"
-#include "celix_version_range.h"
 #include "version_private.h"
 
 class VersionRangeTestSuite : public ::testing::Test {};
@@ -146,7 +145,7 @@ TEST_F(VersionRangeTestSuite, CreateLdapFilterInclusiveBothTest) {
     celix_version_range_t* range = celix_versionRange_createVersionRange(low, true, high, true);
     EXPECT_TRUE(range != nullptr);
 
-    auto filter = celix_versionRange_createLDAPFilter(range, "service.version");
+    auto* filter = celix_versionRange_createLDAPFilter(range, "service.version");
     EXPECT_EQ(std::string{filter}, std::string{"(&(service.version>=1.2.3)(service.version<=1.2.3))"});
 
     celix_versionRange_destroy(range);
@@ -169,7 +168,7 @@ TEST_F(VersionRangeTestSuite, CreateLdapFilterInclusiveLowTest) {
     celix_version_range_t* range = celix_versionRange_createVersionRange(low, false, high, true);
     EXPECT_TRUE(range != nullptr);
 
-    auto filter = celix_versionRange_createLDAPFilter(range, "service.version");
+    auto* filter = celix_versionRange_createLDAPFilter(range, "service.version");
     EXPECT_STREQ(filter, "(&(service.version>1.2.3)(service.version<=1.2.3))");
 
     celix_versionRange_destroy(range);
@@ -192,7 +191,7 @@ TEST_F(VersionRangeTestSuite, CreateLdapFilterInclusiveHighTest) {
     celix_version_range_t* range = celix_versionRange_createVersionRange(low, true, high, false);
     EXPECT_TRUE(range != nullptr);
 
-    auto filter = celix_versionRange_createLDAPFilter(range, "service.version");
+    auto* filter = celix_versionRange_createLDAPFilter(range, "service.version");
     EXPECT_STREQ(filter, "(&(service.version>=1.2.3)(service.version<1.2.3))");
 
     celix_versionRange_destroy(range);
@@ -215,7 +214,7 @@ TEST_F(VersionRangeTestSuite, CreateLdapFilterExclusiveBothTest) {
     celix_version_range_t* range = celix_versionRange_createVersionRange(low, false, high, false);
     EXPECT_TRUE(range != nullptr);
 
-    auto filter = celix_versionRange_createLDAPFilter(range, "service.version");
+    auto* filter = celix_versionRange_createLDAPFilter(range, "service.version");
     EXPECT_STREQ(filter, "(&(service.version>1.2.3)(service.version<1.2.3))");
 
     celix_versionRange_destroy(range);
@@ -231,7 +230,7 @@ TEST_F(VersionRangeTestSuite, CreateLdapFilterInfiniteTest) {
 
     celix_version_range_t* range = celix_versionRange_createVersionRange(low, true, nullptr, true);
 
-    auto filter = celix_versionRange_createLDAPFilter(range, "service.version");
+    auto* filter = celix_versionRange_createLDAPFilter(range, "service.version");
     EXPECT_STREQ(filter, "(&(service.version>=1.2.3))");
 
     celix_versionRange_destroy(range);

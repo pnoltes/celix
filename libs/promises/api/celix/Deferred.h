@@ -26,6 +26,8 @@
 #include "celix/Promise.h"
 #include "celix/PromiseIllegalStateException.h"
 
+//NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+
 namespace celix {
 
     /**
@@ -420,3 +422,5 @@ bool celix::Deferred<T>::tryResolve(const T& value) {
 inline bool celix::Deferred<void>::tryResolve() {
     return state->tryResolve();
 }
+
+//NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)

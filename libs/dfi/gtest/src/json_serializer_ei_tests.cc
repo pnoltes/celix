@@ -57,7 +57,7 @@ TEST_F(JsonSerializerErrorInjectionTestSuite, DeserilizationError) {
     inst = nullptr;
     rc = dynType_parseWithStr("t", nullptr, nullptr, &type);
     ASSERT_EQ(0, rc);
-    auto inputStr = R"("hello")";
+    const auto* inputStr = R"("hello")";
     celix_ei_expect_calloc((void*) dynType_alloc, 0, nullptr);
     rc = jsonSerializer_deserialize(type, inputStr, strlen(inputStr), &inst);
     ASSERT_NE(0, rc);

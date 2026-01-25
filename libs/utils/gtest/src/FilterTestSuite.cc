@@ -373,13 +373,13 @@ TEST_F(FilterTestSuite, MatchWithNullTest) {
 
 
 TEST_F(FilterTestSuite, MatchRecursionTest) {
-    auto* str = "(&(test_attr1=attr1)(|(&(test_attr2=attr2)(!(&(test_attr1=attr1)(test_attr3=attr3))))(test_attr3=attr3)))";
+    const auto* str = "(&(test_attr1=attr1)(|(&(test_attr2=attr2)(!(&(test_attr1=attr1)(test_attr3=attr3))))(test_attr3=attr3)))";
     auto* filter = celix_filter_create(str);
     auto* props = celix_properties_create();
-    auto* key = "test_attr1";
-    auto* val = "attr1";
-    auto* key2 = "test_attr2";
-    auto* val2 = "attr2";
+    const auto* key = "test_attr1";
+    const auto* val = "attr1";
+    const auto* key2 = "test_attr2";
+    const auto* val2 = "attr2";
     celix_properties_set(props, key, val);
     celix_properties_set(props, key2, val2);
     bool result = celix_filter_match(filter, props);
@@ -390,13 +390,13 @@ TEST_F(FilterTestSuite, MatchRecursionTest) {
 }
 
 TEST_F(FilterTestSuite, FalseMatchTest) {
-    auto* str = "(&(test_attr1=attr1)(&(test_attr2=attr2)(test_attr3=attr3)))";
+    const auto* str = "(&(test_attr1=attr1)(&(test_attr2=attr2)(test_attr3=attr3)))";
     celix_autoptr(celix_filter_t) filter = celix_filter_create(str);
     celix_autoptr(celix_properties_t) props = celix_properties_create();
-    auto* key = "test_attr1";
-    auto* val = "attr1";
-    auto* key2 = "test_attr2";
-    auto* val2 = "attr2";
+    const auto* key = "test_attr1";
+    const auto* val = "attr1";
+    const auto* key2 = "test_attr2";
+    const auto* val2 = "attr2";
     celix_properties_set(props, key, val);
     celix_properties_set(props, key2, val2);
     bool result = celix_filter_match(filter, props);
@@ -408,7 +408,7 @@ TEST_F(FilterTestSuite, FalseMatchTest) {
 }
 
 TEST_F(FilterTestSuite, GetStringTest) {
-    auto* str = "(&(test_attr1=attr1)(|(test_attr2=attr2)(test_attr3=attr3)))";
+    const auto* str = "(&(test_attr1=attr1)(|(test_attr2=attr2)(test_attr3=attr3)))";
     celix_filter_t* filter = celix_filter_create(str);
 
     const char* get_str = celix_filter_getFilterString(filter);

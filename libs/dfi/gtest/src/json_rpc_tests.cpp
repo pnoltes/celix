@@ -23,7 +23,6 @@
 #include <assert.h>
 
 extern "C" {
-#include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -628,7 +627,7 @@ TEST_F(JsonRpcTests, preparePropertiesTest) {
     char *result = nullptr;
 
     void *handle = nullptr;
-    auto props = celix_properties_create();//owner is callee
+    auto* props = celix_properties_create();//owner is callee
     ASSERT_NE(nullptr, props);
     celix_properties_set(props, "string", "value");
     celix_properties_setLong(props, "long", 42);
@@ -692,7 +691,7 @@ TEST_F(JsonRpcTests, prepareArrayListTest) {
     char *result = nullptr;
 
     void *handle = nullptr;
-    auto arrList = celix_arrayList_createStringArray();//owner is callee
+    auto* arrList = celix_arrayList_createStringArray();//owner is callee
     ASSERT_NE(nullptr, arrList);
     celix_arrayList_addString(arrList, "value1");
     celix_arrayList_addString(arrList, "value2");
@@ -833,7 +832,7 @@ TEST_F(JsonRpcTests, handlePropertiesOutTest) {
 
     const char *reply = R"({"r":{"string":"value","long":1,"bool":true}})";
     celix_autoptr(celix_properties_t) out = nullptr;
-    auto outPtr = &out;
+    auto* outPtr = &out;
     void *args[2];
     args[1] = &outPtr;
     int rsErrno = 0;
@@ -855,7 +854,7 @@ TEST_F(JsonRpcTests, handleNullPropertiesOutTest) {
 
     const char *reply = R"({"r":null})";
     celix_properties_t* out = nullptr;
-    auto outPtr = &out;
+    auto* outPtr = &out;
     void *args[2];
     args[1] = &outPtr;
     int rsErrno = 0;
@@ -874,7 +873,7 @@ TEST_F(JsonRpcTests, handleArrayListOutTest) {
 
     const char *reply = R"({"r":[1,2,3]})";
     celix_autoptr(celix_array_list_t) out = nullptr;
-    auto outPtr = &out;
+    auto* outPtr = &out;
     void *args[2];
     args[1] = &outPtr;
     int rsErrno = 0;
@@ -896,7 +895,7 @@ TEST_F(JsonRpcTests, handleEmptyArrayListOutTest) {
 
     const char *reply = R"({"r":[]})";
     celix_array_list_t* out = nullptr;
-    auto outPtr = &out;
+    auto* outPtr = &out;
     void *args[2];
     args[1] = &outPtr;
     int rsErrno = 0;
@@ -913,7 +912,7 @@ TEST_F(JsonRpcTests, handleNullArrayListOutTest) {
 
     const char *reply = R"({"r":null})";
     celix_array_list_t* out = nullptr;
-    auto outPtr = &out;
+    auto* outPtr = &out;
     void *args[2];
     args[1] = &outPtr;
     int rsErrno = 0;
@@ -1181,7 +1180,7 @@ TEST_F(JsonRpcTests, callPropertiesOutTest) {
     ASSERT_EQ(0, rc);
 
     json_auto_t* replyJson = json_loads(result, JSON_DECODE_ANY, nullptr);
-    auto propsJson = json_object_get(replyJson, "r");
+    auto* propsJson = json_object_get(replyJson, "r");
     ASSERT_TRUE(json_is_object(propsJson));
     ASSERT_STREQ("value", json_string_value(json_object_get(propsJson, "string")));
     ASSERT_EQ(42, json_integer_value(json_object_get(propsJson, "long")));
@@ -1328,7 +1327,7 @@ TEST_F(JsonRpcTests, callArrayListOutTest) {
     ASSERT_EQ(0, rc);
 
     json_auto_t* replyJson = json_loads(result, JSON_DECODE_ANY, nullptr);
-    auto arrListJson = json_object_get(replyJson, "r");
+    auto* arrListJson = json_object_get(replyJson, "r");
     ASSERT_TRUE(json_is_array(arrListJson));
     ASSERT_EQ(1, json_integer_value(json_array_get(arrListJson, 0)));
     ASSERT_EQ(2, json_integer_value(json_array_get(arrListJson, 1)));

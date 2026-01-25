@@ -54,7 +54,7 @@ class BundleArchiveWithErrorInjectionTestSuite : public ::testing::Test {
         fw.reset();
     }
 
-    void teardownErrorInjectors() {
+    static void teardownErrorInjectors() {
         celix_ei_expect_celix_properties_create(nullptr, 0, nullptr);
         celix_ei_expect_celix_properties_save(nullptr, 0, CELIX_SUCCESS);
         celix_ei_expect_asprintf(nullptr, 0, 0);
@@ -156,7 +156,7 @@ class CelixBundleArchiveErrorInjectionTestSuite : public ::testing::Test {
         EXPECT_EQ(CELIX_SUCCESS, celix_bundleCache_create(&fw, &fw.cache));
         *cache = fw.cache;
     }
-    void teardownErrorInjectors() {
+    static void teardownErrorInjectors() {
         celix_ei_expect_celix_properties_create(nullptr, 0, nullptr);
         celix_ei_expect_asprintf(nullptr, 0, 0);
         celix_ei_expect_calloc(nullptr, 0, nullptr);

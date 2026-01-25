@@ -25,7 +25,7 @@
 #include <gtest/gtest.h>
 
 class DynCommonErrorInjectionTestSuite : public ::testing::Test {
-protected:
+public:
     char* result{nullptr};
     FILE* stream{nullptr};
 
@@ -75,7 +75,7 @@ TEST_F(DynCommonErrorInjectionTestSuite, ParseNameErrors) {
 
 TEST_F(DynCommonErrorInjectionTestSuite, ParseNameValueSectionErrors) {
     stream = fmemopen((void*)"name1=value1\nname2=value2\n", 26, "r");
-    struct namvals_head head;
+    struct namvals_head head{};
     TAILQ_INIT(&head);
     // not enough memory for namval_entry when parsing name value section
     celix_ei_expect_calloc((void *) dynCommon_parseNameValueSection, 0, nullptr, 1);

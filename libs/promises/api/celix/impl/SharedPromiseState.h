@@ -35,6 +35,8 @@
 #include "celix/PromiseInvocationException.h"
 #include "celix/PromiseTimeoutException.h"
 
+//NOLINTBEGIN(cppcoreguidelines-rvalue-reference-param-not-moved)
+
 namespace celix::impl {
 
     template<typename T>
@@ -126,9 +128,9 @@ namespace celix::impl {
          */
         void waitForAndCheckData(std::unique_lock<std::mutex> &lck, bool expectValid) const;
 
-        const std::shared_ptr<celix::IExecutor> executor;
-        const std::shared_ptr<celix::IScheduledExecutor> scheduledExecutor;
-        const int priority;
+        std::shared_ptr<celix::IExecutor> executor;
+        std::shared_ptr<celix::IScheduledExecutor> scheduledExecutor;
+        int priority;
         std::weak_ptr<SharedPromiseState<T>> self{};
 
         mutable std::mutex mutex{}; //protects below
@@ -958,3 +960,5 @@ inline void celix::impl::SharedPromiseState<void>::complete(std::unique_lock<std
         }
     }
 }
+
+//NOLINTEND(cppcoreguidelines-rvalue-reference-param-not-moved)

@@ -184,7 +184,7 @@ static int dynFunction_initCif(dyn_function_type* dynFunc) {
         nargs +=1;
     }
 
-    dynFunc->ffiArguments = calloc(nargs, sizeof(ffi_type*));
+    dynFunc->ffiArguments = calloc(nargs > 0 ? nargs : 1, sizeof(ffi_type*));
     if (dynFunc->ffiArguments == NULL) {
         celix_err_push("Error allocating memory for ffi args");
         return MEM_ERROR;

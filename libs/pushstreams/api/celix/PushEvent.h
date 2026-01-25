@@ -54,7 +54,7 @@ namespace celix {
         std::unique_ptr<PushEvent<T>> clone() const override ;
 
     private:
-        const T data;
+        T data;
     };
 
     template <typename T>

@@ -21,6 +21,8 @@
 
 #include "celix/impl/SharedPromiseState.h"
 
+//NOLINTBEGIN(performance-unnecessary-value-param,clang-analyzer-cplusplus.NewDeleteLeaks)
+
 namespace celix {
 
     /**
@@ -781,3 +783,5 @@ inline celix::Promise<U> celix::Promise<void>::then(std::function<celix::Promise
     state->addChain(std::move(chain));
     return celix::Promise<U>{p};
 }
+
+//NOLINTEND(performance-unnecessary-value-param,clang-analyzer-cplusplus.NewDeleteLeaks)

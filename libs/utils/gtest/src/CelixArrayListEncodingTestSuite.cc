@@ -37,11 +37,11 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadStringArrayListTest) {
     ASSERT_TRUE(list != nullptr);
     ASSERT_EQ(3, celix_arrayList_size(list));
 
-    auto str1 = celix_arrayList_getString(list, 0);
+    const auto* const str1 = celix_arrayList_getString(list, 0);
     EXPECT_STREQ("str1", str1);
-    auto str2 = celix_arrayList_getString(list, 1);
+    const auto* const str2 = celix_arrayList_getString(list, 1);
     EXPECT_STREQ("str2", str2);
-    auto str3 = celix_arrayList_getString(list, 2);
+    const auto* const str3 = celix_arrayList_getString(list, 2);
     EXPECT_STREQ("str3", str3);
 }
 
@@ -97,15 +97,15 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadVersionArrayListTest) {
     ASSERT_TRUE(list != nullptr);
     ASSERT_EQ(3, celix_arrayList_size(list));
 
-    auto v1 = celix_arrayList_getVersion(list, 0);
+    const auto* v1 = celix_arrayList_getVersion(list, 0);
     EXPECT_EQ(1, celix_version_getMajor(v1));
     EXPECT_EQ(2, celix_version_getMinor(v1));
     EXPECT_EQ(3, celix_version_getMicro(v1));
-    auto v2 = celix_arrayList_getVersion(list, 1);
+    const auto* v2 = celix_arrayList_getVersion(list, 1);
     EXPECT_EQ(2, celix_version_getMajor(v2));
     EXPECT_EQ(3, celix_version_getMinor(v2));
     EXPECT_EQ(4, celix_version_getMicro(v2));
-    auto v3 = celix_arrayList_getVersion(list, 2);
+    const auto* v3 = celix_arrayList_getVersion(list, 2);
     EXPECT_EQ(3, celix_version_getMajor(v3));
     EXPECT_EQ(4, celix_version_getMinor(v3));
     EXPECT_EQ(5, celix_version_getMicro(v3));
@@ -114,7 +114,7 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadVersionArrayListTest) {
 TEST_F(CelixArrayListEncodingTestSuite, LoadArrayListFromFileTest) {
     const char *input = R"(["str1", "str2", "str3"])";
     const char *filename = "/tmp/celix_array_list_encoding_test.txt";
-    auto stream = fopen(filename, "w");
+    auto* stream = fopen(filename, "w");
     ASSERT_TRUE(stream != nullptr);
     auto size = fwrite(input, 1, strlen(input), stream);
     EXPECT_EQ(strlen(input), size);
@@ -125,11 +125,11 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadArrayListFromFileTest) {
     EXPECT_EQ(CELIX_SUCCESS, status);
     EXPECT_TRUE(list != nullptr);
     EXPECT_EQ(3, celix_arrayList_size(list));
-    auto str1 = celix_arrayList_getString(list, 0);
+    const auto* const str1 = celix_arrayList_getString(list, 0);
     EXPECT_STREQ("str1", str1);
-    auto str2 = celix_arrayList_getString(list, 1);
+    const auto* const str2 = celix_arrayList_getString(list, 1);
     EXPECT_STREQ("str2", str2);
-    auto str3 = celix_arrayList_getString(list, 2);
+    const auto* const str3 = celix_arrayList_getString(list, 2);
     EXPECT_STREQ("str3", str3);
 
     remove(filename);
@@ -224,11 +224,11 @@ TEST_F(CelixArrayListEncodingTestSuite, SaveArrayListToFileTest) {
     EXPECT_EQ(CELIX_SUCCESS, status);
     EXPECT_TRUE(loadedList != nullptr);
     EXPECT_EQ(3, celix_arrayList_size(loadedList));
-    auto str1 = celix_arrayList_getString(loadedList, 0);
+    const auto* const str1 = celix_arrayList_getString(loadedList, 0);
     EXPECT_STREQ("str1", str1);
-    auto str2 = celix_arrayList_getString(loadedList, 1);
+    const auto* const str2 = celix_arrayList_getString(loadedList, 1);
     EXPECT_STREQ("str2", str2);
-    auto str3 = celix_arrayList_getString(loadedList, 2);
+    const auto* const str3 = celix_arrayList_getString(loadedList, 2);
     EXPECT_STREQ("str3", str3);
 
     remove(filename);

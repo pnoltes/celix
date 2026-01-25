@@ -38,14 +38,14 @@ TEST_F(CelixUtilsCleanupTestSuite, AutoFreeTest) {
 
     p[0] = 1;
     p2[0] = 1;
-    if (true) {
+    {
         celix_autofree uint8_t *buf = (uint8_t*)malloc(128);
         celix_autofree char* alwaysNullAgain = NULL;
         buf[0] = 1;
         ASSERT_EQ(nullptr, alwaysNullAgain);
     }
 
-    if (true) {
+    {
         celix_autofree uint8_t* buf2 = (uint8_t*)malloc(256);
         buf2[255] = 42;
     }
@@ -85,7 +85,7 @@ TEST_F(CelixUtilsCleanupTestSuite, MutexLockerTest) {
     celix_thread_mutex_t mutex;
     celix_thread_t thread = celix_thread_default;
     EXPECT_EQ(0, celixThreadMutex_create(&mutex, nullptr));
-    if (true) {
+    {
         celix_auto(celix_mutex_lock_guard_t) val = celixMutexLockGuard_init(&mutex);
         ASSERT_NE(nullptr, val.mutex);
 
@@ -125,7 +125,7 @@ TEST_F(CelixUtilsCleanupTestSuite, RwLockLockerTest) {
     celix_thread_t thread = celix_thread_default;
 
     ASSERT_EQ(0, celixThreadRwlock_create(&lock, nullptr));
-    if (true) {
+    {
         celix_auto(celix_rwlock_wlock_guard_t) val = celixRwlockWlockGuard_init(&lock);
         ASSERT_NE(nullptr, val.lock);
 
@@ -136,7 +136,7 @@ TEST_F(CelixUtilsCleanupTestSuite, RwLockLockerTest) {
         /* Verify that we cannot take a reader lock as a writer lock is currently held */
         EXPECT_NE(0, celixThreadRwlock_tryReadLock(&lock));
     }
-    if (true) {
+    {
         celix_auto(celix_rwlock_rlock_guard_t) val = celixRwlockRlockGuard_init(&lock);
         ASSERT_NE(nullptr, val.lock);
 

@@ -21,6 +21,7 @@
 #define CELIX_BUNDLE_ACTIVATOR_H_
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "celix_bundle_context.h"
 #include "celix_dependency_manager.h"
@@ -139,6 +140,7 @@ CELIX_BUNDLE_ACTIVATOR_EXPORT celix_status_t celix_bundleActivator_destroy(void 
                                                                                                                        \
 celix_status_t celix_bundleActivator_create(celix_bundle_context_t *ctx, void **userData) {                            \
     celix_status_t status = CELIX_SUCCESS;                                                                             \
+    assert(sizeof(actType) > 0); /*actType cannot have a size of 0*/                                                   \
     void* data = calloc(1, sizeof(actType));                                                                           \
     if (data != NULL) {                                                                                                \
         *userData = data;                                                                                              \

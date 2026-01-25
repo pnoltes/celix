@@ -36,7 +36,7 @@ namespace celix {
     class AsynchronousPushEventSource: public AbstractPushEventSource<T> {
     public:
         explicit AsynchronousPushEventSource(std::shared_ptr<PromiseFactory>& promiseFactory);
-        ~AsynchronousPushEventSource() = default;
+        ~AsynchronousPushEventSource() override = default;
         AsynchronousPushEventSource() = delete;
         AsynchronousPushEventSource(const AsynchronousPushEventSource&) = default;
         AsynchronousPushEventSource(AsynchronousPushEventSource&&) = default;

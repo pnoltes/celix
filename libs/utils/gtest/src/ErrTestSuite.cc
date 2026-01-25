@@ -34,7 +34,7 @@ TEST_F(ErrTestSuite, AddAndPopErrorTest) {
     celix_err_pushf("error message from %s", "test");
     EXPECT_EQ(2, celix_err_getErrorCount());
 
-    auto* m = celix_err_popLastError();
+    const auto* m = celix_err_popLastError();
     EXPECT_STREQ("error message from test", m);
     EXPECT_EQ(1, celix_err_getErrorCount());
 
@@ -126,6 +126,7 @@ TEST_F(ErrTestSuite, DumpErrorsTest) {
         char expected[64];
         sprintf(expected, "<celix error message%d>", logCnt);
         EXPECT_STREQ(data, expected);
+        //NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         p = p+strlen(data)+1;//skip '\n'
     }
 }

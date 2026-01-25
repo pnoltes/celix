@@ -34,7 +34,6 @@ extern "C" {
 #include "dyn_common.h"
 #include "dyn_message.h"
 #include "celix_err.h"
-#include "celix_version.h"
 
 static void checkMessageVersion(dyn_message_type* dynMsg, const char* v) {
     int status = 0;

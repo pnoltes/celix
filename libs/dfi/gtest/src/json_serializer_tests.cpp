@@ -59,7 +59,7 @@ struct example1 {
 };
 
 static void check_example1(void *data) {
-	auto ex = static_cast<example1*>(data);
+	auto* ex = static_cast<example1*>(data);
 	ASSERT_EQ(1.0, ex->a);
 	ASSERT_EQ(22, ex->b);
 	ASSERT_EQ(32, ex->c);
@@ -89,7 +89,7 @@ struct example2 {
 };
 
 static void check_example2(void *data) {
-    auto ex = static_cast<example2*>(data);
+    auto* ex = static_cast<example2*>(data);
 	ASSERT_EQ(42, ex->byte);
 	ASSERT_EQ(232, ex->long1);
 	ASSERT_EQ(242, ex->long2);
@@ -116,7 +116,7 @@ struct example3 {
 };
 
 static void check_example3(void *data) {
-    auto ex = static_cast<example3*>(data);
+    auto* ex = static_cast<example3*>(data);
 	ASSERT_EQ(3, ex->numbers.len);
 	ASSERT_EQ(22, ex->numbers.buf[0]);
 	ASSERT_EQ(32, ex->numbers.buf[1]);
@@ -144,7 +144,7 @@ struct example4 {
 };
 
 static void check_example4(void *data) {
-    auto ex = static_cast<example4*>(data);
+    auto* ex = static_cast<example4*>(data);
 	ASSERT_EQ(1, ex->left.index);
 	ASSERT_EQ(1.0, ex->left.val1);
 	ASSERT_EQ(2.0, ex->left.val2);
@@ -203,7 +203,7 @@ struct example5 {
 };
 
 static void check_example5(void *data) {
-    auto ex = static_cast<example5*>(data);
+    auto* ex = static_cast<example5*>(data);
 	ASSERT_TRUE(ex->head != nullptr);
 
 	ASSERT_TRUE(ex->head->left != nullptr);
@@ -265,7 +265,7 @@ struct example7 {
 };
 
 static void check_example7(void *data) {
-    auto ex = static_cast<example7*>(data);
+    auto* ex = static_cast<example7*>(data);
 	ASSERT_STREQ("apache celix", ex->a);
 }
 
@@ -317,14 +317,14 @@ struct example9 {
 };
 
 static void check_example9_1(void *data) {
-    auto ex = static_cast<example9*>(data);
+    auto* ex = static_cast<example9*>(data);
     ASSERT_EQ(1000, ex->id);
     ASSERT_STREQ("my_name", ex->name);
     ASSERT_EQ(RE_NOK, ex->result);
 }
 
 static void check_example9_2(void *data) {
-    auto ex = static_cast<example9*>(data);
+    auto* ex = static_cast<example9*>(data);
     ASSERT_EQ(1001, ex->id);
     ASSERT_STREQ("your_name", ex->name);
     ASSERT_EQ(RE_MAYBE, ex->result);
@@ -352,7 +352,7 @@ struct exA_struct {
 };
 
 static void check_exampleA(void *data) {
-	auto inp = static_cast<exA_struct*>(data);
+	auto* inp = static_cast<exA_struct*>(data);
 	ASSERT_EQ(1.0, inp->point_a.x);
 	ASSERT_EQ(2.0, inp->point_a.y);
 	ASSERT_EQ(3.0, inp->point_b.x);
@@ -476,7 +476,7 @@ static void parseTests() {
     inst = nullptr;
     rc = dynType_parseWithStr("Ttype={DD a b};ltype;", nullptr, nullptr, &type);
     ASSERT_EQ(0, rc);
-    auto inputStr = R"({"a":1.0, "b":2.0})";
+    const auto* inputStr = R"({"a":1.0, "b":2.0})";
     json_error_t error;
     json_auto_t *input = json_loadb(inputStr, strlen(inputStr), JSON_DECODE_ANY, &error);
     rc = jsonSerializer_deserializeJson(type, input, &inst);
@@ -1015,8 +1015,8 @@ TEST_F(JsonSerializerTests, SerializationDeserilizationPropertiesTest) {
     json_auto_t* root = json_loads(R"({"key1":"value1", "key2":true, "key3":123})", JSON_DECODE_ANY, NULL);
     rc = jsonSerializer_deserializeJson(type, root, &inst);
     ASSERT_EQ(0, rc);
-    auto props = *(celix_properties_t**)inst;
-    auto value1 = celix_properties_getAsString(props, "key1", nullptr);
+    auto* props = *(celix_properties_t**)inst;
+    const auto* value1 = celix_properties_getAsString(props, "key1", nullptr);
     ASSERT_STREQ("value1", value1);
     auto value2 = celix_properties_getAsBool(props, "key2", false);
     ASSERT_TRUE(value2);
@@ -1038,7 +1038,7 @@ TEST_F(JsonSerializerTests, SerializationPropertiesErrorOnEmptyArraysTest) {
 
     json_auto_t* result = nullptr;
     celix_autoptr(celix_properties_t) props = celix_properties_create();
-    auto emptyList = celix_arrayList_createStringArray();
+    auto* emptyList = celix_arrayList_createStringArray();
     auto status = celix_properties_assignArrayList(props, "key", emptyList);
     ASSERT_EQ(CELIX_SUCCESS, status);
     void *inst = &props;
@@ -1096,7 +1096,7 @@ TEST_F(JsonSerializerTests, SerializationDeserilizationArrayListTest) {
     json_auto_t* root = json_loads(R"(["val1", "val2", "val3"])", JSON_DECODE_ANY, NULL);
     rc = jsonSerializer_deserializeJson(type, root, &inst);
     ASSERT_EQ(0, rc);
-    auto arrList = *(celix_array_list_t**)inst;
+    auto* arrList = *(celix_array_list_t**)inst;
     ASSERT_EQ(3, celix_arrayList_size(arrList));
     ASSERT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING, celix_arrayList_getElementType(arrList));
     ASSERT_STREQ("val1", celix_arrayList_getString(arrList, 0));

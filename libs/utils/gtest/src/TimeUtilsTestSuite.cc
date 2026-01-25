@@ -26,8 +26,8 @@
 class TimeUtilsTestSuite : public ::testing::Test {};
 
 TEST_F(TimeUtilsTestSuite, GetTimeTest) {
-    timespec t1;
-    timespec t3;
+    timespec t1{};
+    timespec t3{};
     clock_gettime(CLOCK_MONOTONIC, &t1);
     std::this_thread::sleep_for(std::chrono::seconds {1} );
     auto t2 = celix_gettime(CLOCK_MONOTONIC);

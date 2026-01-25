@@ -24,11 +24,10 @@
 #include <sys/queue.h>
 
 class DynCommonTests : public ::testing::Test {
-protected:
+public:
     char* result{nullptr};
     FILE* stream{nullptr};
-    DynCommonTests() {
-    }
+    DynCommonTests() = default;
     ~DynCommonTests() override {
         if (stream != nullptr) {
             fclose(stream);
@@ -93,7 +92,7 @@ TEST_F(DynCommonTests, EatCharFromEmptyString) {
 
 TEST_F(DynCommonTests, ParseNameValueSection) {
     stream = fmemopen((void*)"name1=value1\nname2=value2\n", 26, "r");
-    struct namvals_head head;
+    struct namvals_head head{};
     TAILQ_INIT(&head);
     ASSERT_EQ(dynCommon_parseNameValueSection(stream, &head), 0);
 
@@ -110,7 +109,7 @@ TEST_F(DynCommonTests, ParseNameValueSection) {
 
 TEST_F(DynCommonTests, ParseNameValueSectionWithPairWithEmptyName) {
     stream = fmemopen((void*)"=value1\nname2=value2\n", 22, "r");
-    struct namvals_head head;
+    struct namvals_head head{};
     TAILQ_INIT(&head);
     ASSERT_EQ(dynCommon_parseNameValueSection(stream, &head), 1);
     ASSERT_STREQ("Parsed empty name", celix_err_popLastError());
@@ -120,7 +119,7 @@ TEST_F(DynCommonTests, ParseNameValueSectionWithPairWithEmptyName) {
 
 TEST_F(DynCommonTests, ParseNameValueSectionWithPairWithEmptyValue) {
     stream = fmemopen((void*)"name1=\nname2=value2\n", 22, "r");
-    struct namvals_head head;
+    struct namvals_head head{};
     TAILQ_INIT(&head);
     ASSERT_EQ(dynCommon_parseNameValueSection(stream, &head), 1);
     ASSERT_STREQ("Parsed empty name", celix_err_popLastError());
@@ -130,7 +129,7 @@ TEST_F(DynCommonTests, ParseNameValueSectionWithPairWithEmptyValue) {
 
 TEST_F(DynCommonTests, ParseNameValueSectionWithPairMissingEquality) {
     stream = fmemopen((void*)"name1 value1\nname2=value2\n", 22, "r");
-    struct namvals_head head;
+    struct namvals_head head{};
     TAILQ_INIT(&head);
     ASSERT_EQ(dynCommon_parseNameValueSection(stream, &head), 1);
     ASSERT_STREQ("Error parsing, expected token '=' got ' ' at position 6", celix_err_popLastError());
@@ -140,7 +139,7 @@ TEST_F(DynCommonTests, ParseNameValueSectionWithPairMissingEquality) {
 
 TEST_F(DynCommonTests, ParseNameValueSectionWithPairMissingNewline) {
     stream = fmemopen((void*)"name1=value1 name2=value2\n", 26, "r");
-    struct namvals_head head;
+    struct namvals_head head{};
     TAILQ_INIT(&head);
     ASSERT_EQ(dynCommon_parseNameValueSection(stream, &head), 1);
     ASSERT_STREQ("Error parsing, expected token '\n' got ' ' at position 13", celix_err_popLastError());

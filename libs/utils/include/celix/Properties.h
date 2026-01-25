@@ -32,6 +32,8 @@
 #include "celix/Version.h"
 #include "celix/Exceptions.h"
 
+//NOLINTBEGIN(cppcoreguidelines-missing-std-forward)
+
 namespace celix {
 
     /**
@@ -164,7 +166,7 @@ namespace celix {
             }
 
             operator std::string() const {
-                auto *cstr = getValue();
+                const auto *cstr = getValue();
                 return cstr == nullptr ? std::string{} : std::string{cstr};
             }
         private:
@@ -189,7 +191,7 @@ namespace celix {
         Properties(const Properties& rhs) : cProps{createCProps(celix_properties_copy(rhs.cProps.get()))} {}
 
         Properties(std::initializer_list<std::pair<std::string, std::string>> list) : cProps{celix_properties_create(), [](celix_properties_t* p) { celix_properties_destroy(p); }} {
-            for(auto &entry : list) {
+            for(const auto &entry : list) {
                 set(entry.first, entry.second);
             }
         }
@@ -199,6 +201,7 @@ namespace celix {
          * but does not take ownership -> dtor will not destroy C properties.
          */
         static Properties wrap(const celix_properties_t* wrapProps) {
+            //NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
             auto* cp = const_cast<celix_properties_t*>(wrapProps);
             return Properties{cp, false};
         }
@@ -435,7 +438,7 @@ namespace celix {
          * freed.
          */
         celix::Version getVersion(const std::string& key, celix::Version defaultValue = {}) const {
-            auto* v = celix_properties_getVersion(cProps.get(), key.c_str());
+            const auto* v = celix_properties_getVersion(cProps.get(), key.c_str());
             if (v) {
                 return celix::Version{celix_version_getMajor(v),
                                       celix_version_getMinor(v),
@@ -636,7 +639,7 @@ namespace celix {
             if (list) {
                 std::vector<std::string> result{};
                 for (int i = 0; i < celix_arrayList_size(list); ++i) {
-                    auto* s = celix_arrayList_getString(list, i);
+                    const auto* s = celix_arrayList_getString(list, i);
                     result.emplace_back(s);
                 }
                 return result;
@@ -657,7 +660,7 @@ namespace celix {
             if (list) {
                 std::vector<std::string> result{};
                 for (int i = 0; i < celix_arrayList_size(list); ++i) {
-                    auto* s = celix_arrayList_getString(list, i);
+                    const auto* s = celix_arrayList_getString(list, i);
                     result.emplace_back(s);
                 }
                 return result;
@@ -1192,3 +1195,5 @@ inline ::celix::Properties::DecodeFlags operator|(::celix::Properties::DecodeFla
                                                   ::celix::Properties::DecodeFlags b) {
     return static_cast<::celix::Properties::DecodeFlags>(static_cast<int>(a) | static_cast<int>(b));
 }
+
+//NOLINTEND(cppcoreguidelines-missing-std-forward)

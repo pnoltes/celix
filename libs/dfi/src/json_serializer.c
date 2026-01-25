@@ -73,7 +73,7 @@ int jsonSerializer_deserializeJson(const dyn_type* type, json_t* input, void** o
 
 static int jsonSerializer_createType(const dyn_type* type, json_t* val, void** result) {
     assert(val != NULL);
-    int status = OK;
+    int status;
     void* inst = NULL;
 
     if ((status = dynType_alloc(type, &inst)) != OK) {
@@ -242,7 +242,7 @@ static int jsonSerializer_parseAny(const dyn_type* type, void* loc, json_t* val)
 
 static int jsonSerializer_parseSequence(const dyn_type* seq, json_t* array, void* seqLoc) {
     assert(dynType_type(seq) == DYN_TYPE_SEQUENCE);
-    int status = OK;
+    int status;
 
     size_t size = json_array_size(array);
     if (size > UINT32_MAX) {
@@ -425,7 +425,7 @@ static int jsonSerializer_writeSequence(const dyn_type* type, const void* input,
     uint32_t len = dynType_sequence_length(input);
 
     for (uint32_t i = 0; i < len; i += 1) {
-        int status = OK;
+        int status;
         void* itemLoc = NULL;
         json_t* item = NULL;
         if ((status = dynType_sequence_locForIndex(type, input, i, &itemLoc)) != OK) {
@@ -447,8 +447,8 @@ static int jsonSerializer_writeSequence(const dyn_type* type, const void* input,
 static int jsonSerializer_writeComplex(const dyn_type* type, const void* input, json_t** out) {
     assert(dynType_type(type) == DYN_TYPE_COMPLEX);
 
-    json_auto_t* val = json_object();
-    if (val == NULL) {
+    json_auto_t* obj = json_object();
+    if (obj == NULL) {
         return ERROR;
     }
     struct complex_type_entry* entry = NULL;
@@ -469,13 +469,13 @@ static int jsonSerializer_writeComplex(const dyn_type* type, const void* input, 
         if ((status = jsonSerializer_writeAny(subType, subLoc, &subVal)) != OK) {
             return status;
         }
-        if (json_object_set_new(val, entry->name, subVal) != 0) {
+        if (json_object_set_new(obj, entry->name, subVal) != 0) {
             return ERROR;
         }
         index++;
     }
 
-    *out = celix_steal_ptr(val);
+    *out = celix_steal_ptr(obj);
     return OK;
 }
 

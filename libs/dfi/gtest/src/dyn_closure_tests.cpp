@@ -111,7 +111,7 @@ static void tests() {
         rc = dynFunction_getFnPointer(dynFunction, (void(**)(void))&func2);
         ASSERT_EQ(0, rc);
         ASSERT_TRUE(func == func2);
-        struct example2_arg2 b;
+        struct example2_arg2 b{};
         b.val1 = 1.0;
         b.val2 = 1.5;
         b.val3 = 2.0;

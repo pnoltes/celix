@@ -21,6 +21,8 @@
 
 #include "celix/PushStreamProvider.h"
 
+//NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks)
+
 using celix::PushStreamProvider;
 
 class TestException : public std::exception {
@@ -361,7 +363,7 @@ TEST_F(PushStreamTestSuite, ForEachTestBasicType_Buffered) {
                     consumeSum = consumeSum + event;
                 });
 
-        done.wait(lk, [&](){ return allEventsDone==true;});
+        done.wait(lk, [&](){ return allEventsDone;});
         promiseFactory->getExecutor()->wait();
         ses->close();
         streamEnded.wait();
@@ -386,7 +388,7 @@ TEST_F(PushStreamTestSuite, ForEachTestObjectType) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -414,7 +416,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_true) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -468,7 +470,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_simple) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -497,7 +499,7 @@ TEST_F(PushStreamTestSuite, FilterTestObjectType_and) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -522,7 +524,7 @@ TEST_F(PushStreamTestSuite, MapTestObjectType) {
                 consumeSum = consumeSum + event;
             });
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded.wait();
@@ -548,7 +550,7 @@ TEST_F(PushStreamTestSuite, MapTestObjectType_async) {
             consumeSum += + event;
         });
 
-        done.wait(lk, [&](){ return allEventsDone==true;});
+        done.wait(lk, [&](){ return allEventsDone;});
         promiseFactory->getExecutor()->wait();
         ses->close();
         streamEnded.wait();
@@ -608,7 +610,7 @@ TEST_F(PushStreamTestSuite, MultipleStreamsTest_CloseSource) {
     });
 
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     streamEnded1.wait();
@@ -716,7 +718,7 @@ TEST_F(PushStreamTestSuite, SplitStreamsTest) {
     }
 
 
-    done.wait(lk, [&](){ return allEventsDone==true;});
+    done.wait(lk, [&](){ return allEventsDone;});
     promiseFactory->getExecutor()->wait();
     ses->close();
     promiseFactory->getExecutor()->wait();
@@ -727,3 +729,4 @@ TEST_F(PushStreamTestSuite, SplitStreamsTest) {
     //GTEST_ASSERT_EQ(12, counts[1]);
 }
 
+//NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)

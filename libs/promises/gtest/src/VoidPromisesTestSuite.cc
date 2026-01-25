@@ -449,6 +449,7 @@ TEST_F(VoidPromiseTestSuite, outOfScopeUnresolvedPromises) {
 }
 
 TEST_F(VoidPromiseTestSuite, chainPromises) {
+    //NOLINTNEXTLINE(performance-unnecessary-value-param)
     auto success = [&](celix::Promise<void> p) -> celix::Promise<long> {
         //TODO Promises::resolved(p.getValue() + p.getValue())
         auto result = factory->deferred<long>();

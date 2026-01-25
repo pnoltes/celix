@@ -166,7 +166,7 @@ TEST_F(DynTypeTests, AssignTest1) {
         int32_t b;
         int32_t c;
     };
-    struct ex1 inst;
+    struct ex1 inst{};
     const char *desc = "{III a b c}";
     dyn_type *type = NULL;
     int status = dynType_parseWithStr(desc, NULL, NULL, &type);
@@ -199,7 +199,7 @@ TEST_F(DynTypeTests, AssignTest2) {
             double b;
         } b;
     };
-    struct ex inst;
+    struct ex inst{};
     const char *desc = "{I{DD a b} a b}";
     dyn_type *type = NULL;
     int status = dynType_parseWithStr(desc, NULL, NULL,  &type);
@@ -245,7 +245,7 @@ TEST_F(DynTypeTests, MetaInfoTest) {
 
     ASSERT_EQ(0, rc);
 
-    auto entries = dynType_metaEntries(type);
+    const auto* entries = dynType_metaEntries(type);
     struct meta_entry* entry = NULL;
     size_t nbEntries = 0;
     TAILQ_FOREACH(entry, entries, entries) {
@@ -396,25 +396,25 @@ TEST_F(DynTypeTests, FillSequenceTest) {
     ASSERT_EQ(0, rc);
 
     void* loc;
-    rc = dynType_sequence_increaseLengthAndReturnLastLoc(type, seq, (void **)&loc);
+    rc = dynType_sequence_increaseLengthAndReturnLastLoc(type, seq, &loc);
     ASSERT_EQ(0, rc);
 
     double val = 2.0;
     dynType_simple_setValue(dynType_sequence_itemType(type), loc, &val);
     ASSERT_EQ(val, seq->buf[0]);
 
-    rc = dynType_sequence_increaseLengthAndReturnLastLoc(type, seq, (void **)&loc);
+    rc = dynType_sequence_increaseLengthAndReturnLastLoc(type, seq, &loc);
     ASSERT_NE(0, rc);
     ASSERT_STREQ("Cannot increase sequence length beyond capacity (1)", celix_err_popLastError());
 
     rc = dynType_sequence_reserve(type, seq, 2);
     ASSERT_EQ(0, rc);
-    rc = dynType_sequence_locForIndex(type, seq, 1, (void **)&loc);
+    rc = dynType_sequence_locForIndex(type, seq, 1, &loc);
     ASSERT_NE(0, rc);
     ASSERT_STREQ("Requesting index (1) outsize defined length (1) but within capacity", celix_err_popLastError());
 
 
-    rc = dynType_sequence_locForIndex(type, seq, 2, (void **)&loc);
+    rc = dynType_sequence_locForIndex(type, seq, 2, &loc);
     ASSERT_NE(0, rc);
     ASSERT_STREQ("Requested index (2) is greater than capacity (2) of sequence", celix_err_popLastError());
 

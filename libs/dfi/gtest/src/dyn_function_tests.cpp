@@ -52,7 +52,7 @@ TEST_F(DynFunctionTests, DynFuncTest1) {
     EXPECT_TRUE(dynFunction_hasReturn(dynFunc));
     EXPECT_EQ(3, dynFunction_nrOfArguments(dynFunc));
     EXPECT_STREQ("example", dynFunction_getName(dynFunc));
-    auto args = dynFunction_arguments(dynFunc);
+    const auto* args = dynFunction_arguments(dynFunc);
     dyn_function_argument_type* arg = NULL;
     TAILQ_FOREACH(arg, args, entries) {
         EXPECT_EQ(DYN_FUNCTION_ARGUMENT_META__STD, arg->argumentMeta);
@@ -84,7 +84,7 @@ static bool func_test2() {
     rc = dynFunction_parseWithStr(EXAMPLE2_DESCRIPTOR, nullptr, &dynFunc);
 
     int32_t arg1 = 2;
-    struct example2_arg arg2;
+    struct example2_arg arg2{};
     arg2.val1 = 2;
     arg2.val2 = 3;
     arg2.val3 = 4.1;
@@ -205,7 +205,7 @@ TEST_F(DynFunctionTests, DynFuncTest4) {
     double buf[4];
     buf[0] = 1.1;
     buf[1] = 2.2;
-    struct tst_seq seq;
+    struct tst_seq seq{};
     seq.cap = 4;
     seq.len = 2;
     seq.buf = buf;
@@ -257,7 +257,7 @@ TEST_F(DynFunctionTests, DynFuncTest6) {
     ASSERT_EQ(0, rc);
     EXPECT_TRUE(dynFunction_hasReturn(dynFunc));
     EXPECT_EQ(0, dynFunction_nrOfArguments(dynFunc));
-    auto args = dynFunction_arguments(dynFunc);
+    const auto* args = dynFunction_arguments(dynFunc);
     EXPECT_TRUE(TAILQ_EMPTY(args));
 
     ffi_sarg rVal = 0;

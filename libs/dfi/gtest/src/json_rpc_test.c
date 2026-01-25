@@ -56,6 +56,7 @@ int stats(void* handle CELIX_UNUSED, struct tst_seq input, struct tst_StatsResul
     }
     result->min = min;
     result->max = max;
+    assert(input.len > 0);
     double* buf = (double *)(calloc(input.len, sizeof(double)));
     memcpy(buf, input.buf, input.len * sizeof(double));
     result->input.len = input.len;

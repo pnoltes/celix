@@ -37,9 +37,9 @@ namespace celix {
         PushEventConsumer(const PushEventConsumer& other) = default;
         PushEventConsumer(PushEventConsumer&& other)= default;
 
-        virtual ~PushEventConsumer() noexcept = default;
+        ~PushEventConsumer() override noexcept = default;
 
-        inline virtual long accept(const PushEvent<T>& event) override;
+        inline long accept(const PushEvent<T>& event) override;
 
         FunctionType behavior{};
     };

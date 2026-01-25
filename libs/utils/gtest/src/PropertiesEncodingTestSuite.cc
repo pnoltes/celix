@@ -460,7 +460,7 @@ TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithPrettyPrintTest) {
 
     // And the output contains the JSON representation snippets of the properties with pretty print (2 indent spaces and
     // newlines)
-    auto* expected = "{\n  \"key2\": \"value2\",\n  \"key1\": \"value1\"\n}";
+    const auto* expected = "{\n  \"key2\": \"value2\",\n  \"key1\": \"value1\"\n}";
     EXPECT_STREQ(expected, output);
 }
 
@@ -555,7 +555,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithSingleValuesTest) {
     EXPECT_EQ(42, celix_properties_getLong(props, "longKey", -1));
     EXPECT_DOUBLE_EQ(2.0, celix_properties_getDouble(props, "doubleKey", NAN));
     EXPECT_TRUE(celix_properties_getBool(props, "boolKey", false));
-    auto* v = celix_properties_getVersion(props, "versionKey");
+    const auto* v = celix_properties_getVersion(props, "versionKey");
     ASSERT_NE(nullptr, v);
     celix_autofree char* vStr = celix_version_toString(v);
     EXPECT_STREQ("1.2.3.qualifier", vStr);
@@ -585,7 +585,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_EQ(7, celix_properties_size(props));
 
     //And the string array is correctly loaded
-    auto* strArr = celix_properties_getArrayList(props, "strArr");
+    const auto* strArr = celix_properties_getArrayList(props, "strArr");
     ASSERT_NE(nullptr, strArr);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING, celix_arrayList_getElementType(strArr));
     EXPECT_EQ(2, celix_arrayList_size(strArr));
@@ -593,7 +593,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_STREQ("value2", celix_arrayList_getString(strArr, 1));
 
     //And the long array is correctly loaded
-    auto* intArr = celix_properties_getArrayList(props, "intArr");
+    const auto* intArr = celix_properties_getArrayList(props, "intArr");
     ASSERT_NE(nullptr, intArr);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG, celix_arrayList_getElementType(intArr));
     EXPECT_EQ(2, celix_arrayList_size(intArr));
@@ -601,7 +601,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_EQ(2, celix_arrayList_getLong(intArr, 1));
 
     //And the double array is correctly loaded
-    auto* realArr = celix_properties_getArrayList(props, "realArr");
+    const auto* realArr = celix_properties_getArrayList(props, "realArr");
     ASSERT_NE(nullptr, realArr);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE, celix_arrayList_getElementType(realArr));
     EXPECT_EQ(2, celix_arrayList_size(realArr));
@@ -609,7 +609,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getDouble(realArr, 1));
 
     //And the bool array is correctly loaded
-    auto* boolArr = celix_properties_getArrayList(props, "boolArr");
+    const auto* boolArr = celix_properties_getArrayList(props, "boolArr");
     ASSERT_NE(nullptr, boolArr);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL, celix_arrayList_getElementType(boolArr));
     EXPECT_EQ(2, celix_arrayList_size(boolArr));
@@ -617,21 +617,21 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_FALSE(celix_arrayList_getBool(boolArr, 1));
 
     //And the version array is correctly loaded
-    auto* versionArr = celix_properties_getArrayList(props, "versionArr");
+    const auto* versionArr = celix_properties_getArrayList(props, "versionArr");
     ASSERT_NE(nullptr, versionArr);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION, celix_arrayList_getElementType(versionArr));
     EXPECT_EQ(2, celix_arrayList_size(versionArr));
-    auto* v1 = celix_arrayList_getVersion(versionArr, 0);
+    const auto* v1 = celix_arrayList_getVersion(versionArr, 0);
     ASSERT_NE(nullptr, v1);
     celix_autofree char* v1Str = celix_version_toString(v1);
     EXPECT_STREQ("1.2.3.qualifier", v1Str);
-    auto* v2 = celix_arrayList_getVersion(versionArr, 1);
+    const auto* v2 = celix_arrayList_getVersion(versionArr, 1);
     ASSERT_NE(nullptr, v2);
     celix_autofree char* v2Str = celix_version_toString(v2);
     EXPECT_STREQ("4.5.6.qualifier", v2Str);
 
     //And the mixed json real and int arrays are correctly loaded as double arrays
-    auto* mixedRealAndIntArr1 = celix_properties_getArrayList(props, "mixedRealAndIntArr1");
+    const auto* mixedRealAndIntArr1 = celix_properties_getArrayList(props, "mixedRealAndIntArr1");
     ASSERT_NE(nullptr, mixedRealAndIntArr1);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE, celix_arrayList_getElementType(mixedRealAndIntArr1));
     EXPECT_EQ(4, celix_arrayList_size(mixedRealAndIntArr1));
@@ -640,7 +640,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getDouble(mixedRealAndIntArr1, 2));
     EXPECT_DOUBLE_EQ(3.0, celix_arrayList_getDouble(mixedRealAndIntArr1, 3));
 
-    auto* mixedRealAndIntArr2 = celix_properties_getArrayList(props, "mixedRealAndIntArr2");
+    const auto* mixedRealAndIntArr2 = celix_properties_getArrayList(props, "mixedRealAndIntArr2");
     ASSERT_NE(nullptr, mixedRealAndIntArr2);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE, celix_arrayList_getElementType(mixedRealAndIntArr2));
     EXPECT_EQ(4, celix_arrayList_size(mixedRealAndIntArr2));
@@ -656,7 +656,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithInvalidInputTest) {
         R"([])",                           // unsupported JSON (top level array not supported)
         R"(42)",                           // invalid JSON (caught by jansson)
     };
-    for (auto& invalidInput: invalidInputs) {
+    for (const auto& invalidInput: invalidInputs) {
         //Given an invalid JSON object
         FILE* stream = fmemopen((void*)invalidInput, strlen(invalidInput), "r");
 
@@ -677,7 +677,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithInvalidInputTest) {
 
 TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithEmptyArrayTest) {
     //Given a JSON object with an empty array
-    auto* inputJSON = R"({"key1":[]})";
+    const auto* inputJSON = R"({"key1":[]})";
 
     //When loading the properties from string
     celix_autoptr(celix_properties_t) props = nullptr;
@@ -840,7 +840,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithAndWithoutStrictFlagT
         R"({"key1":"val1", "key1":"val2"})"// Duplicate key gives error on strict
     };
 
-    for (auto& invalidInput: invalidInputs) {
+    for (const auto& invalidInput: invalidInputs) {
         //Given an invalid JSON object
         FILE* stream = fmemopen((void*)invalidInput, strlen(invalidInput), "r");
 
@@ -859,7 +859,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithAndWithoutStrictFlagT
         fclose(stream);
     }
 
-    for (auto& invalidInput: invalidInputs) {
+    for (const auto& invalidInput: invalidInputs) {
         //Given an invalid JSON object
         FILE* stream = fmemopen((void*)invalidInput, strlen(invalidInput), "r");
 
@@ -886,7 +886,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithUnsupportedArrayTypes
     };
 
     // Decode with no strict flag, will ignore the unsupported arrays
-    for (auto& invalidArray : invalidArrays) {
+    for (const auto& invalidArray : invalidArrays) {
         // When loading the properties from the string
         celix_autoptr(celix_properties_t) props = nullptr;
         auto status = celix_properties_loadFromString(invalidArray, 0, &props);
@@ -900,7 +900,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithUnsupportedArrayTypes
     }
 
     // Decode with strict flag, will fail on unsupported arrays
-    for (auto& invalidArray : invalidArrays) {
+    for (const auto& invalidArray : invalidArrays) {
         // When loading the properties from the string
         celix_autoptr(celix_properties_t) props = nullptr;
         auto status = celix_properties_loadFromString(invalidArray, CELIX_PROPERTIES_DECODE_STRICT, &props);
@@ -1013,7 +1013,7 @@ TEST_F(PropertiesSerializationTestSuite, LoadWithInvalidStreamTest) {
 
 TEST_F(PropertiesSerializationTestSuite, LoadCxxPropertiesTest) {
     // Given a JSON object
-    auto jsonInput = R"({"key1":"value1","key2":42,"key2":43})"; // note duplicate key3
+    const auto* const jsonInput = R"({"key1":"value1","key2":42,"key2":43})"; // note duplicate key3
 
     // When loading the properties from the JSON object
     auto props = celix::Properties::loadFromString(jsonInput);

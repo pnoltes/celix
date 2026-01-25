@@ -44,6 +44,7 @@ public:
     }
 
 private:
+    //NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp)
     std::default_random_engine generator{};
     std::uniform_int_distribution<int> distribution{1,100};
 };
@@ -187,7 +188,7 @@ TEST_F(PromiseTestSuite, onFailureHandling) {
             })
             .onFailure([&](const std::exception &e) {
                 failureCalled = true;
-                auto what = e.what();
+                const auto* what = e.what();
                 ASSERT_STREQ(what, "PromiseInvocationException test");
             })
             .onResolve([&]() {

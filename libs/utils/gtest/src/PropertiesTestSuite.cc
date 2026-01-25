@@ -33,7 +33,7 @@ class PropertiesTestSuite : public ::testing::Test {
   public:
     PropertiesTestSuite() { celix_err_resetErrors(); }
 
-    void printStats(const celix_properties_statistics_t* stats) {
+    void static printStats(const celix_properties_statistics_t* stats) {
         printf("Properties statistics:\n");
         printf("|- nr of entries: %zu\n", stats->mapStatistics.nrOfEntries);
         printf("|- nr of buckets: %zu\n", stats->mapStatistics.nrOfBuckets);
@@ -350,7 +350,7 @@ TEST_F(PropertiesTestSuite, GetEntryTest) {
     auto* version = celix_version_create(1, 2, 3, nullptr);
     celix_properties_setVersion(props, "key5", version);
 
-    auto* entry = celix_properties_getEntry(props, "key1");
+    const auto* entry = celix_properties_getEntry(props, "key1");
     EXPECT_EQ(CELIX_PROPERTIES_VALUE_TYPE_STRING, entry->valueType);
     EXPECT_STREQ("value1", entry->value);
     EXPECT_STREQ("value1", entry->typed.strValue);
@@ -808,7 +808,7 @@ TEST_F(PropertiesTestSuite, LongArrayListTest) {
     EXPECT_EQ(6, celix_arrayList_getLong(retrievedList4, 0));
     celix_arrayList_destroy(retrievedList4);
 
-    auto* getList = celix_properties_getLongArrayList(props, "array2");
+    const auto* getList = celix_properties_getLongArrayList(props, "array2");
     EXPECT_NE(longList2, getList);
     getList = celix_properties_getLongArrayList(props, "array3");
     EXPECT_EQ(longList3, getList);

@@ -32,7 +32,7 @@ class HashMapTestSuite : public ::testing::Test {
     /**
      * Create and fill string hash map with nrEntries entries.
      */
-    celix_string_hash_map_t* createStringHashMap(int nrEntries) {
+    static celix_string_hash_map_t* createStringHashMap(int nrEntries) {
         auto* map = celix_stringHashMap_create();
         fillStringHashMap(map, nrEntries);
         return map;
@@ -43,7 +43,7 @@ class HashMapTestSuite : public ::testing::Test {
      * i index value of the for loop.
      * This way the expected hash map entry value can be deducted from the key.
      */
-    void fillStringHashMap(celix_string_hash_map_t* map, int nrEntries) {
+    static void fillStringHashMap(celix_string_hash_map_t* map, int nrEntries) {
         for (int i = 0; i < nrEntries; ++i) {
             std::string key = "key" + std::to_string(i);
             celix_stringHashMap_putLong(map, key.c_str(), i);
@@ -68,7 +68,7 @@ class HashMapTestSuite : public ::testing::Test {
     /**
      * Create and fill long hash map with nrEntries entries.
      */
-    celix_long_hash_map_t* createLongHashMap(int nrEntries) {
+    static celix_long_hash_map_t* createLongHashMap(int nrEntries) {
         auto* map = celix_longHashMap_create();
         fillLongHashMap(map, nrEntries);
         return map;
@@ -79,7 +79,7 @@ class HashMapTestSuite : public ::testing::Test {
      * i index value of the for loop.
      * This way the expected hash map entry value can be deducted from the key.
      */
-    void fillLongHashMap(celix_long_hash_map_t* map, int nrEntries) {
+    static void fillLongHashMap(celix_long_hash_map_t* map, int nrEntries) {
         for (int i = 0; i < nrEntries; ++i) {
             celix_longHashMap_putLong(map, i, i);
             EXPECT_EQ(i, celix_longHashMap_getLong(map, i, 0));
@@ -100,7 +100,7 @@ class HashMapTestSuite : public ::testing::Test {
     }
 
 
-    void printStats(const char* keyType, const celix_hash_map_statistics_t* stats) {
+    static void printStats(const char* keyType, const celix_hash_map_statistics_t* stats) {
         printf("Hashmap statistics:\n");
         printf("|- key type: %s\n", keyType);
         printf("|- nr of entries: %zu\n", stats->nrOfEntries);
@@ -111,6 +111,7 @@ class HashMapTestSuite : public ::testing::Test {
     }
 
   private:
+    //NOLINTNEXTLINE(cert-msc32-c,cert-msc51-cpp)
     std::default_random_engine generator{};
 };
 
