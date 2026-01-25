@@ -36,9 +36,7 @@ Assume no internet connection. Request confirmation before installing system pac
 conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build
 
 # Configure CMake. using the conan generated CMakePresets.json.
-# Note explictly using Ninja generator, because the conan generated CMakePresets.json 
-# does not configure Ninja as generator
-cmake --preset conan-debug -G Ninja
+cmake --preset conan-debug
 
 # Compile:
 cmake --build build --parallel

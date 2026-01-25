@@ -10,16 +10,27 @@
     "mounts": [
         "type=volume,source=celixdev-conan-package-cache,target=/home/celixdev/.conan2/p",
         "type=volume,source=celixdev-conan-download-cache,target=/home/celixdev/.conan2/d",
-        "type=volume,source=celixdev-ccache-cache,target=/home/celixdev/.ccache",
-        "type=bind,source=${env:HOME}/.gitconfig,target=/home/celixdev/.gitconfig,consistency=cached",
-        "type=bind,source=${env:HOME}/.ssh,target=/home/celixdev/.ssh,consistency=cached"
+        "type=volume,source=celixdev-ccache-cache,target=/home/celixdev/.ccache"
     ],
+    "containerEnv": {
+        "CONAN_PROFILE": "debug",
+        "CONAN_OUT": "build",
+        "CONAN_OPTS": "--options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --options celix/*:enable_code_coverage=True",
+        "CONAN_CONF": "--conf tools.cmake.cmaketoolchain:generator=Ninja"
+    },
     "securityOpt": [
         "label=disable"
     ],
     "remoteUser": "celixdev",
     "containerUser": "celixdev",
-    "postCreateCommand": "conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --options celix/*:enable_code_coverage=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build && cmake --preset conan-debug -G Ninja",
+    "postCreateCommand": [
+        "conan install . --build missing --profile ${CONAN_PROFILE} ${CONAN_OPTS} ${CONAN_CONF} --output-folder ${CONAN_OUT}",
+        "cmake --preset conan-debug"
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
     "customizations": {
         "vscode": {
             "extensions": [
@@ -28,6 +39,9 @@
                 "matepek.vscode-catch2-test-adapter",
                 "ms-vscode.cmake-tools"
             ]
+        },
+        "jetbrains": {
+            "backend": "CLion"
         }
     }
 }

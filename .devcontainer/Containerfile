@@ -61,7 +61,7 @@ RUN userdel -r ubuntu && \
 
 RUN DEBIAN_FRONTEND="noninteractive" apt-get update && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends \
-    gnupg2 dos2unix git locales-all rsync tar ssh tzdata sudo vim cmake-curses-gui gdb \
+    gnupg2 dos2unix locales-all ssh rsync tar tzdata sudo vim cmake-curses-gui gdb \
     wget curl && \
     apt-get clean
 
