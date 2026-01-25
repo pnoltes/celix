@@ -23,10 +23,7 @@
     ],
     "remoteUser": "celixdev",
     "containerUser": "celixdev",
-    "postCreateCommand": [
-        "conan install . --build missing --profile ${CONAN_PROFILE} ${CONAN_OPTS} ${CONAN_CONF} --output-folder ${CONAN_OUT}",
-        "cmake --preset conan-debug"
-    ],
+    "postCreateCommand": "conan install . --build missing --profile ${CONAN_PROFILE} ${CONAN_OPTS} ${CONAN_CONF} --output-folder ${CONAN_OUT} && cmake --preset conan-debug",
     "features": {
         "ghcr.io/devcontainers/features/git:1": {},
         "ghcr.io/devcontainers/features/github-cli:1": {}
