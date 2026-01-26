@@ -20,10 +20,13 @@
 .section .rodata
 .global binary_test_zip_start
 .global binary_test_zip_end
-.section .rodata
+
 .balign 64
 binary_test_zip_start:
 .incbin "@TEST_ZIP_FILE@"
 .balign 64
 binary_test_zip_end:
 .byte 0
+
+/* Mark stack as non-executable */
+.section .note.GNU-stack,"",@progbits
