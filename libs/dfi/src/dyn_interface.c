@@ -67,7 +67,7 @@ static int dynInterface_checkInterface(dyn_interface_type* intf) {
     struct method_entry* mEntry = NULL;
     TAILQ_FOREACH(mEntry, &intf->methods, entries) {
         const dyn_type* type = dynFunction_returnType(mEntry->dynFunc);
-        int descriptor = dynType_descriptorType(type);
+        char descriptor = dynType_descriptorType(type);
         if (descriptor != 'N') {
             celix_err_pushf("Parse Error. Got return type '%c' rather than 'N' (native int) for method %s (%d)",
                             descriptor, mEntry->id, mEntry->index);

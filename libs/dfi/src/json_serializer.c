@@ -327,7 +327,7 @@ int jsonSerializer_serializeJson(const dyn_type* type, const void* input, json_t
 static int jsonSerializer_writeAny(const dyn_type* type, const void* input, json_t** out) {
     int status = OK;
 
-    int descriptor = dynType_descriptorType(type);
+    char descriptor = dynType_descriptorType(type);
     json_auto_t* val = NULL;
     const dyn_type* subType = NULL;
 
