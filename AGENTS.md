@@ -33,9 +33,12 @@ Assume no internet connection. Request confirmation before installing system pac
 ```bash
 
 # Install dependency and setup initial cmake files in build, including a CMakePresets.json
-conan install . --build missing --profile debug --options celix/*:build_all=True --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True --options celix/*:enable_ccache=True --conf:build tools.cmake.cmaketoolchain:generator=Ninja --output-folder build
+conan install . --build missing --profile debug --options celix/*:build_all=True \
+      --options celix/*:enable_address_sanitizer=True --options celix/*:enable_testing=True \
+      --options celix/*:enable_ccache=True --conf tools.cmake.cmaketoolchain:generator=Ninja \
+      --output-folder build
 
-# Configure CMake. using the conan generated CMakePresets.json.
+# Configure CMake. using the conan generated preset in CMakeUserPresets.json.
 cmake --preset conan-debug
 
 # Compile:

@@ -25,7 +25,7 @@ Although Apache Celix can be built using CMake with APT-installed dependencies o
 dependencies, this DevContainer setup only supports Conan.
 
 Please note, the DevContainer setup is not broadly tested and might not work on all systems.
-It has been tested on Ubuntu 23.10 and Fedora 40.
+It has been tested on MacOS 26 and Fedora 43, using podman.
 
 ## Mounts
 
@@ -36,34 +36,31 @@ even after recreating a devcontainer:
 - celixdev-conan-download-cache
 - celixdev-ccache-cache
 
-Use `podman volume rm` / `docker volume rm` to remove the volumes if you do not longer use them.
-
-The following bind mounts are used to ensure the development environment has a working git and ssh setup:
-
-- `${HOME}/.gitconfig`
-- `${HOME}/.ssh`
+Use `podman volume rm` / `docker volume rm` to remove the volumes if you do no longer use them.
 
 ## VSCode Usage
 
 VSCode has built-in support for DevContainers.
 Simply launch VSCode using the Celix workspace folder, and you will be prompted to open the workspace in a container.
 
-VSCode ensures that your host `.gitconfig` file, `.gnupg` directory, and SSH agent forwarding are available in the
-container.
+VSCode ensures that your host `.gitconfig` file and SSH agent forwarding are available in the container.
 
 ## CLion Usage
 
 CLion 2025.3.1 includes DevContainer support (including Podman), so you can open this repository directly
-using the IDE's DevContainer workflow. Once the container is built, select the Conan-generated profile
-from `CMakeUserPresets.json` in "Settings -> Build, Execution, Deployment -> CMake".
+using the IDE's DevContainer workflow. Once the container is built, enable and select the conan-debug (generated) 
+profile.
 
 ## Building
-Build can be done from the roor workspace dir:
+
+Build can be done from the root workspace dir:
+
 ```shell
 cmake --build build --parallel
 ```
 
 ## Running tests
+
 Tests can be run using ctest.
 When building with Conan, run tests from the build directory after configuring/building:
 
