@@ -52,6 +52,7 @@ jobs:
         env:
           CONAN_BUILD_OPTIONS: |
             -o celix:enable_testing=True
+            -o celix:enable_clang_tidy=False
             -o celix:build_all=True
             -o celix:enable_code_coverage=True
             -o celix:enable_testing_on_ci=True

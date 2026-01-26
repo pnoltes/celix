@@ -47,6 +47,8 @@ class CelixConan(ConanFile):
         "enable_address_sanitizer": False,
         "enable_undefined_sanitizer": False,
         "enable_thread_sanitizer": False,
+        "enable_clang_tidy": False,
+        "clang_tidy_warnings_as_errors": True,
         "enable_fuzzing": False,
         "enable_benchmarking": False,
         "install_find_modules": False,

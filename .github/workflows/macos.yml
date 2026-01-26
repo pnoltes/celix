@@ -58,6 +58,7 @@ jobs:
             -o celix/*:enable_testing=True
             -o celix/*:enable_benchmarking=True
             -o celix/*:enable_address_sanitizer=True
+            -o celix/*:enable_clang_tidy=False
             -o celix/*:build_all=True
             -o celix/*:enable_cmake_warning_tests=True
             -o celix/*:enable_testing_on_ci=True
@@ -98,6 +99,7 @@ jobs:
             -DENABLE_TESTING=ON
             -DENABLE_BENCHMARKING=ON
             -DENABLE_ADDRESS_SANITIZER=ON
+            -DENABLE_CLANG_TIDY=OFF
             -DENABLE_TESTING_ON_CI=ON
             -DCMAKE_BUILD_TYPE=Release
             -DENABLE_CCACHE=ON

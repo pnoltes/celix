@@ -80,6 +80,7 @@ jobs:
             -o celix:enable_benchmarking=True
             -o celix:enable_address_sanitizer=True
             -o celix:enable_undefined_sanitizer=True
+            -o celix:enable_clang_tidy=True
             -o celix:build_all=True
             -o celix:enable_cmake_warning_tests=True
             -o celix:enable_testing_on_ci=True
@@ -149,6 +150,7 @@ jobs:
           -DBUILD_EXPERIMENTAL=ON
           -DENABLE_TESTING=ON
           -DENABLE_BENCHMARKING=ON
+          -DENABLE_CLANG_TIDY=OFF
           -DRSA_JSON_RPC=ON
           -DRSA_REMOTE_SERVICE_ADMIN_SHM_V2=ON
           -DENABLE_TESTING_ON_CI=ON
