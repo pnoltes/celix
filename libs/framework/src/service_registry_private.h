@@ -30,7 +30,9 @@
 #include "registry_callback_private.h"
 #include "service_registry.h"
 #include "listener_hook_service.h"
+#include "find_hook_service.h"
 #include "service_reference.h"
+#include "celix_string_hash_map.h"
 
 #define CELIX_SERVICE_REGISTRY_STATIC_EVENT_QUEUE_SIZE  64
 
@@ -65,6 +67,7 @@ struct celix_serviceRegistry {
 	long nextServiceId;
 
 	celix_array_list_t *listenerHooks; //celix_service_registry_listener_hook_entry_t*
+	celix_string_hash_map_t *findHooksByServiceName; //key=serviceName, value=celix_array_list_t* with celix_service_registry_find_hook_entry_t*
 	celix_array_list_t *serviceListeners; //celix_service_registry_service_listener_entry_t*
 
 	/**
@@ -90,6 +93,15 @@ typedef struct celix_service_registry_listener_hook_entry {
     celix_thread_cond_t cond;
     unsigned int useCount;
 } celix_service_registry_listener_hook_entry_t;
+
+typedef struct celix_service_registry_find_hook_entry {
+    long svcId;
+    celix_find_hook_service_t *hook;
+    char* serviceName;
+    celix_thread_mutex_t mutex; //protects below
+    celix_thread_cond_t cond;
+    unsigned int useCount;
+} celix_service_registry_find_hook_entry_t;
 
 typedef struct celix_service_registry_service_listener_entry {
     celix_bundle_t *bundle;

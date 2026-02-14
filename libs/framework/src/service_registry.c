@@ -26,9 +26,11 @@
 #include "celix_bundle_private.h"
 #include "celix_constants.h"
 #include "celix_stdlib_cleanup.h"
+#include "celix_utils.h"
 #include "celix_version_range.h"
 #include "framework_private.h"
 #include "listener_hook_service.h"
+#include "find_hook_service.h"
 #include "service_reference_private.h"
 #include "service_registration_private.h"
 #include "service_registry_private.h"
@@ -48,6 +50,13 @@ static void serviceRegistry_callHooksForListenerFilter(service_registry_pt regis
 static void celix_waitAndDestroyHookEntry(celix_service_registry_listener_hook_entry_t *entry);
 static void celix_increaseCountHook(celix_service_registry_listener_hook_entry_t *entry);
 static void celix_decreaseCountHook(celix_service_registry_listener_hook_entry_t *entry);
+static celix_service_registry_find_hook_entry_t* celix_createFindHookEntry(long svcId, celix_find_hook_service_t *hook, const char* serviceName);
+static void celix_waitAndDestroyFindHookEntry(celix_service_registry_find_hook_entry_t *entry);
+static void celix_increaseCountFindHook(celix_service_registry_find_hook_entry_t *entry);
+static void celix_decreaseCountFindHook(celix_service_registry_find_hook_entry_t *entry);
+static celix_array_list_t* serviceRegistry_applyFindHooks(service_registry_pt registry, const char* serviceName, const celix_filter_t* filter, bool allServices, celix_array_list_t* matchedRegistrations);
+static void serviceRegistry_addFindHook(service_registry_pt registry, celix_service_registry_find_hook_entry_t* entry);
+static celix_service_registry_find_hook_entry_t* serviceRegistry_removeFindHook(service_registry_pt registry, long svcId);
 
 static void celix_increaseCountServiceListener(celix_service_registry_service_listener_entry_t *entry);
 static void celix_decreaseCountServiceListener(celix_service_registry_service_listener_entry_t *entry);
@@ -71,6 +80,7 @@ celix_service_registry_t* celix_serviceRegistry_create(framework_pt framework) {
     reg->serviceReferences = hashMap_create(NULL, NULL, NULL, NULL);
 
     reg->listenerHooks = celix_arrayList_create();
+    reg->findHooksByServiceName = celix_stringHashMap_create();
     reg->serviceListeners = celix_arrayList_create();
 
     celixThreadMutex_create(&reg->pendingRegisterEvents.mutex, NULL);
@@ -132,6 +142,19 @@ void celix_serviceRegistry_destroy(celix_service_registry_t* registry) {
         celix_waitAndDestroyHookEntry(entry);
     }
     celix_arrayList_destroy(registry->listenerHooks);
+
+    //destroy find hooks
+    for (celix_string_hash_map_iterator_t iterFind = celix_stringHashMap_begin(registry->findHooksByServiceName);
+         !celix_stringHashMapIterator_isEnd(&iterFind);
+         celix_stringHashMapIterator_next(&iterFind)) {
+        celix_array_list_t* hooks = iterFind.value.ptrValue;
+        for (int i = 0; i < celix_arrayList_size(hooks); ++i) {
+            celix_service_registry_find_hook_entry_t *entry = celix_arrayList_get(hooks, i);
+            celix_waitAndDestroyFindHookEntry(entry);
+        }
+        celix_arrayList_destroy(hooks);
+    }
+    celix_stringHashMap_destroy(registry->findHooksByServiceName);
 
     size = hashMap_size(registry->pendingRegisterEvents.map);
     assert(size == 0);
@@ -199,6 +222,18 @@ static celix_status_t serviceRegistry_registerServiceInternal(service_registry_p
     //printf("Registering service %li with name %s\n", svcId, serviceName);
     if (strcmp(OSGI_FRAMEWORK_LISTENER_HOOK_SERVICE_NAME, serviceName) == 0) {
         serviceRegistry_addHooks(registry, serviceName, serviceObject, *registration);
+    } else if (strcmp(OSGI_FRAMEWORK_FIND_HOOK_SERVICE_NAME, serviceName) == 0) {
+        celix_properties_t* props = NULL;
+        serviceRegistration_getProperties(*registration, &props);
+        const char* targetServiceName = celix_properties_get(props, CELIX_FIND_HOOK_TARGET_SERVICE_NAME, NULL);
+        if (targetServiceName == NULL || *targetServiceName == '\0') {
+            fw_log(registry->framework->logger, CELIX_LOG_LEVEL_WARNING,
+                   "Ignoring find hook service registration without '%s' property", CELIX_FIND_HOOK_TARGET_SERVICE_NAME);
+        } else {
+            long svcId = serviceRegistration_getServiceId(*registration);
+            celix_service_registry_find_hook_entry_t *entry = celix_createFindHookEntry(svcId, (celix_find_hook_service_t*)serviceObject, targetServiceName);
+            serviceRegistry_addFindHook(registry, entry);
+        }
     }
 
 	celixThreadRwlock_writeLock(&registry->lock);
@@ -241,6 +276,9 @@ static celix_status_t serviceRegistry_unregisterService(service_registry_pt regi
 
     if (strcmp(OSGI_FRAMEWORK_LISTENER_HOOK_SERVICE_NAME, svcName) == 0) {
         serviceRegistry_removeHook(registry, registration);
+    } else if (strcmp(OSGI_FRAMEWORK_FIND_HOOK_SERVICE_NAME, svcName) == 0) {
+        celix_service_registry_find_hook_entry_t *removedEntry = serviceRegistry_removeFindHook(registry, svcId);
+        celix_waitAndDestroyFindHookEntry(removedEntry);
     }
 
     celixThreadRwlock_writeLock(&registry->lock);
@@ -379,6 +417,15 @@ celix_status_t serviceRegistry_getServiceReferences(service_registry_pt registry
     celixThreadRwlock_unlock(&registry->lock);
 
     if (status == CELIX_SUCCESS) {
+        celix_autoptr(celix_array_list_t) filteredRegistrations = serviceRegistry_applyFindHooks(registry, serviceName, filter, false, matchingRegistrations);
+        if (filteredRegistrations != NULL) {
+            celix_arrayList_destroy(matchingRegistrations);
+            matchingRegistrations = celix_arrayList_create();
+            for (int j = 0; j < celix_arrayList_size(filteredRegistrations); ++j) {
+                celix_arrayList_add(matchingRegistrations, celix_arrayList_get(filteredRegistrations, j));
+            }
+        }
+
         unsigned int i;
         unsigned int size = celix_arrayList_size(matchingRegistrations);
 
@@ -885,8 +932,20 @@ celix_array_list_t* celix_serviceRegistry_findServices(
             celix_properties_t* svcProps = NULL;
             serviceRegistration_getProperties(reg, &svcProps);
             if (svcProps != NULL && celix_filter_match(filter, svcProps)) {
+                serviceRegistration_retain(reg);
                 celix_arrayList_add(matchedRegistrations, reg);
             }
+        }
+    }
+    celixThreadRwlock_unlock(&registry->lock);
+
+    celix_autoptr(celix_filter_t) filterForHook = celix_filter_create(filterStr);
+    celix_autoptr(celix_array_list_t) filteredRegistrations = serviceRegistry_applyFindHooks(registry, NULL, filterForHook, false, matchedRegistrations);
+    if (filteredRegistrations != NULL) {
+        celix_arrayList_destroy(matchedRegistrations);
+        matchedRegistrations = celix_arrayList_create();
+        for (int i = 0; i < celix_arrayList_size(filteredRegistrations); ++i) {
+            celix_arrayList_add(matchedRegistrations, celix_arrayList_get(filteredRegistrations, i));
         }
     }
 
@@ -897,8 +956,8 @@ celix_array_list_t* celix_serviceRegistry_findServices(
     for (int i = 0; i < celix_arrayList_size(matchedRegistrations); ++i) {
         service_registration_t* reg = celix_arrayList_get(matchedRegistrations, i);
         celix_arrayList_addLong(result, serviceRegistration_getServiceId(reg));
+        serviceRegistration_release(reg);
     }
-    celixThreadRwlock_unlock(&registry->lock);
 
     celix_arrayList_destroy(matchedRegistrations);
     return result;
@@ -1139,6 +1198,159 @@ static void celix_waitForPendingRegisteredEvents(celix_service_registry_t *regis
         count = (long)hashMap_get(registry->pendingRegisterEvents.map, (void*)svcId);
     }
     celixThreadMutex_unlock(&registry->pendingRegisterEvents.mutex);
+}
+
+
+static celix_array_list_t* serviceRegistry_applyFindHooks(service_registry_pt registry, const char* serviceName, const celix_filter_t* filter, bool allServices, celix_array_list_t* matchedRegistrations) {
+    celix_array_list_t *hookEntries = celix_arrayList_create();
+    celix_array_list_t *serviceInfos = celix_arrayList_create();
+    celix_array_list_t *allServiceInfos = celix_arrayList_create();
+    if (hookEntries == NULL || serviceInfos == NULL || allServiceInfos == NULL) {
+        celix_arrayList_destroy(hookEntries);
+        celix_arrayList_destroy(serviceInfos);
+        celix_arrayList_destroy(allServiceInfos);
+        return NULL;
+    }
+
+    const char* targetServiceName = serviceName != NULL ? serviceName : celix_filter_findAttribute(filter, CELIX_FRAMEWORK_SERVICE_NAME);
+    if (targetServiceName == NULL) {
+        celix_arrayList_destroy(hookEntries);
+        celix_arrayList_destroy(serviceInfos);
+        celix_arrayList_destroy(allServiceInfos);
+        return NULL;
+    }
+
+    celixThreadRwlock_readLock(&registry->lock);
+    celix_array_list_t* hooks = celix_stringHashMap_get(registry->findHooksByServiceName, targetServiceName);
+    if (hooks != NULL) {
+        for (int i = 0; i < celix_arrayList_size(hooks); ++i) {
+            celix_service_registry_find_hook_entry_t* entry = celix_arrayList_get(hooks, i);
+            celix_increaseCountFindHook(entry);
+            celix_arrayList_add(hookEntries, entry);
+        }
+    }
+    celixThreadRwlock_unlock(&registry->lock);
+
+    if (celix_arrayList_size(hookEntries) == 0) {
+        celix_arrayList_destroy(hookEntries);
+        celix_arrayList_destroy(serviceInfos);
+        celix_arrayList_destroy(allServiceInfos);
+        return NULL;
+    }
+
+    for (int i = 0; i < celix_arrayList_size(matchedRegistrations); ++i) {
+        service_registration_t* reg = celix_arrayList_get(matchedRegistrations, i);
+        celix_properties_t* props = NULL;
+        serviceRegistration_getProperties(reg, &props);
+        bundle_pt bnd = NULL;
+        serviceRegistration_getBundle(reg, &bnd);
+        celix_find_hook_service_info_t *info = calloc(1, sizeof(*info));
+        info->bundle = bnd;
+        info->properties = props;
+        info->serviceId = serviceRegistration_getServiceId(reg);
+        celix_arrayList_add(serviceInfos, info);
+        celix_arrayList_add(allServiceInfos, info);
+    }
+
+    for (int i = 0; i < celix_arrayList_size(hookEntries); ++i) {
+        celix_service_registry_find_hook_entry_t* entry = celix_arrayList_get(hookEntries, i);
+        entry->hook->find(entry->hook->handle, serviceName, filter, allServices, serviceInfos);
+        celix_decreaseCountFindHook(entry);
+    }
+
+    celix_array_list_t *result = celix_arrayList_create();
+    for (int i = 0; i < celix_arrayList_size(serviceInfos); ++i) {
+        celix_find_hook_service_info_t *info = celix_arrayList_get(serviceInfos, i);
+        for (int j = 0; j < celix_arrayList_size(matchedRegistrations); ++j) {
+            service_registration_t* reg = celix_arrayList_get(matchedRegistrations, j);
+            if (serviceRegistration_getServiceId(reg) == info->serviceId) {
+                celix_arrayList_add(result, reg);
+                break;
+            }
+        }
+    }
+
+    for (int i = 0; i < celix_arrayList_size(allServiceInfos); ++i) {
+        free(celix_arrayList_get(allServiceInfos, i));
+    }
+
+    celix_arrayList_destroy(allServiceInfos);
+    celix_arrayList_destroy(serviceInfos);
+    celix_arrayList_destroy(hookEntries);
+    return result;
+}
+
+static void serviceRegistry_addFindHook(service_registry_pt registry, celix_service_registry_find_hook_entry_t* entry) {
+    celixThreadRwlock_writeLock(&registry->lock);
+    celix_array_list_t* hooks = celix_stringHashMap_get(registry->findHooksByServiceName, entry->serviceName);
+    if (hooks == NULL) {
+        hooks = celix_arrayList_create();
+        celix_stringHashMap_put(registry->findHooksByServiceName, entry->serviceName, hooks);
+    }
+    celix_arrayList_add(hooks, entry);
+    celixThreadRwlock_unlock(&registry->lock);
+}
+
+static celix_service_registry_find_hook_entry_t* serviceRegistry_removeFindHook(service_registry_pt registry, long svcId) {
+    celix_service_registry_find_hook_entry_t* removedEntry = NULL;
+    celixThreadRwlock_writeLock(&registry->lock);
+    for (celix_string_hash_map_iterator_t iterFind = celix_stringHashMap_begin(registry->findHooksByServiceName);
+         !celix_stringHashMapIterator_isEnd(&iterFind);
+         celix_stringHashMapIterator_next(&iterFind)) {
+        celix_array_list_t* hooks = iterFind.value.ptrValue;
+        for (int i = 0; i < celix_arrayList_size(hooks); ++i) {
+            celix_service_registry_find_hook_entry_t* visit = celix_arrayList_get(hooks, i);
+            if (visit->svcId == svcId) {
+                removedEntry = visit;
+                celix_arrayList_removeAt(hooks, i);
+                if (celix_arrayList_size(hooks) == 0) {
+                    celix_arrayList_destroy(hooks);
+                    celix_stringHashMapIterator_remove(&iterFind);
+                }
+                celixThreadRwlock_unlock(&registry->lock);
+                return removedEntry;
+            }
+        }
+    }
+    celixThreadRwlock_unlock(&registry->lock);
+    return NULL;
+}
+
+static celix_service_registry_find_hook_entry_t* celix_createFindHookEntry(long svcId, celix_find_hook_service_t *hook, const char* serviceName) {
+    celix_service_registry_find_hook_entry_t* entry = calloc(1, sizeof(*entry));
+    entry->svcId = svcId;
+    entry->hook = hook;
+    entry->serviceName = celix_utils_strdup(serviceName);
+    celixThreadMutex_create(&entry->mutex, NULL);
+    celixThreadCondition_init(&entry->cond, NULL);
+    return entry;
+}
+
+static void celix_waitAndDestroyFindHookEntry(celix_service_registry_find_hook_entry_t *entry) {
+    if (entry != NULL) {
+        celixThreadMutex_lock(&entry->mutex);
+        while (entry->useCount > 0) {
+            celixThreadCondition_wait(&entry->cond, &entry->mutex);
+        }
+        celixThreadMutex_unlock(&entry->mutex);
+        celixThreadCondition_destroy(&entry->cond);
+        celixThreadMutex_destroy(&entry->mutex);
+        free(entry->serviceName);
+        free(entry);
+    }
+}
+
+static void celix_increaseCountFindHook(celix_service_registry_find_hook_entry_t *entry) {
+    celixThreadMutex_lock(&entry->mutex);
+    entry->useCount += 1;
+    celixThreadMutex_unlock(&entry->mutex);
+}
+
+static void celix_decreaseCountFindHook(celix_service_registry_find_hook_entry_t *entry) {
+    celixThreadMutex_lock(&entry->mutex);
+    entry->useCount -= 1;
+    celixThreadCondition_broadcast(&entry->cond);
+    celixThreadMutex_unlock(&entry->mutex);
 }
 
 long celix_serviceRegistry_nextSvcId(celix_service_registry_t* registry) {

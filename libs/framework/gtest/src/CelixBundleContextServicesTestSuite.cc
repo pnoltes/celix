@@ -31,6 +31,24 @@
 #include "celix_framework_factory.h"
 #include "celix_service_factory.h"
 #include "service_tracker_private.h"
+#include "find_hook_service.h"
+
+
+
+struct CelixFindHookData {
+    long removeServiceId{-1L};
+};
+
+static celix_status_t celix_bundleContextServicesTest_findHook(void* handle, const char* /*serviceName*/, const celix_filter_t* /*filter*/, bool /*allServices*/, celix_array_list_t* serviceInfos) {
+    auto* data = static_cast<CelixFindHookData*>(handle);
+    for (int i = celix_arrayList_size(serviceInfos) - 1; i >= 0; --i) {
+        auto* info = static_cast<celix_find_hook_service_info_t*>(celix_arrayList_get(serviceInfos, i));
+        if (info->serviceId == data->removeServiceId) {
+            celix_arrayList_removeAt(serviceInfos, i);
+        }
+    }
+    return CELIX_SUCCESS;
+}
 
 class CelixBundleContextServicesTestSuite : public ::testing::Test {
 public:
@@ -1276,6 +1294,44 @@ TEST_F(CelixBundleContextServicesTestSuite, FindServicesTest) {
     foundId = celix_bundleContext_findServiceWithOptions(ctx, &opts);
     ASSERT_EQ(foundId, svcId2); //only one left
 
+    celix_bundleContext_unregisterService(ctx, svcId2);
+}
+
+TEST_F(CelixBundleContextServicesTestSuite, FindHookFiltersFindServicesAndGetServiceReferences) {
+    long svcId1 = celix_bundleContext_registerService(ctx, (void*)0x100, "example", nullptr);
+    long svcId2 = celix_bundleContext_registerService(ctx, (void*)0x101, "example", nullptr);
+    ASSERT_GE(svcId1, 0);
+    ASSERT_GE(svcId2, 0);
+
+    CelixFindHookData data{};
+    data.removeServiceId = svcId1;
+    celix_find_hook_service_t hook{};
+    hook.handle = &data;
+    hook.find = celix_bundleContextServicesTest_findHook;
+
+    celix_properties_t* hookProps = celix_properties_create();
+    celix_properties_set(hookProps, CELIX_FIND_HOOK_TARGET_SERVICE_NAME, "example");
+    long hookSvcId = celix_bundleContext_registerService(ctx, &hook, OSGI_FRAMEWORK_FIND_HOOK_SERVICE_NAME, hookProps);
+    ASSERT_GE(hookSvcId, 0);
+
+    long foundId = celix_bundleContext_findService(ctx, "example");
+    EXPECT_EQ(svcId2, foundId);
+
+    celix_array_list_t* foundServices = celix_bundleContext_findServices(ctx, "example");
+    ASSERT_NE(nullptr, foundServices);
+    ASSERT_EQ(1, celix_arrayList_size(foundServices));
+    EXPECT_EQ(svcId2, celix_arrayList_getLong(foundServices, 0));
+    celix_arrayList_destroy(foundServices);
+
+    service_reference_pt ref = nullptr;
+    celix_status_t status = bundleContext_getServiceReference(ctx, "example", &ref);
+    EXPECT_EQ(CELIX_SUCCESS, status);
+    ASSERT_NE(nullptr, ref);
+    EXPECT_EQ(svcId2, serviceReference_getServiceId(ref));
+    bundleContext_ungetServiceReference(ctx, ref);
+
+    celix_bundleContext_unregisterService(ctx, hookSvcId);
+    celix_bundleContext_unregisterService(ctx, svcId1);
     celix_bundleContext_unregisterService(ctx, svcId2);
 }
 
