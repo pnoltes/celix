@@ -28,3 +28,4 @@ add_celix_container(hello_world_c_container
         Celix::shell_tui
         hello_world_c
 )
+

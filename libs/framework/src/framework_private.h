@@ -21,6 +21,7 @@
 #define FRAMEWORK_PRIVATE_H_
 
 #include <stdbool.h>
+#include <time.h>
 
 #include "celix_framework.h"
 #include "framework.h"
@@ -163,6 +164,9 @@ struct celix_framework {
 
 
     celix_properties_t* configurationMap;
+    struct timespec createdAtRealTime;
+    struct timespec startedAtRealTime;
+    struct timespec startedAtMonotonic;
 
 
     struct {

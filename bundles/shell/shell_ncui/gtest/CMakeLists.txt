@@ -15,8 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-add_subdirectory(shell)
-add_subdirectory(shell_tui)
-add_subdirectory(shell_wui)
-add_subdirectory(shell_ncui)
-add_subdirectory(remote_shell)
+add_executable(test_shell_ncui
+        src/ShellNcuiTestSuite.cc
+)
+
+target_link_libraries(test_shell_ncui PRIVATE Celix::framework GTest::gtest GTest::gtest_main)
+add_celix_bundle_dependencies(test_shell_ncui Celix::shell Celix::shell_ncui)
+target_compile_definitions(test_shell_ncui PRIVATE -DSHELL_BUNDLE_LOCATION=\"$<TARGET_PROPERTY:shell,BUNDLE_FILE>\")
+target_compile_definitions(test_shell_ncui PRIVATE -DSHELL_NCUI_BUNDLE_LOCATION=\"$<TARGET_PROPERTY:shell_ncui,BUNDLE_FILE>\")
+
+add_test(NAME test_shell_ncui COMMAND test_shell_ncui)
+setup_target_for_coverage(test_shell_ncui SCAN_DIR ..)

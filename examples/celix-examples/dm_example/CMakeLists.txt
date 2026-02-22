@@ -39,3 +39,18 @@ add_celix_container(dm_example
         PROP3=val3
 )
 
+if (TARGET Celix::shell_ncui)
+    add_celix_container(dm_example_ncui
+        C
+        NO_COPY
+        GROUP c_examples
+        BUNDLES
+            Celix::shell
+            Celix::shell_ncui
+
+            dm_example_phase1
+            dm_example_phase2a
+            dm_example_phase2b
+            dm_example_phase3
+    )
+endif ()

@@ -21,6 +21,7 @@
 #define CELIX_FRAMEWORK_H_
 
 #include <stdarg.h>
+#include <time.h>
 
 #include "celix_types.h"
 #include "celix_properties.h"
@@ -55,6 +56,18 @@ extern "C" {
  * restarted.
  */
 CELIX_FRAMEWORK_EXPORT const char* celix_framework_getUUID(const celix_framework_t *fw);
+
+/**
+ * @brief Returns the wall clock startup timestamp for the framework.
+ * Returns {0,0} if unavailable.
+ */
+CELIX_FRAMEWORK_EXPORT struct timespec celix_framework_getStartTime(const celix_framework_t *fw);
+
+/**
+ * @brief Returns the framework uptime in seconds.
+ * Returns 0.0 if unavailable.
+ */
+CELIX_FRAMEWORK_EXPORT double celix_framework_getUptimeInSeconds(const celix_framework_t *fw);
 
 /**
  * @brief Returns the framework bundle context. This is the same as a 'normal' bundle context and can be used to register, use

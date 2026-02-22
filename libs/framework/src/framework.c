@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
 
@@ -246,6 +247,7 @@ celix_status_t framework_create(framework_pt *out, celix_properties_t* config) {
     framework->installRequestMap = hashMap_create(utils_stringHash, utils_stringHash, utils_stringEquals, utils_stringEquals);
     framework->installedBundles.entries = celix_arrayList_create();
     framework->configurationMap = config; //note form now on celix_framework_getConfigProperty* can be used
+    clock_gettime(CLOCK_REALTIME, &framework->createdAtRealTime);
     framework->bundleListeners = celix_arrayList_create();
     framework->frameworkListeners = celix_arrayList_create();
     framework->dispatcher.eventQueueCap = (int)celix_framework_getConfigPropertyAsLong(framework, CELIX_FRAMEWORK_STATIC_EVENT_QUEUE_SIZE, CELIX_FRAMEWORK_DEFAULT_STATIC_EVENT_QUEUE_SIZE, NULL);
@@ -457,6 +459,10 @@ celix_status_t framework_start(celix_framework_t* framework) {
 
     status = CELIX_DO_IF(status, fw_init(framework));
     status = CELIX_DO_IF(status, bundle_setState(framework->bundle, CELIX_BUNDLE_STATE_ACTIVE));
+    if (status == CELIX_SUCCESS) {
+        clock_gettime(CLOCK_REALTIME, &framework->startedAtRealTime);
+        clock_gettime(CLOCK_MONOTONIC, &framework->startedAtMonotonic);
+    }
 
     if (status != CELIX_SUCCESS) {
         fw_log(framework->logger, CELIX_LOG_LEVEL_ERROR, "Could not initialize framework");
@@ -1812,6 +1818,29 @@ const char* celix_framework_getUUID(const celix_framework_t *fw) {
     return NULL;
 }
 
+struct timespec celix_framework_getStartTime(const celix_framework_t *fw) {
+    struct timespec ts = {0, 0};
+    if (fw != NULL) {
+        ts = fw->startedAtRealTime;
+    }
+    return ts;
+}
+
+double celix_framework_getUptimeInSeconds(const celix_framework_t *fw) {
+    if (fw == NULL || fw->startedAtMonotonic.tv_sec == 0) {
+        return 0.0;
+    }
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    time_t sec = now.tv_sec - fw->startedAtMonotonic.tv_sec;
+    long nsec = now.tv_nsec - fw->startedAtMonotonic.tv_nsec;
+    if (nsec < 0) {
+        sec -= 1;
+        nsec += 1000000000L;
+    }
+    return (double)sec + ((double)nsec / 1e9);
+}
+
 
 celix_bundle_context_t* celix_framework_getFrameworkContext(const celix_framework_t *fw) {
     celix_bundle_context_t* ctx = NULL;
@@ -2717,4 +2746,3 @@ void celix_framework_waitForStop(celix_framework_t *framework) {
 
     celixThreadMutex_unlock(&framework->shutdown.mutex);
 }
-
