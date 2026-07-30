@@ -21,16 +21,19 @@
 
 #include "celix_array_list.h"
 #include "celix_err.h"
+#include "celix_properties.h"
+#include "celix_properties_ei.h"
 #include "celix_utils_ei.h"
 #include "celix_version_ei.h"
 #include "malloc_ei.h"
 
 class ArrayListErrorInjectionTestSuite : public ::testing::Test {
-public:
+  public:
     ArrayListErrorInjectionTestSuite() = default;
     ~ArrayListErrorInjectionTestSuite() noexcept override {
         celix_ei_expect_realloc(nullptr, 0, nullptr);
         celix_ei_expect_calloc(nullptr, 0, nullptr);
+        celix_ei_expect_celix_properties_copy(nullptr, 0, nullptr);
         celix_ei_expect_celix_utils_strdup(nullptr, 0, nullptr);
         celix_ei_expect_celix_version_copy(nullptr, 0, nullptr);
         celix_err_resetErrors();
@@ -38,52 +41,50 @@ public:
 };
 
 TEST_F(ArrayListErrorInjectionTestSuite, CreateTest) {
-    //Given an error is injected for calloc (used for the array struct)
-    celix_ei_expect_calloc((void *)celix_arrayList_createWithOptions, 0, nullptr);
-    //Then creating an array list should fail
+    // Given an error is injected for calloc (used for the array struct)
+    celix_ei_expect_calloc((void*)celix_arrayList_createWithOptions, 0, nullptr);
+    // Then creating an array list should fail
     EXPECT_EQ(nullptr, celix_arrayList_create());
-    //And an error is logged to the celix_err
+    // And an error is logged to the celix_err
     EXPECT_EQ(1, celix_err_getErrorCount());
 
-    //Given an error is injected for malloc (used for the element data)
-    celix_ei_expect_calloc((void *)celix_arrayList_createWithOptions, 0, nullptr, 2);
-    //Then creating an array list should fail
+    // Given an error is injected for malloc (used for the element data)
+    celix_ei_expect_calloc((void*)celix_arrayList_createWithOptions, 0, nullptr, 2);
+    // Then creating an array list should fail
     EXPECT_EQ(nullptr, celix_arrayList_create());
-    //And an error is logged to the celix_err
+    // And an error is logged to the celix_err
     EXPECT_EQ(2, celix_err_getErrorCount());
 }
-
 
 TEST_F(ArrayListErrorInjectionTestSuite, AddFunctionsTest) {
     // Given an array list with a capacity of 10 (whitebox knowledge) and with an entry than needs to be freed when
     // removed.
     celix_autoptr(celix_array_list_t) list = celix_arrayList_createStringArray();
 
-    //When adding 10 elements, no error is expected
+    // When adding 10 elements, no error is expected
     for (int i = 0; i < 10; ++i) {
         EXPECT_EQ(CELIX_SUCCESS, celix_arrayList_addString(list, "test"));
     }
     EXPECT_EQ(10, celix_arrayList_size(list));
 
-    //And realloc is primed to fail
+    // And realloc is primed to fail
     celix_ei_expect_realloc(CELIX_EI_UNKNOWN_CALLER, 1, nullptr);
 
-    //Then adding an element should fail
+    // Then adding an element should fail
     EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addString(list, "fail"));
     EXPECT_EQ(10, celix_arrayList_size(list));
-    //And an error is logged to the celix_err
+    // And an error is logged to the celix_err
     EXPECT_EQ(1, celix_err_getErrorCount());
 }
 
 TEST_F(ArrayListErrorInjectionTestSuite, AddPointerTest) {
     celix_array_list_create_options_t opts{};
     opts.elementType = CELIX_ARRAY_LIST_ELEMENT_TYPE_POINTER;
-    opts.removedCallback = [](void *, celix_array_list_entry_t) {
-    };
+    opts.removedCallback = [](void*, celix_array_list_entry_t) {};
     // Given a pointer array list
     celix_autoptr(celix_array_list_t) pointerList = celix_arrayList_createWithOptions(&opts);
 
-    //When adding 10 elements, no error is expected
+    // When adding 10 elements, no error is expected
     for (int i = 0; i < 10; ++i) {
         EXPECT_EQ(CELIX_SUCCESS, celix_arrayList_add(pointerList, (void*)1));
     }
@@ -94,7 +95,7 @@ TEST_F(ArrayListErrorInjectionTestSuite, AddPointerTest) {
     // Then adding a pointer should fail
     EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_add(pointerList, (void*)1));
     EXPECT_EQ(10, celix_arrayList_size(pointerList));
-    //And an error is logged to the celix_err
+    // And an error is logged to the celix_err
     EXPECT_EQ(1, celix_err_getErrorCount());
 }
 
@@ -161,7 +162,6 @@ TEST_F(ArrayListErrorInjectionTestSuite, CopyArrayListFailureTest) {
     EXPECT_EQ(3, celix_err_getErrorCount());
 }
 
-
 TEST_F(ArrayListErrorInjectionTestSuite, InitialCapacityOptionUsed) {
     celix_array_list_create_options_t opts{};
     opts.elementType = CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING;
@@ -176,4 +176,63 @@ TEST_F(ArrayListErrorInjectionTestSuite, InitialCapacityOptionUsed) {
 
     // Second add triggers reallocation and fails
     EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addString(list, "v2"));
+}
+
+TEST_F(ArrayListErrorInjectionTestSuite, AddStructuredValuesFailureTest) {
+    celix_autoptr(celix_array_list_t) propertiesList = celix_arrayList_createPropertiesArray();
+    celix_autoptr(celix_properties_t) properties = celix_properties_create();
+    ASSERT_NE(nullptr, propertiesList);
+    ASSERT_NE(nullptr, properties);
+
+    celix_ei_expect_celix_properties_copy((void*)celix_arrayList_addProperties, 0, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addProperties(propertiesList, properties));
+    EXPECT_EQ(0, celix_arrayList_size(propertiesList));
+
+    celix_autoptr(celix_array_list_t) nestedList = celix_arrayList_createArrayListArray();
+    celix_autoptr(celix_array_list_t) child = celix_arrayList_createLongArray();
+    ASSERT_NE(nullptr, nestedList);
+    ASSERT_NE(nullptr, child);
+
+    celix_ei_expect_calloc((void*)celix_arrayList_copy, 1, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addArrayList(nestedList, child));
+    EXPECT_EQ(0, celix_arrayList_size(nestedList));
+}
+
+TEST_F(ArrayListErrorInjectionTestSuite, AddVariantFailuresLeaveListUnchanged) {
+    celix_autoptr(celix_array_list_t) variants = celix_arrayList_createVariantArray();
+    ASSERT_NE(nullptr, variants);
+
+    celix_array_list_variant_t value{};
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_LONG;
+    value.value.longValue = 42L;
+    celix_ei_expect_calloc(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addVariant(variants, &value));
+    EXPECT_EQ(0, celix_arrayList_size(variants));
+
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_STRING;
+    value.value.stringValue = "value";
+    celix_ei_expect_celix_utils_strdup(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addVariant(variants, &value));
+    EXPECT_EQ(0, celix_arrayList_size(variants));
+
+    celix_autoptr(celix_version_t) version = celix_version_create(1, 0, 0, nullptr);
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION;
+    value.value.versionValue = version;
+    celix_ei_expect_celix_version_copy(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addVariant(variants, &value));
+    EXPECT_EQ(0, celix_arrayList_size(variants));
+
+    celix_autoptr(celix_properties_t) properties = celix_properties_create();
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES;
+    value.value.propertiesValue = properties;
+    celix_ei_expect_celix_properties_copy(CELIX_EI_UNKNOWN_CALLER, 0, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addVariant(variants, &value));
+    EXPECT_EQ(0, celix_arrayList_size(variants));
+
+    celix_autoptr(celix_array_list_t) nested = celix_arrayList_createLongArray();
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST;
+    value.value.arrayListValue = nested;
+    celix_ei_expect_calloc((void*)celix_arrayList_copy, 1, nullptr);
+    EXPECT_EQ(CELIX_ENOMEM, celix_arrayList_addVariant(variants, &value));
+    EXPECT_EQ(0, celix_arrayList_size(variants));
 }

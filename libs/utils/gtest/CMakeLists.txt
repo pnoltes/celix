@@ -130,6 +130,7 @@ if (EI_TESTS)
     target_link_libraries(test_utils_array_list_with_ei PRIVATE
             utils_cut
             Celix::malloc_ei
+            Celix::properties_ei
             Celix::utils_ei
             Celix::version_ei
             GTest::gtest GTest::gtest_main

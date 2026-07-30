@@ -20,13 +20,15 @@
 #include <gtest/gtest.h>
 
 #include "celix_array_list.h"
-#include "celix_version.h"
+#include "celix_err.h"
+#include "celix_filter.h"
+#include "celix_properties.h"
 #include "celix_stdlib_cleanup.h"
 #include "celix_utils.h"
-#include "celix_filter.h"
+#include "celix_version.h"
 
 class ArrayListTestSuite : public ::testing::Test {
-public:
+  public:
 };
 
 TEST_F(ArrayListTestSuite, CreateDestroyArrayListTest) {
@@ -52,7 +54,7 @@ TEST_F(ArrayListTestSuite, ArrayListWithEqualsTest) {
     celix_arrayList_add(list, (void*)"val3");
     EXPECT_EQ(celix_arrayList_size(list), 4);
 
-    //std string to ensure pointer is different.
+    // std string to ensure pointer is different.
     std::string val0{"val0"};
     std::string val1{"val1"};
     std::string val2{"val2"};
@@ -74,34 +76,34 @@ TEST_F(ArrayListTestSuite, ArrayListWithEqualsTest) {
     EXPECT_EQ(celix_arrayList_indexOf(list, entry), 3);
     memset(&entry, 0, sizeof(entry));
     entry.voidPtrVal = (void*)val4.c_str();
-    EXPECT_EQ(celix_arrayList_indexOf(list, entry), -1); //note present
+    EXPECT_EQ(celix_arrayList_indexOf(list, entry), -1); // note present
 
-    celix_arrayList_remove(list, (void*)val2.c_str()); //index 3
-    celix_arrayList_removeAt(list, 0); //val0
+    celix_arrayList_remove(list, (void*)val2.c_str()); // index 3
+    celix_arrayList_removeAt(list, 0);                 // val0
     EXPECT_EQ(celix_arrayList_size(list), 2);
     EXPECT_STREQ((char*)celix_arrayList_get(list, 0), "val1");
     EXPECT_STREQ((char*)celix_arrayList_get(list, 1), "val3");
 }
 
-template<typename T>
+template <typename T>
 void testArrayListForTemplateType(const std::vector<T>& entries,
                                   const std::function<celix_array_list_t*()>& create,
                                   const std::function<celix_status_t(celix_array_list_t*, T)>& add,
                                   const std::function<T(celix_array_list_t*, int)>& get,
                                   const std::function<void(celix_array_list_t*, T)>& remove) {
     auto* list = create();
-    //fill
+    // fill
     for (const auto& entry : entries) {
         add(list, entry);
     }
     EXPECT_EQ(celix_arrayList_size(list), entries.size());
 
-    //get
+    // get
     for (int i = 0; i < (int)entries.size(); ++i) {
         EXPECT_EQ(get(list, i), entries[i]);
     }
 
-    //remove
+    // remove
     for (int i = 0; i < (int)entries.size(); ++i) {
         remove(list, entries[i]);
     }
@@ -149,7 +151,7 @@ TEST_F(ArrayListTestSuite, StringArrayList) {
 
     EXPECT_EQ(3, celix_arrayList_size(stringList));
     EXPECT_STREQ("1", celix_arrayList_getString(stringList, 0));
-    EXPECT_NE((void*)str1, (void*)celix_arrayList_getString(stringList, 0)); //string is added as copy
+    EXPECT_NE((void*)str1, (void*)celix_arrayList_getString(stringList, 0)); // string is added as copy
     EXPECT_STREQ("2", celix_arrayList_getString(stringList, 1));
     EXPECT_STREQ("3", celix_arrayList_getString(stringList, 2));
 
@@ -160,8 +162,8 @@ TEST_F(ArrayListTestSuite, StringArrayList) {
 TEST_F(ArrayListTestSuite, VersionArrayList) {
     celix_autoptr(celix_array_list_t) versionList = celix_arrayList_createVersionArray();
     celix_version_t* v1 = celix_version_create(1, 2, 3, "a");
-    celix_arrayList_addVersion(versionList, v1); //copy
-    celix_arrayList_assignVersion(versionList, v1); //transfer ownership
+    celix_arrayList_addVersion(versionList, v1);    // copy
+    celix_arrayList_assignVersion(versionList, v1); // transfer ownership
     celix_arrayList_assignVersion(versionList, celix_version_create(2, 3, 4, "b"));
 
     EXPECT_EQ(3, celix_arrayList_size(versionList));
@@ -169,12 +171,142 @@ TEST_F(ArrayListTestSuite, VersionArrayList) {
     EXPECT_EQ(0, celix_version_compareToMajorMinor(celix_arrayList_getVersion(versionList, 1), 1, 2));
     EXPECT_EQ(0, celix_version_compareToMajorMinor(celix_arrayList_getVersion(versionList, 2), 2, 3));
 
-    EXPECT_NE((void*)v1, (void*)celix_arrayList_getVersion(versionList, 0)); //version is added as copy
-    EXPECT_EQ((void*)v1, (void*)celix_arrayList_getVersion(versionList, 1)); //version is added as reference
+    EXPECT_NE((void*)v1, (void*)celix_arrayList_getVersion(versionList, 0)); // version is added as copy
+    EXPECT_EQ((void*)v1, (void*)celix_arrayList_getVersion(versionList, 1)); // version is added as reference
 
     celix_autoptr(celix_version_t) vRef = celix_version_create(1, 2, 3, "a");
     celix_arrayList_removeVersion(versionList, vRef);
     EXPECT_EQ(2, celix_arrayList_size(versionList));
+}
+
+static_assert(sizeof(celix_array_list_entry_t) == sizeof(void*), "celix_array_list_entry_t must remain pointer-sized");
+
+TEST_F(ArrayListTestSuite, StructuredArrayListsOwnCopyAndCompareValues) {
+    celix_autoptr(celix_array_list_t) propertiesList = celix_arrayList_createPropertiesArray();
+    celix_autoptr(celix_properties_t) properties = celix_properties_create();
+    ASSERT_NE(nullptr, propertiesList);
+    ASSERT_NE(nullptr, properties);
+    ASSERT_EQ(CELIX_SUCCESS, celix_properties_setLong(properties, "answer", 42L));
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addProperties(propertiesList, properties));
+
+    auto* assignedProperties = celix_properties_create();
+    ASSERT_NE(nullptr, assignedProperties);
+    ASSERT_EQ(CELIX_SUCCESS, celix_properties_set(assignedProperties, "name", "assigned"));
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_assignProperties(propertiesList, assignedProperties));
+
+    ASSERT_EQ(2, celix_arrayList_size(propertiesList));
+    EXPECT_NE(properties, celix_arrayList_getProperties(propertiesList, 0));
+    EXPECT_EQ(42L, celix_properties_getLong(celix_arrayList_getProperties(propertiesList, 0), "answer", 0L));
+    EXPECT_STREQ("assigned", celix_properties_get(celix_arrayList_getProperties(propertiesList, 1), "name", nullptr));
+    EXPECT_EQ(nullptr, celix_arrayList_getProperties(propertiesList, 2));
+
+    celix_autoptr(celix_array_list_t) propertiesCopy = celix_arrayList_copy(propertiesList);
+    ASSERT_NE(nullptr, propertiesCopy);
+    EXPECT_TRUE(celix_arrayList_equals(propertiesList, propertiesCopy));
+    EXPECT_NE(celix_arrayList_getProperties(propertiesList, 0), celix_arrayList_getProperties(propertiesCopy, 0));
+    celix_arrayList_removeAt(propertiesCopy, 0);
+    EXPECT_FALSE(celix_arrayList_equals(propertiesList, propertiesCopy));
+    celix_arrayList_clear(propertiesCopy);
+    EXPECT_EQ(0, celix_arrayList_size(propertiesCopy));
+
+    celix_autoptr(celix_array_list_t) nestedList = celix_arrayList_createArrayListArray();
+    celix_autoptr(celix_array_list_t) child = celix_arrayList_createLongArray();
+    ASSERT_NE(nullptr, nestedList);
+    ASSERT_NE(nullptr, child);
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addLong(child, 1L));
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addArrayList(nestedList, child));
+
+    auto* assignedChild = celix_arrayList_createStringArray();
+    ASSERT_NE(nullptr, assignedChild);
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addString(assignedChild, "nested"));
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_assignArrayList(nestedList, assignedChild));
+
+    ASSERT_EQ(2, celix_arrayList_size(nestedList));
+    EXPECT_NE(child, celix_arrayList_getArrayList(nestedList, 0));
+    EXPECT_EQ(1L, celix_arrayList_getLong(celix_arrayList_getArrayList(nestedList, 0), 0));
+    EXPECT_STREQ("nested", celix_arrayList_getString(celix_arrayList_getArrayList(nestedList, 1), 0));
+    EXPECT_EQ(nullptr, celix_arrayList_getArrayList(nestedList, 2));
+
+    celix_autoptr(celix_array_list_t) nestedCopy = celix_arrayList_copy(nestedList);
+    ASSERT_NE(nullptr, nestedCopy);
+    EXPECT_TRUE(celix_arrayList_equals(nestedList, nestedCopy));
+    EXPECT_NE(celix_arrayList_getArrayList(nestedList, 0), celix_arrayList_getArrayList(nestedCopy, 0));
+
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_arrayList_addArrayList(nestedList, nestedList));
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_arrayList_assignArrayList(nestedList, nestedList));
+    celix_err_resetErrors();
+
+    EXPECT_STREQ("Properties", celix_arrayList_elementTypeToString(CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES));
+    EXPECT_STREQ("ArrayList", celix_arrayList_elementTypeToString(CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST));
+}
+
+TEST_F(ArrayListTestSuite, VariantArrayOwnsEverySupportedValueType) {
+    celix_autoptr(celix_array_list_t) variants = celix_arrayList_createVariantArray();
+    celix_autoptr(celix_version_t) version = celix_version_create(1, 2, 3, "qualifier");
+    celix_autoptr(celix_properties_t) properties = celix_properties_create();
+    celix_autoptr(celix_array_list_t) nested = celix_arrayList_createLongArray();
+    ASSERT_NE(nullptr, variants);
+    ASSERT_NE(nullptr, version);
+    ASSERT_NE(nullptr, properties);
+    ASSERT_NE(nullptr, nested);
+    ASSERT_EQ(CELIX_SUCCESS, celix_properties_setLong(properties, "three", 3L));
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addLong(nested, 5L));
+
+    celix_array_list_variant_t value{};
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_NULL;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_STRING;
+    value.value.stringValue = "one";
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_LONG;
+    value.value.longValue = 2L;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE;
+    value.value.doubleValue = 2.5;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL;
+    value.value.boolValue = true;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION;
+    value.value.versionValue = version;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES;
+    value.value.propertiesValue = properties;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST;
+    value.value.arrayListValue = nested;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(variants, &value));
+
+    ASSERT_EQ(8, celix_arrayList_size(variants));
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_NULL, celix_arrayList_getVariant(variants, 0)->type);
+    EXPECT_STREQ("one", celix_arrayList_getVariant(variants, 1)->value.stringValue);
+    EXPECT_EQ(2L, celix_arrayList_getVariant(variants, 2)->value.longValue);
+    EXPECT_DOUBLE_EQ(2.5, celix_arrayList_getVariant(variants, 3)->value.doubleValue);
+    EXPECT_TRUE(celix_arrayList_getVariant(variants, 4)->value.boolValue);
+    EXPECT_EQ(0, celix_version_compareTo(version, celix_arrayList_getVariant(variants, 5)->value.versionValue));
+    EXPECT_EQ(3L,
+              celix_properties_getLong(celix_arrayList_getVariant(variants, 6)->value.propertiesValue, "three", 0L));
+    EXPECT_EQ(5L, celix_arrayList_getLong(celix_arrayList_getVariant(variants, 7)->value.arrayListValue, 0));
+    EXPECT_EQ(nullptr, celix_arrayList_getVariant(variants, 8));
+
+    celix_autoptr(celix_array_list_t) copy = celix_arrayList_copy(variants);
+    ASSERT_NE(nullptr, copy);
+    EXPECT_TRUE(celix_arrayList_equals(variants, copy));
+    EXPECT_NE(celix_arrayList_getVariant(variants, 1)->value.stringValue,
+              celix_arrayList_getVariant(copy, 1)->value.stringValue);
+    EXPECT_NE(celix_arrayList_getVariant(variants, 6)->value.propertiesValue,
+              celix_arrayList_getVariant(copy, 6)->value.propertiesValue);
+    EXPECT_NE(celix_arrayList_getVariant(variants, 7)->value.arrayListValue,
+              celix_arrayList_getVariant(copy, 7)->value.arrayListValue);
+
+    value.type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST;
+    value.value.arrayListValue = variants;
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_arrayList_addVariant(variants, &value));
+    celix_err_resetErrors();
+
+    celix_arrayList_sort(variants);
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_NULL, celix_arrayList_getVariant(variants, 0)->type);
+    EXPECT_STREQ("Variant", celix_arrayList_elementTypeToString(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT));
 }
 
 TEST_F(ArrayListTestSuite, SortTypedArrayListsTest) {
@@ -191,7 +323,6 @@ TEST_F(ArrayListTestSuite, SortTypedArrayListsTest) {
     celix_arrayList_addString(stringList, "1");
     celix_arrayList_addString(stringList, "2");
     celix_arrayList_addString(stringList, "1");
-
 
     celix_autoptr(celix_array_list_t) longList = celix_arrayList_createLongArray();
     celix_arrayList_addLong(longList, 3L);
@@ -266,35 +397,34 @@ TEST_F(ArrayListTestSuite, SortTypedArrayListsTest) {
 }
 
 TEST_F(ArrayListTestSuite, EqualCheckTest) {
-    //Given a selection of long list and a double list
+    // Given a selection of long list and a double list
     celix_autoptr(celix_array_list_t) list1 = celix_arrayList_createLongArray();
     celix_arrayList_addLong(list1, 1L);
-    celix_autoptr(celix_array_list_t) list2 = celix_arrayList_createLongArray(); //same as list1
+    celix_autoptr(celix_array_list_t) list2 = celix_arrayList_createLongArray(); // same as list1
     celix_arrayList_addLong(list2, 1L);
-    celix_autoptr(celix_array_list_t) list3 = celix_arrayList_createLongArray(); //different values than list1
+    celix_autoptr(celix_array_list_t) list3 = celix_arrayList_createLongArray(); // different values than list1
     celix_arrayList_addLong(list3, 2L);
-    celix_autoptr(celix_array_list_t) list4 = celix_arrayList_createLongArray(); //different size than list1
+    celix_autoptr(celix_array_list_t) list4 = celix_arrayList_createLongArray(); // different size than list1
     celix_arrayList_addLong(list4, 1L);
     celix_arrayList_addLong(list4, 2L);
-    celix_autoptr(celix_array_list_t) list5 = celix_arrayList_createDoubleArray(); //different type than list1
+    celix_autoptr(celix_array_list_t) list5 = celix_arrayList_createDoubleArray(); // different type than list1
     celix_arrayList_addDouble(list5, 1.0);
 
     // And 2 custom pointer list, with different equals callbacks
     celix_array_list_create_options_t opts{};
     opts.elementType = CELIX_ARRAY_LIST_ELEMENT_TYPE_POINTER;
     opts.equalsCallback = [](celix_array_list_entry_t, celix_array_list_entry_t) -> bool {
-        return true; //dummy equals callback
+        return true; // dummy equals callback
     };
     celix_autoptr(celix_array_list_t) list6 = celix_arrayList_createWithOptions(&opts);
     celix_arrayList_add(list6, (void*)1);
     opts.equalsCallback = [](celix_array_list_entry_t, celix_array_list_entry_t) -> bool {
-        return false; //dummy equals callback
+        return false; // dummy equals callback
     };
     celix_autoptr(celix_array_list_t) list7 = celix_arrayList_createWithOptions(&opts);
     celix_arrayList_add(list7, (void*)1);
 
-
-    //The lists can be checked for equality
+    // The lists can be checked for equality
     EXPECT_TRUE(celix_arrayList_equals(list1, list2));
     EXPECT_TRUE(celix_arrayList_equals(list1, list1));
     EXPECT_TRUE(celix_arrayList_equals(nullptr, nullptr));
@@ -372,12 +502,12 @@ TEST_F(ArrayListTestSuite, SimpleRemovedCallbacksForArrayListTest) {
     celix_array_list_create_options_t opts{};
     opts.simpleRemovedCallback = free;
     auto* list = celix_arrayList_createWithOptions(&opts);
-    celix_arrayList_add(list, (void*) celix_utils_strdup("value"));
-    celix_arrayList_add(list, (void*) celix_utils_strdup("value"));
-    celix_arrayList_add(list, (void*) celix_utils_strdup("value"));
-    celix_arrayList_add(list, (void*) celix_utils_strdup("value"));
+    celix_arrayList_add(list, (void*)celix_utils_strdup("value"));
+    celix_arrayList_add(list, (void*)celix_utils_strdup("value"));
+    celix_arrayList_add(list, (void*)celix_utils_strdup("value"));
+    celix_arrayList_add(list, (void*)celix_utils_strdup("value"));
     EXPECT_EQ(celix_arrayList_size(list), 4);
-    celix_arrayList_destroy(list); //will call free for every entry
+    celix_arrayList_destroy(list); // will call free for every entry
 }
 
 TEST_F(ArrayListTestSuite, AddStringToArrayListOfUndefinedTypeTest) {
@@ -389,28 +519,26 @@ TEST_F(ArrayListTestSuite, AddStringToArrayListOfUndefinedTypeTest) {
     celix_arrayList_addString(list, celix_utils_strdup("value"));
     celix_arrayList_addString(list, celix_utils_strdup("value"));
     EXPECT_EQ(celix_arrayList_size(list), 4);
-    celix_arrayList_destroy(list); //will call free for every entry
+    celix_arrayList_destroy(list); // will call free for every entry
 }
 
 TEST_F(ArrayListTestSuite, AddVersionToArrayListOfUndefinedTypeTest) {
     celix_array_list_create_options_t opts{};
-    opts.simpleRemovedCallback = [](void* data) {
-        celix_version_destroy((celix_version_t*)data);
-    };
+    opts.simpleRemovedCallback = [](void* data) { celix_version_destroy((celix_version_t*)data); };
     auto* list = celix_arrayList_createWithOptions(&opts);
     celix_arrayList_addVersion(list, celix_version_create(1, 3, 0, nullptr));
     celix_arrayList_addVersion(list, celix_version_create(1, 3, 0, nullptr));
     celix_arrayList_addVersion(list, celix_version_create(1, 3, 0, nullptr));
     celix_arrayList_addVersion(list, celix_version_create(1, 3, 0, nullptr));
     EXPECT_EQ(celix_arrayList_size(list), 4);
-    celix_arrayList_destroy(list); //will call free for every entry
+    celix_arrayList_destroy(list); // will call free for every entry
 }
 
 TEST_F(ArrayListTestSuite, RemovedCallbacksForArrayListTest) {
-    int count = 0 ;
+    int count = 0;
     celix_array_list_create_options_t opts{};
     opts.removedCallbackData = &count;
-    opts.removedCallback = [](void *data, celix_array_list_entry_t entry) {
+    opts.removedCallback = [](void* data, celix_array_list_entry_t entry) {
         int* c = (int*)data;
         if (entry.longVal == 1 || entry.longVal == 2 || entry.longVal == 3 || entry.longVal == 4) {
             (*c)++;
@@ -422,12 +550,11 @@ TEST_F(ArrayListTestSuite, RemovedCallbacksForArrayListTest) {
     celix_arrayList_addLong(list, 3);
     celix_arrayList_addLong(list, 4);
     EXPECT_EQ(celix_arrayList_size(list), 4);
-    celix_arrayList_clear(list); //will call removed callback for every entry
+    celix_arrayList_clear(list); // will call removed callback for every entry
     EXPECT_EQ(count, 4);
     EXPECT_EQ(celix_arrayList_size(list), 0);
 
     celix_arrayList_destroy(list);
-
 }
 
 TEST_F(ArrayListTestSuite, SortForArrayListTest) {
@@ -440,7 +567,6 @@ TEST_F(ArrayListTestSuite, SortForArrayListTest) {
     EXPECT_EQ(celix_arrayList_getLong(list, 1), 2);
     EXPECT_EQ(celix_arrayList_getLong(list, 2), 1);
     EXPECT_EQ(celix_arrayList_getLong(list, 3), 4);
-
 
     celix_array_list_compare_entries_fp sort = [](celix_array_list_entry_t a, celix_array_list_entry_t b) -> int {
         return a.longVal - b.longVal;
@@ -459,7 +585,7 @@ TEST_F(ArrayListTestSuite, ReturnStatusAddFunctionsTest) {
     ASSERT_TRUE(list != nullptr);
     EXPECT_EQ(0, celix_arrayList_size(list));
 
-    //no error, return status is CELIX_SUCCESS
+    // no error, return status is CELIX_SUCCESS
     EXPECT_EQ(CELIX_SUCCESS, celix_arrayList_addLong(list, 2L));
     EXPECT_EQ(1, celix_arrayList_size(list));
 

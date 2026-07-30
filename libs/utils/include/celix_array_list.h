@@ -22,6 +22,7 @@
 #include "celix_array_list_type.h"
 #include "celix_cleanup.h"
 #include "celix_errno.h"
+#include "celix_properties_type.h"
 #include "celix_utils_export.h"
 #include "celix_version_type.h"
 
@@ -33,8 +34,7 @@
  */
 #ifdef __cplusplus
 #define CELIX_OPTS_INIT                                                                                                \
-    {                                                                                                                  \
-    }
+    {}
 #else
 #define CELIX_OPTS_INIT
 #endif
@@ -59,8 +59,43 @@ typedef enum celix_array_list_element_type {
     CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG = 3,   /**< Represents a long integer element type. */
     CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE = 4, /**< Represents a double element type. */
     CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL = 5,   /**< Represents a boolean element type. */
-    CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION = 6, /**< Represents a celix_version_t* element type. */
+    CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION = 6,    /**< Represents a celix_version_t* element type. */
+    CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES = 7, /**< Represents an owned celix_properties_t* element type. */
+    CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST = 8, /**< Represents an owned nested celix_array_list_t* element type. */
+    CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT = 9,    /**< Represents an owned heterogeneous variant element type. */
 } celix_array_list_element_type_t;
+
+/**
+ * @enum celix_array_list_variant_type_e
+ * @brief The value types supported by a heterogeneous Celix array list.
+ */
+typedef enum celix_array_list_variant_type {
+    CELIX_ARRAY_LIST_VARIANT_TYPE_NULL,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_STRING,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_LONG,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES,
+    CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST,
+} celix_array_list_variant_type_e;
+
+/**
+ * @struct celix_array_list_variant_t
+ * @brief A borrowed description of one value in a heterogeneous array list.
+ */
+typedef struct celix_array_list_variant {
+    celix_array_list_variant_type_e type;
+    union {
+        const char* stringValue;
+        long longValue;
+        double doubleValue;
+        bool boolValue;
+        const celix_version_t* versionValue;
+        const celix_properties_t* propertiesValue;
+        const celix_array_list_t* arrayListValue;
+    } value;
+} celix_array_list_variant_t;
 
 /**
  * @union celix_array_list_entry
@@ -80,8 +115,11 @@ typedef union celix_array_list_entry {
                               CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED. */
     bool boolVal;          /**< A boolean value when the element type is CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL or
                               CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED. */
-    const celix_version_t* versionVal; /**< A celix_version_t* value when the element type is
-                                   CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION or CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED. */
+    const celix_version_t* versionVal;            /**< A celix_version_t* value when the element type is
+                                              CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION or CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED. */
+    const celix_properties_t* propertiesVal;      /**< An owned properties value. */
+    const celix_array_list_t* arrayListVal;       /**< An owned nested array-list value. */
+    const celix_array_list_variant_t* variantVal; /**< An owned separately allocated variant value. */
 } celix_array_list_entry_t;
 
 /**
@@ -184,6 +222,18 @@ celix_array_list_t* celix_arrayList_createBoolArray();
 CELIX_UTILS_EXPORT
 celix_array_list_t* celix_arrayList_createVersionArray();
 
+/** @brief Creates an owning array list for nested properties values. */
+CELIX_UTILS_EXPORT
+celix_array_list_t* celix_arrayList_createPropertiesArray(void);
+
+/** @brief Creates an owning array list for nested array-list values. */
+CELIX_UTILS_EXPORT
+celix_array_list_t* celix_arrayList_createArrayListArray(void);
+
+/** @brief Creates an owning heterogeneous variant array list. */
+CELIX_UTILS_EXPORT
+celix_array_list_t* celix_arrayList_createVariantArray(void);
+
 /**
  * Additional create options when creating a array list.
  */
@@ -253,14 +303,9 @@ typedef struct celix_array_list_create_options {
  */
 #define CELIX_EMPTY_ARRAY_LIST_CREATE_OPTIONS                                                                          \
     {                                                                                                                  \
-        .elementType = CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED,                                                        \
-        .simpleRemovedCallback = NULL,                                                                                 \
-        .removedCallbackData = NULL,                                                                                   \
-        .removedCallback = NULL,                                                                                       \
-        .equalsCallback = NULL,                                                                                        \
-        .compareCallback = NULL,                                                                                       \
-        .copyCallback = NULL,                                                                                          \
-        .initialCapacity = 0,                                                                                          \
+        .elementType = CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED, .simpleRemovedCallback = NULL,                         \
+        .removedCallbackData = NULL, .removedCallback = NULL, .equalsCallback = NULL, .compareCallback = NULL,         \
+        .copyCallback = NULL, .initialCapacity = 0,                                                                    \
     }
 #endif
 
@@ -379,6 +424,18 @@ bool celix_arrayList_getBool(const celix_array_list_t* list, int index);
  */
 CELIX_UTILS_EXPORT
 const celix_version_t* celix_arrayList_getVersion(const celix_array_list_t* list, int index);
+
+/** @brief Returns a borrowed, read-only properties value, or NULL for an invalid index. */
+CELIX_UTILS_EXPORT
+const celix_properties_t* celix_arrayList_getProperties(const celix_array_list_t* list, int index);
+
+/** @brief Returns a borrowed, read-only nested array list, or NULL for an invalid index. */
+CELIX_UTILS_EXPORT
+const celix_array_list_t* celix_arrayList_getArrayList(const celix_array_list_t* list, int index);
+
+/** @brief Returns a borrowed, read-only variant value, or NULL for an invalid index. */
+CELIX_UTILS_EXPORT
+const celix_array_list_variant_t* celix_arrayList_getVariant(const celix_array_list_t* list, int index);
 
 /**
  * @brief Returns the entry for the provided index.
@@ -520,6 +577,26 @@ celix_status_t celix_arrayList_addVersion(celix_array_list_t* list, const celix_
  */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_assignVersion(celix_array_list_t* list, celix_version_t* value);
+
+/** @brief Deep-copies and appends a properties value. */
+CELIX_UTILS_EXPORT
+celix_status_t celix_arrayList_addProperties(celix_array_list_t* list, const celix_properties_t* value);
+
+/** @brief Appends and takes ownership of a properties value, also on insertion failure. */
+CELIX_UTILS_EXPORT
+celix_status_t celix_arrayList_assignProperties(celix_array_list_t* list, celix_properties_t* value);
+
+/** @brief Deep-copies and appends a nested array list. Direct self-insertion is rejected. */
+CELIX_UTILS_EXPORT
+celix_status_t celix_arrayList_addArrayList(celix_array_list_t* list, const celix_array_list_t* value);
+
+/** @brief Appends and takes ownership of a nested array list. Direct self-insertion is rejected. */
+CELIX_UTILS_EXPORT
+celix_status_t celix_arrayList_assignArrayList(celix_array_list_t* list, celix_array_list_t* value);
+
+/** @brief Deep-copies and appends a borrowed variant value. */
+CELIX_UTILS_EXPORT
+celix_status_t celix_arrayList_addVariant(celix_array_list_t* list, const celix_array_list_variant_t* value);
 
 /**
  * @brief Returns the index of the provided entry, if found.

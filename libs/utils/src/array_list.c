@@ -24,6 +24,7 @@
 
 #include "celix_array_list.h"
 #include "celix_err.h"
+#include "celix_properties.h"
 #include "celix_stdlib_cleanup.h"
 #include "celix_utils.h"
 #include "celix_version.h"
@@ -35,6 +36,9 @@
 #define STRING_VALUE_DOUBLE_EL_TYPE "Double"
 #define STRING_VALUE_BOOL_EL_TYPE "Bool"
 #define STRING_VALUE_VERSION_EL_TYPE "Version"
+#define STRING_VALUE_PROPERTIES_EL_TYPE "Properties"
+#define STRING_VALUE_ARRAY_LIST_EL_TYPE "ArrayList"
+#define STRING_VALUE_VARIANT_EL_TYPE "Variant"
 
 struct celix_array_list {
     celix_array_list_element_type_t elementType;
@@ -130,6 +134,158 @@ static void celix_arrayList_destroyVersion(void* v) {
     celix_version_destroy(version);
 }
 
+static void celix_arrayList_destroyProperties(void* value) { celix_properties_destroy(value); }
+
+static void celix_arrayList_destroyArrayList(void* value) { celix_arrayList_destroy(value); }
+
+static void celix_arrayList_destroyVariant(void* value) {
+    celix_array_list_variant_t* variant = value;
+    if (!variant) {
+        return;
+    }
+    switch (variant->type) {
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        free((char*)variant->value.stringValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION:
+        celix_version_destroy((celix_version_t*)variant->value.versionValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES:
+        celix_properties_destroy((celix_properties_t*)variant->value.propertiesValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
+        celix_arrayList_destroy((celix_array_list_t*)variant->value.arrayListValue);
+        break;
+    default:
+        break;
+    }
+    free(variant);
+}
+
+static celix_status_t celix_arrayList_copyVariantValue(const celix_array_list_variant_t* src,
+                                                       celix_array_list_variant_t** dst) {
+    celix_array_list_variant_t* copy = calloc(1, sizeof(*copy));
+    if (!copy) {
+        celix_err_push("Failed to allocate memory for variant array-list entry");
+        return CELIX_ENOMEM;
+    }
+    copy->type = src->type;
+    celix_status_t status = CELIX_SUCCESS;
+    switch (src->type) {
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_NULL:
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        if (!src->value.stringValue) {
+            status = CELIX_ILLEGAL_ARGUMENT;
+            break;
+        }
+        copy->value.stringValue = celix_utils_strdup(src->value.stringValue);
+        status = copy->value.stringValue ? CELIX_SUCCESS : CELIX_ENOMEM;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_LONG:
+        copy->value.longValue = src->value.longValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE:
+        copy->value.doubleValue = src->value.doubleValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL:
+        copy->value.boolValue = src->value.boolValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION:
+        if (!src->value.versionValue) {
+            status = CELIX_ILLEGAL_ARGUMENT;
+            break;
+        }
+        copy->value.versionValue = celix_version_copy(src->value.versionValue);
+        status = copy->value.versionValue ? CELIX_SUCCESS : CELIX_ENOMEM;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES:
+        if (!src->value.propertiesValue) {
+            status = CELIX_ILLEGAL_ARGUMENT;
+            break;
+        }
+        copy->value.propertiesValue = celix_properties_copy(src->value.propertiesValue);
+        status = copy->value.propertiesValue ? CELIX_SUCCESS : CELIX_ENOMEM;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
+        if (!src->value.arrayListValue) {
+            status = CELIX_ILLEGAL_ARGUMENT;
+            break;
+        }
+        copy->value.arrayListValue = celix_arrayList_copy(src->value.arrayListValue);
+        status = copy->value.arrayListValue ? CELIX_SUCCESS : CELIX_ENOMEM;
+        break;
+    default:
+        status = CELIX_ILLEGAL_ARGUMENT;
+        break;
+    }
+    if (status != CELIX_SUCCESS) {
+        if (status == CELIX_ILLEGAL_ARGUMENT) {
+            celix_err_push("Invalid variant array-list entry");
+        }
+        celix_arrayList_destroyVariant(copy);
+        return status;
+    }
+    *dst = copy;
+    return CELIX_SUCCESS;
+}
+
+static celix_status_t celix_arrayList_copyPropertiesEntry(celix_array_list_entry_t src, celix_array_list_entry_t* dst) {
+    dst->propertiesVal = celix_properties_copy(src.propertiesVal);
+    return dst->propertiesVal ? CELIX_SUCCESS : CELIX_ENOMEM;
+}
+
+static celix_status_t celix_arrayList_copyArrayListEntry(celix_array_list_entry_t src, celix_array_list_entry_t* dst) {
+    dst->arrayListVal = celix_arrayList_copy(src.arrayListVal);
+    return dst->arrayListVal ? CELIX_SUCCESS : CELIX_ENOMEM;
+}
+
+static celix_status_t celix_arrayList_copyVariantEntry(celix_array_list_entry_t src, celix_array_list_entry_t* dst) {
+    celix_array_list_variant_t* copy = NULL;
+    celix_status_t status = celix_arrayList_copyVariantValue(src.variantVal, &copy);
+    dst->variantVal = copy;
+    return status;
+}
+
+static bool celix_arrayList_propertiesEquals(celix_array_list_entry_t a, celix_array_list_entry_t b) {
+    return celix_properties_equals(a.propertiesVal, b.propertiesVal);
+}
+
+static bool celix_arrayList_arrayListEquals(celix_array_list_entry_t a, celix_array_list_entry_t b) {
+    return celix_arrayList_equals(a.arrayListVal, b.arrayListVal);
+}
+
+static bool celix_arrayList_variantEquals(celix_array_list_entry_t a, celix_array_list_entry_t b) {
+    const celix_array_list_variant_t* va = a.variantVal;
+    const celix_array_list_variant_t* vb = b.variantVal;
+    if (va == vb) {
+        return true;
+    }
+    if (!va || !vb || va->type != vb->type) {
+        return false;
+    }
+    switch (va->type) {
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_NULL:
+        return true;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        return celix_utils_stringEquals(va->value.stringValue, vb->value.stringValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_LONG:
+        return va->value.longValue == vb->value.longValue;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE:
+        return va->value.doubleValue == vb->value.doubleValue;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL:
+        return va->value.boolValue == vb->value.boolValue;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION:
+        return celix_version_compareTo(va->value.versionValue, vb->value.versionValue) == 0;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES:
+        return celix_properties_equals(va->value.propertiesValue, vb->value.propertiesValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
+        return celix_arrayList_equals(va->value.arrayListValue, vb->value.arrayListValue);
+    default:
+        return false;
+    }
+}
+
 static void celix_arrayList_callRemovedCallback(celix_array_list_t* list, int index) {
     celix_array_list_entry_t entry = list->elementData[index];
     if (list->simpleRemovedCallback != NULL) {
@@ -184,6 +340,22 @@ static void celix_arrayList_setTypeSpecificCallbacks(celix_array_list_t* list) {
         list->equalsCallback = celix_arrayList_versionEquals;
         list->compareCallback = celix_arrayList_compareVersionEntries;
         list->copyCallback = celix_arrayList_copyVersionEntry;
+        break;
+
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES:
+        list->simpleRemovedCallback = celix_arrayList_destroyProperties;
+        list->equalsCallback = celix_arrayList_propertiesEquals;
+        list->copyCallback = celix_arrayList_copyPropertiesEntry;
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST:
+        list->simpleRemovedCallback = celix_arrayList_destroyArrayList;
+        list->equalsCallback = celix_arrayList_arrayListEquals;
+        list->copyCallback = celix_arrayList_copyArrayListEntry;
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT:
+        list->simpleRemovedCallback = celix_arrayList_destroyVariant;
+        list->equalsCallback = celix_arrayList_variantEquals;
+        list->copyCallback = celix_arrayList_copyVariantEntry;
         break;
     default:
         assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED);
@@ -264,6 +436,18 @@ celix_array_list_t* celix_arrayList_createVersionArray() {
     return celix_arrayList_createTypedArray(CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION);
 }
 
+celix_array_list_t* celix_arrayList_createPropertiesArray(void) {
+    return celix_arrayList_createTypedArray(CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES);
+}
+
+celix_array_list_t* celix_arrayList_createArrayListArray(void) {
+    return celix_arrayList_createTypedArray(CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST);
+}
+
+celix_array_list_t* celix_arrayList_createVariantArray(void) {
+    return celix_arrayList_createTypedArray(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT);
+}
+
 void celix_arrayList_destroy(celix_array_list_t* list) {
     if (list != NULL) {
         celix_arrayList_clear(list);
@@ -324,6 +508,21 @@ bool celix_arrayList_getBool(const celix_array_list_t* list, int index) {
 const celix_version_t* celix_arrayList_getVersion(const celix_array_list_t* list, int index) {
     assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION);
     return arrayList_getEntry(list, index).versionVal;
+}
+
+const celix_properties_t* celix_arrayList_getProperties(const celix_array_list_t* list, int index) {
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES);
+    return arrayList_getEntry(list, index).propertiesVal;
+}
+
+const celix_array_list_t* celix_arrayList_getArrayList(const celix_array_list_t* list, int index) {
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST);
+    return arrayList_getEntry(list, index).arrayListVal;
+}
+
+const celix_array_list_variant_t* celix_arrayList_getVariant(const celix_array_list_t* list, int index) {
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT);
+    return arrayList_getEntry(list, index).variantVal;
 }
 
 static celix_status_t celix_arrayList_addEntry(celix_array_list_t* list, celix_array_list_entry_t entry) {
@@ -426,6 +625,64 @@ celix_status_t celix_arrayList_assignVersion(celix_array_list_t* list, celix_ver
     celix_array_list_entry_t entry;
     memset(&entry, 0, sizeof(entry));
     entry.versionVal = value;
+    return celix_arrayList_addEntry(list, entry);
+}
+
+celix_status_t celix_arrayList_addProperties(celix_array_list_t* list, const celix_properties_t* value) {
+    assert(value);
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES);
+    celix_properties_t* copy = celix_properties_copy(value);
+    if (!copy) {
+        return CELIX_ENOMEM;
+    }
+    return celix_arrayList_assignProperties(list, copy);
+}
+
+celix_status_t celix_arrayList_assignProperties(celix_array_list_t* list, celix_properties_t* value) {
+    assert(value);
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES);
+    celix_array_list_entry_t entry = {.propertiesVal = value};
+    return celix_arrayList_addEntry(list, entry);
+}
+
+celix_status_t celix_arrayList_addArrayList(celix_array_list_t* list, const celix_array_list_t* value) {
+    assert(value);
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST);
+    if (list == value) {
+        celix_err_push("Cannot add an array list to itself");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    celix_array_list_t* copy = celix_arrayList_copy(value);
+    if (!copy) {
+        return CELIX_ENOMEM;
+    }
+    return celix_arrayList_assignArrayList(list, copy);
+}
+
+celix_status_t celix_arrayList_assignArrayList(celix_array_list_t* list, celix_array_list_t* value) {
+    assert(value);
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST);
+    if (list == value) {
+        celix_err_push("Cannot assign an array list to itself");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    celix_array_list_entry_t entry = {.arrayListVal = value};
+    return celix_arrayList_addEntry(list, entry);
+}
+
+celix_status_t celix_arrayList_addVariant(celix_array_list_t* list, const celix_array_list_variant_t* value) {
+    assert(value);
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT);
+    if (value->type == CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST && value->value.arrayListValue == list) {
+        celix_err_push("Cannot add an array list to itself through a variant");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    celix_array_list_variant_t* copy = NULL;
+    celix_status_t status = celix_arrayList_copyVariantValue(value, &copy);
+    if (status != CELIX_SUCCESS) {
+        return status;
+    }
+    celix_array_list_entry_t entry = {.variantVal = copy};
     return celix_arrayList_addEntry(list, entry);
 }
 
@@ -626,6 +883,13 @@ const char* celix_arrayList_elementTypeToString(celix_array_list_element_type_t 
         return STRING_VALUE_BOOL_EL_TYPE;
     case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION:
         return STRING_VALUE_VERSION_EL_TYPE;
+
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES:
+        return STRING_VALUE_PROPERTIES_EL_TYPE;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST:
+        return STRING_VALUE_ARRAY_LIST_EL_TYPE;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT:
+        return STRING_VALUE_VARIANT_EL_TYPE;
     default:
         return STRING_VALUE_UNDEFINED_EL_TYPE;
     }

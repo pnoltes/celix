@@ -40,13 +40,13 @@
 
 #include <stdio.h>
 
-#include "celix_properties_type.h"
+#include "celix_array_list.h"
 #include "celix_cleanup.h"
 #include "celix_compiler.h"
 #include "celix_errno.h"
+#include "celix_properties_type.h"
 #include "celix_utils_export.h"
 #include "celix_version.h"
-#include "celix_array_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,6 +67,8 @@ typedef enum celix_properties_value_type {
               CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING, CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG,
               CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE, CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL or
               CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION. */
+    CELIX_PROPERTIES_VALUE_TYPE_NULL = 7,       /**< Property value is JSON null. */
+    CELIX_PROPERTIES_VALUE_TYPE_PROPERTIES = 8, /**< Property value is a nested properties object. */
 } celix_properties_value_type_e;
 
 /**
@@ -85,10 +87,11 @@ typedef struct celix_properties_entry {
         const celix_version_t* versionValue; /**< The Celix version value of the entry. */
         const celix_array_list_t*
             arrayValue; /**< The array list of longs, doubles, bools, strings or versions value of the entry. */
-    } typed;            /**< The typed values of the entry. Only valid if valueType
-                             is not CELIX_PROPERTIES_VALUE_TYPE_UNSET and only the matching
-                             value types should be used. E.g typed.boolValue if valueType is
-                             CELIX_PROPERTIES_VALUE_TYPE_BOOL. */
+        const celix_properties_t* propertiesValue; /**< The nested properties value of the entry. */
+    } typed;                                       /**< The typed values of the entry. Only valid if valueType
+                                                        is not CELIX_PROPERTIES_VALUE_TYPE_UNSET and only the matching
+                                                        value types should be used. E.g typed.boolValue if valueType is
+                                                        CELIX_PROPERTIES_VALUE_TYPE_BOOL. */
 } celix_properties_entry_t;
 
 /**
@@ -137,7 +140,7 @@ CELIX_DEFINE_AUTOPTR_CLEANUP_FUNC(celix_properties_t, celix_properties_destroy)
  * @return The entry for the given key, or a NULL if the key is not found.
  */
 CELIX_UTILS_EXPORT const celix_properties_entry_t* celix_properties_getEntry(const celix_properties_t* properties,
-                                                                       const char* key);
+                                                                             const char* key);
 
 /**
  * @brief Get the string value or string representation of a property.
@@ -205,9 +208,7 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_set(celix_properties_t* prope
  *         and CELIX_ILLEGAL_ARGUMENT if the provided key or value is NULL.
  *         When an error status is returned, the key and value will be freed by this function.
  */
-CELIX_UTILS_EXPORT celix_status_t celix_properties_assign(celix_properties_t* properties,
-                                                                  char* key,
-                                                                  char* value);
+CELIX_UTILS_EXPORT celix_status_t celix_properties_assign(celix_properties_t* properties, char* key, char* value);
 
 /**
  * @brief Get the value of a property, if the property is set and the underlying type is a string.
@@ -215,8 +216,7 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_assign(celix_properties_t* pr
  * @param[in] key The key of the property to get.
  * @return The value of the property, or NULL if the property is not set or the value is not of the requested type.
  */
-CELIX_UTILS_EXPORT const char*
-celix_properties_getString(const celix_properties_t* properties, const char* key);
+CELIX_UTILS_EXPORT const char* celix_properties_getString(const celix_properties_t* properties, const char* key);
 
 /**
  * @brief Get the string value or string representation of a property.
@@ -465,9 +465,29 @@ CELIX_UTILS_EXPORT const celix_version_t* celix_properties_getVersion(const celi
  *        version. Note if the key is not found, the return status is still CELIX_SUCCESS.
  */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_getAsVersion(const celix_properties_t* properties,
-                                                                  const char* key,
-                                                                  const celix_version_t* defaultValue,
-                                                                  celix_version_t** version);
+                                                                const char* key,
+                                                                const celix_version_t* defaultValue,
+                                                                celix_version_t** version);
+
+/** Store a JSON null value. */
+CELIX_UTILS_EXPORT celix_status_t celix_properties_setNull(celix_properties_t* properties, const char* key);
+
+/** Return true if key exists and stores a JSON null value. */
+CELIX_UTILS_EXPORT bool celix_properties_isNull(const celix_properties_t* properties, const char* key);
+
+/** Deep-copy and store a nested properties object. */
+CELIX_UTILS_EXPORT celix_status_t celix_properties_setProperties(celix_properties_t* properties,
+                                                                 const char* key,
+                                                                 const celix_properties_t* value);
+
+/** Take ownership of and store a nested properties object. */
+CELIX_UTILS_EXPORT celix_status_t celix_properties_assignProperties(celix_properties_t* properties,
+                                                                    const char* key,
+                                                                    celix_properties_t* value);
+
+/** Return a borrowed, read-only nested properties object or NULL. */
+CELIX_UTILS_EXPORT const celix_properties_t* celix_properties_getProperties(const celix_properties_t* properties,
+                                                                            const char* key);
 
 /**
  * @brief Set a pointer, long, double, bool, string or version array list array for a property value.
@@ -547,7 +567,8 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getArrayList(const
  *
  * @param[in] properties The property set to search.
  * @param[in] key The key of the property to get.
- * @param[in] defaultValue The default value to return if the property is not set or its value is not an array of longs.
+ * @param[in] defaultValue The default value to return if the property is not set or its value is not an array of
+ * longs.
  * @param[out] list A copy of the found list, a new array list with long values or a copy of the default value if the
  *                 property is not set, its value is not an array of longs or its value cannot be converted to an array
  *                 of longs.
@@ -558,9 +579,9 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getArrayList(const
  *            In this case an error message is also logged to celix_err.
  */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_getAsLongArrayList(const celix_properties_t* properties,
-                                                                  const char* key,
-                                                                  const celix_array_list_t* defaultValue,
-                                                                  celix_array_list_t** list);
+                                                                      const char* key,
+                                                                      const celix_array_list_t* defaultValue,
+                                                                      celix_array_list_t** list);
 
 /**
  * @brief Get the property value as an array of longs without copying.
@@ -576,15 +597,15 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_getAsLongArrayList(const celi
  *         is not set or its value is not an array of longs. The returned pointer should not be modified or freed.
  */
 CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getLongArrayList(const celix_properties_t* properties,
-                                                                            const char* key);
+                                                                               const char* key);
 
 /**
  * @brief Get a property value as an array of doubles, making a copy of the array.
  *
  * This function retrieves the value of a property, interpreting it as an array of doubles. If the underlying type of
- * the property value is a double array, a copy of the array is returned. If the underlying type is a string, the string
- * is converted to an array of doubles if possible. If the property is not set, its value is not an array of doubles or
- * its value cannot be converted to a double array, the default value is returned as a copy.
+ * the property value is a double array, a copy of the array is returned. If the underlying type is a string, the
+ * string is converted to an array of doubles if possible. If the property is not set, its value is not an array of
+ * doubles or its value cannot be converted to a double array, the default value is returned as a copy.
  *
  * @param[in] properties The property set to search.
  * @param[in] key The key of the property to get.
@@ -596,8 +617,8 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getLongArrayList(c
  * @return CELIX_SUCCESS if the operation was successful. Note if the key is not found or the value cannot be converted
  * to an array of doubles, the return status is still CELIX_SUCCESS.
  * @returnval CELIX_ENOMEM if there was not enough memory to create the array list.
- * @returnval CELIX_ILLEGAL_ARGUMENT if the provided default value is not NULL and not an array list with double values.
- *            In this case an error message is also logged to celix_err.
+ * @returnval CELIX_ILLEGAL_ARGUMENT if the provided default value is not NULL and not an array list with double
+ * values. In this case an error message is also logged to celix_err.
  */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_getAsDoubleArrayList(const celix_properties_t* properties,
                                                                         const char* key,
@@ -634,9 +655,9 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getDoubleArrayList
  * @param[in] key The key of the property to get.
  * @param[in] defaultValue The default value to return if the property is not set or its value is not an array of
  * booleans.
- * @param[out] list A copy of the found list, a new array list with boolean values or a copy of the default value if the
- *                 property is not set, its value is not an array of booleans or its value cannot be converted to an
- * array of booleans.
+ * @param[out] list A copy of the found list, a new array list with boolean values or a copy of the default value if
+ * the property is not set, its value is not an array of booleans or its value cannot be converted to an array of
+ * booleans.
  * @return CELIX_SUCCESS if the operation was successful. Note if the key is not found or the value cannot be converted
  * to an array of booleans, the return status is still CELIX_SUCCESS.
  * @returnval CELIX_ENOMEM if there was not enough memory to create the array list.
@@ -667,9 +688,9 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getBoolArrayList(c
  * @brief Get a property value as an array of strings, making a copy of the array.
  *
  * This function retrieves the value of a property, interpreting it as an array of strings. If the underlying type of
- * the property value is a string array, a copy of the array is returned. If the underlying type is a string, the string
- * is converted to an array of strings if possible. If the property is not set, its value is not an array of strings or
- *  its value cannot be converted to a string array, the default value is returned as a copy.
+ * the property value is a string array, a copy of the array is returned. If the underlying type is a string, the
+ * string is converted to an array of strings if possible. If the property is not set, its value is not an array of
+ * strings or its value cannot be converted to a string array, the default value is returned as a copy.
  *
  * The returned array list is configured with a remove callback so that the destruction of the array list will also
  * free the strings in the array list.
@@ -686,8 +707,8 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getBoolArrayList(c
  * @return CELIX_SUCCESS if the operation was successful. Note if the key is not found or the value cannot be converted
  * to an array of strings, the return status is still CELIX_SUCCESS.
  * @returnval CELIX_ENOMEM if there was not enough memory to create the array list.
- * @returnval CELIX_ILLEGAL_ARGUMENT if the provided default value is not NULL and not an array list with string values.
- *            In this case an error message is also logged to celix_err.
+ * @returnval CELIX_ILLEGAL_ARGUMENT if the provided default value is not NULL and not an array list with string
+ * values. In this case an error message is also logged to celix_err.
  */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_getAsStringArrayList(const celix_properties_t* properties,
                                                                         const char* key,
@@ -714,10 +735,10 @@ CELIX_UTILS_EXPORT const celix_array_list_t* celix_properties_getStringArrayList
  *
  *
  * This function retrieves the value of a property, interpreting it as an array of celix_version_t* entries. If the
- * underlying type of the property value is a celix_version_t* array, a copy of the array is returned. If the underlying
- * type is a string, the string is converted to an array of celix_version_t* if possible. If the property is not set,
- * its value is not an array of celix_version_t* entries or its value cannot be converted to a celix_version_t* array,
- * the default value is returned as a copy.
+ * underlying type of the property value is a celix_version_t* array, a copy of the array is returned. If the
+ * underlying type is a string, the string is converted to an array of celix_version_t* if possible. If the property is
+ * not set, its value is not an array of celix_version_t* entries or its value cannot be converted to a
+ * celix_version_t* array, the default value is returned as a copy.
  *
  * The returned array list is configured with a remove callback so that the destruction of the array list will also
  * free the celix_version_t entries in the array list.
@@ -885,6 +906,41 @@ CELIX_UTILS_EXPORT bool celix_propertiesIterator_equals(const celix_properties_i
     for (celix_properties_iterator_t iterName = celix_properties_begin((props));                                       \
          !celix_propertiesIterator_isEnd(&(iterName));                                                                 \
          celix_propertiesIterator_next(&(iterName)))
+/**
+ * Validate a JSONPath expression supported by Celix.
+ * Intended primarily for tests and for validating user-provided paths once before use.
+ */
+CELIX_UTILS_EXPORT bool celix_properties_checkPath(const char* path);
+
+CELIX_UTILS_EXPORT const char* celix_properties_getStringByPath(const celix_properties_t*, const char*, const char*);
+CELIX_UTILS_EXPORT long celix_properties_getLongByPath(const celix_properties_t*, const char*, long);
+CELIX_UTILS_EXPORT double celix_properties_getDoubleByPath(const celix_properties_t*, const char*, double);
+CELIX_UTILS_EXPORT bool celix_properties_getBoolByPath(const celix_properties_t*, const char*, bool);
+CELIX_UTILS_EXPORT const celix_version_t*
+celix_properties_getVersionByPath(const celix_properties_t*, const char*, const celix_version_t*);
+CELIX_UTILS_EXPORT const celix_properties_t*
+celix_properties_getPropertiesByPath(const celix_properties_t*, const char*, const celix_properties_t*);
+CELIX_UTILS_EXPORT const celix_array_list_t*
+celix_properties_getArrayListByPath(const celix_properties_t*, const char*, const celix_array_list_t*);
+
+CELIX_UTILS_EXPORT bool celix_properties_hasPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasStringPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasLongPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasDoublePath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasBoolPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasVersionPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasPropertiesPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasArrayListPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT bool celix_properties_hasNullPath(const celix_properties_t*, const char*);
+
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllStringsByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllLongsByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllDoublesByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllBoolsByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllVersionsByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllPropertiesByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllArrayListsByPath(const celix_properties_t*, const char*);
+CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const celix_properties_t*, const char*);
 
 /**
  * @brief Flag to indicate that the encoded output should be pretty; e.g. encoded with additional whitespaces,
@@ -916,8 +972,8 @@ CELIX_UTILS_EXPORT bool celix_propertiesIterator_equals(const celix_properties_i
 #define CELIX_PROPERTIES_ENCODE_FLAT_STYLE 0x02
 
 /**
- * @brief Flag to indicate that the encoded output should be nested; e.g. properties entries are split on '/' and nested
- * in JSON objects.
+ * @brief Flag to indicate that the encoded output should be nested; e.g. properties entries are split on '/' and
+ * nested in JSON objects.
  *
  * E.g:
  * @code{.c}
@@ -1009,7 +1065,8 @@ CELIX_UTILS_EXPORT bool celix_propertiesIterator_equals(const celix_properties_i
  * - CELIX_PROPERTIES_TYPE_LONG: The value is encoded as a JSON number.
  * - CELIX_PROPERTIES_TYPE_DOUBLE: The value is encoded as a JSON number.
  * - CELIX_PROPERTIES_TYPE_BOOL: The value is encoded as a JSON boolean.
- * - CELIX_PROPERTIES_TYPE_ARRAY: The value is encoded as a JSON array, with each element encoded according to its type.
+ * - CELIX_PROPERTIES_TYPE_ARRAY: The value is encoded as a JSON array, with each element encoded according to its
+ * type.
  * - CELIX_PROPERTIES_TYPE_VERSION: The value is encoded as a JSON string with a "version<" prefix and a ">" suffix
  * (e.g. "version<1.2.3>").
  *
@@ -1210,8 +1267,8 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_loadFromStream(FILE* stream,
  * could not be opened.
  */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_load(const char* filename,
-                                                         int decodeFlags,
-                                                         celix_properties_t** out);
+                                                        int decodeFlags,
+                                                        celix_properties_t** out);
 
 /**
  * @brief Load properties from a string.
@@ -1234,8 +1291,8 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_load(const char* filename,
  * decoded to a properties object and ENOMEM if there was not enough memory.
  */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_loadFromString(const char* input,
-                                                                   int decodeFlags,
-                                                                   celix_properties_t** out);
+                                                                  int decodeFlags,
+                                                                  celix_properties_t** out);
 
 #ifdef __cplusplus
 }

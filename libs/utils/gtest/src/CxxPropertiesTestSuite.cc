@@ -24,7 +24,7 @@
 using ::testing::MatchesRegex;
 
 class CxxPropertiesTestSuite : public ::testing::Test {
-public:
+  public:
 };
 
 TEST_F(CxxPropertiesTestSuite, CreateDestroyTest) {
@@ -93,13 +93,13 @@ TEST_F(CxxPropertiesTestSuite, CopyTest) {
     copy["key1"] = "value1_new";
 
     std::string v1 = props["key1"];
-    std::string v2 =  copy["key1"];
+    std::string v2 = copy["key1"];
     EXPECT_EQ(v1, "value1");
     EXPECT_EQ(v2, "value1_new");
 }
 
 TEST_F(CxxPropertiesTestSuite, WrapTest) {
-    auto *props = celix_properties_create();
+    auto* props = celix_properties_create();
     celix_properties_set(props, "test", "test");
 
     EXPECT_EQ(1, celix_properties_size(props));
@@ -107,14 +107,14 @@ TEST_F(CxxPropertiesTestSuite, WrapTest) {
         auto cxxProps = celix::Properties::wrap(props);
         EXPECT_EQ(1, cxxProps.size());
         EXPECT_EQ(props, cxxProps.getCProperties());
-    } //NOTE cxxProps out of scope, but will not destroy celix_properties
+    } // NOTE cxxProps out of scope, but will not destroy celix_properties
     EXPECT_EQ(1, celix_properties_size(props));
 
     celix_properties_destroy(props);
 }
 
 TEST_F(CxxPropertiesTestSuite, CopyCPropsTest) {
-    auto *props = celix_properties_create();
+    auto* props = celix_properties_create();
     celix_properties_set(props, "test", "test");
 
     EXPECT_EQ(1, celix_properties_size(props));
@@ -122,7 +122,7 @@ TEST_F(CxxPropertiesTestSuite, CopyCPropsTest) {
         auto cxxProps = celix::Properties::copy(props);
         EXPECT_EQ(1, cxxProps.size());
         EXPECT_NE(props, cxxProps.getCProperties());
-    } //NOTE cxxProps out of scope, but will not destroy celix_properties
+    } // NOTE cxxProps out of scope, but will not destroy celix_properties
     EXPECT_EQ(1, celix_properties_size(props));
 
     celix_properties_destroy(props);
@@ -136,14 +136,14 @@ TEST_F(CxxPropertiesTestSuite, GetTypeTest) {
 
     props.set("bool", true);
     props.set("long1", 1l);
-    props.set("long2", (int)1); //should lead to long;
-    props.set("long3", (unsigned int)1); //should lead to long;
-    props.set("long4", (short)1); //should lead to long;
-    props.set("long5", (unsigned short)1); //should lead to long;
-    props.set("long6", (char)1); //should lead to long;
-    props.set("long7", (unsigned char)1); //should lead to long;
+    props.set("long2", (int)1);            // should lead to long;
+    props.set("long3", (unsigned int)1);   // should lead to long;
+    props.set("long4", (short)1);          // should lead to long;
+    props.set("long5", (unsigned short)1); // should lead to long;
+    props.set("long6", (char)1);           // should lead to long;
+    props.set("long7", (unsigned char)1);  // should lead to long;
     props.set("double1", 1.0);
-    props.set("double2", 1.0f); //set float should lead to double
+    props.set("double2", 1.0f); // set float should lead to double
     props.set("version1", celix::Version{1, 2, 3});
     props.set("version2", v2);
     props.set("version3", v3);
@@ -186,17 +186,16 @@ TEST_F(CxxPropertiesTestSuite, GetAsVersionTest) {
     EXPECT_EQ(props.getAsVersion("key", celix::Version{4, 5, 6}), ver);
 }
 
-
 TEST_F(CxxPropertiesTestSuite, GetTest) {
     celix::Properties props{};
 
-    props.set("key1", "value1"); //string
-    props.set("key2", 2); //long
-    props.set("key3", 3.3); //double
-    props.set("key4", true); //bool
-    props.set("key5", celix::Version{1, 2, 3}); //version
+    props.set("key1", "value1");                // string
+    props.set("key2", 2);                       // long
+    props.set("key3", 3.3);                     // double
+    props.set("key4", true);                    // bool
+    props.set("key5", celix::Version{1, 2, 3}); // version
 
-    //Test getAs with valid key
+    // Test getAs with valid key
     EXPECT_EQ(props.get("key1"), "value1");
     EXPECT_EQ(props.getAsLong("key2", -1), 2);
     EXPECT_EQ(props.getAsDouble("key3", -1), 3.3);
@@ -204,7 +203,7 @@ TEST_F(CxxPropertiesTestSuite, GetTest) {
     celix::Version checkVersion{1, 2, 3};
     EXPECT_EQ(props.getAsVersion("key5", celix::Version{1, 2, 4}), checkVersion);
 
-    //Test get with valid key
+    // Test get with valid key
     EXPECT_EQ(props.getString("key1"), "value1");
     EXPECT_EQ(props.getLong("key2", -1), 2);
     EXPECT_EQ(props.getDouble("key3", -1), 3.3);
@@ -228,11 +227,11 @@ TEST_F(CxxPropertiesTestSuite, GetTest) {
     EXPECT_EQ(props.getVersion("non_existent_key", checkVersion2), checkVersion2);
 
     // Test get with an existing key, but invalid type and default value
-    EXPECT_EQ(props.getString("key5", "default_value"), "default_value"); //key5 is a version
-    EXPECT_EQ(props.getLong("key1", 1), 1); //key1 is a string
-    EXPECT_EQ(props.getDouble("key1", 1.1), 1.1); //key1 is a string
-    EXPECT_EQ(props.getBool("key1", true), true); //key1 is a string
-    EXPECT_EQ(props.getVersion("key1", checkVersion2), checkVersion2); //key1 is a string
+    EXPECT_EQ(props.getString("key5", "default_value"), "default_value"); // key5 is a version
+    EXPECT_EQ(props.getLong("key1", 1), 1);                               // key1 is a string
+    EXPECT_EQ(props.getDouble("key1", 1.1), 1.1);                         // key1 is a string
+    EXPECT_EQ(props.getBool("key1", true), true);                         // key1 is a string
+    EXPECT_EQ(props.getVersion("key1", checkVersion2), checkVersion2);    // key1 is a string
 }
 
 TEST_F(CxxPropertiesTestSuite, ArrayListTest) {
@@ -289,7 +288,6 @@ TEST_F(CxxPropertiesTestSuite, ArrayListTest) {
     EXPECT_EQ(versions.size(), 1);
     EXPECT_EQ(versions[0], checkVersion);
 
-
     // Test get with a valid key
     strings = props.getStringVector("key1");
     EXPECT_EQ(strings.size(), 2);
@@ -309,19 +307,42 @@ TEST_F(CxxPropertiesTestSuite, ArrayListTest) {
     EXPECT_EQ(versions[1], checkVersion2);
 
     // Test get with an existing key, but invalid type and default value
-    strings = props.getStringVector("key5", {"default_value"}); //key5 is a version
+    strings = props.getStringVector("key5", {"default_value"}); // key5 is a version
     EXPECT_EQ(strings.size(), 1);
     EXPECT_EQ(strings[0], "default_value");
-    longs = props.getLongVector("key1", {1}); //key1 is a string
+    longs = props.getLongVector("key1", {1}); // key1 is a string
     EXPECT_EQ(longs.size(), 1);
     EXPECT_EQ(longs[0], 1);
-    doubles = props.getDoubleVector("key1", {1.1}); //key1 is a string
+    doubles = props.getDoubleVector("key1", {1.1}); // key1 is a string
     EXPECT_EQ(doubles.size(), 1);
     EXPECT_EQ(doubles[0], 1.1);
-    booleans = props.getBoolVector("key1", {true}); //key1 is a string
+    booleans = props.getBoolVector("key1", {true}); // key1 is a string
     EXPECT_EQ(booleans.size(), 1);
     EXPECT_EQ(booleans[0], true);
-    versions = props.getVersionVector("key1", {celix::Version{1, 2, 3}}); //key1 is a string
+    versions = props.getVersionVector("key1", {celix::Version{1, 2, 3}}); // key1 is a string
     EXPECT_EQ(versions.size(), 1);
     EXPECT_EQ(versions[0], checkVersion);
+}
+
+TEST_F(CxxPropertiesTestSuite, JsonPathTest) {
+    auto props = celix::Properties::loadFromString(R"({"nested":{"count":42},"nothing":null})");
+
+    EXPECT_EQ(celix::Properties::ValueType::Properties, props.getType("nested"));
+    EXPECT_EQ(celix::Properties::ValueType::Null, props.getType("nothing"));
+    EXPECT_TRUE(celix::Properties::checkPath("$.nested.count"));
+    EXPECT_FALSE(celix::Properties::checkPath("$.nested["));
+    EXPECT_EQ(42, props.getLongByPath("$.nested.count", -1));
+    EXPECT_EQ(-1, props.getLongByPath("$.nested.missing", -1));
+    EXPECT_TRUE(props.hasLongPath("$.nested.count"));
+    EXPECT_FALSE(props.hasStringPath("$.nested.count"));
+
+    auto nested = props.getProperties("nested");
+    EXPECT_EQ(42, nested.getLong("count", -1));
+    nested.set("count", 43L);
+    EXPECT_EQ(42, props.getLongByPath("$.nested.count", -1)); // returned nested properties is a copy
+
+    auto values = props.getAllLongsByPath("$.nested.count");
+    ASSERT_EQ(1, values.size());
+    EXPECT_EQ(42, values.front());
+    EXPECT_TRUE(props.getAllLongsByPath("$.nested.missing").empty());
 }

@@ -18,81 +18,87 @@
  */
 #include "celix_array_list_encoding.h"
 #include "celix_array_list_encoding_private.h"
-#include "celix_json_utils_private.h"
 #include "celix_err.h"
-#include "celix_stdlib_cleanup.h"
+#include "celix_json_utils_private.h"
+#include "celix_properties_private.h"
 #include "celix_stdio_cleanup.h"
+#include "celix_stdlib_cleanup.h"
 
+#include <assert.h>
+#include <errno.h>
 #include <jansson.h>
 #include <math.h>
-#include <errno.h>
 #include <string.h>
-#include <assert.h>
 
-/**
- * @brief Determine the array list element type based on the json value.
- *
- * If the array is of a mixed type, the element type cannot be determined and a CELIX_ILLEGAL_ARGUMENT is
- * returned.
- *
- * @param[in] value The json value.
- * @param[out] out The array list element type.
- * @return CELIX_SUCCESS if the array list element type could be determined or CELIX_ILLEGAL_ARGUMENT if the array
- * type could not be determined.
- */
-static celix_status_t celix_arrayList_determineArrayType(const json_t* jsonArray,
-                                                          celix_array_list_element_type_t* out) {
-    assert(json_array_size(jsonArray) > 0); //precondition: size > 0
+static celix_array_list_element_type_t celix_arrayList_determineArrayType(const json_t* jsonArray) {
+    if (json_array_size(jsonArray) == 0) {
+        return CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT;
+    }
 
+    json_type type = json_typeof(json_array_get(jsonArray, 0));
+    bool numeric = type == JSON_INTEGER || type == JSON_REAL;
+    bool hasReal = type == JSON_REAL;
+    size_t index;
     json_t* value;
-    int index;
-    json_type type = JSON_NULL;
-    bool versionType = false;
     json_array_foreach(jsonArray, index, value) {
-        if (index == 0) {
-            type = json_typeof(value);
-            if (type == JSON_STRING && celix_utils_isVersionJsonString(value)) {
-                versionType = true;
-            }
+        json_type valueType = json_typeof(value);
+        if (numeric && (valueType == JSON_INTEGER || valueType == JSON_REAL)) {
+            hasReal = hasReal || valueType == JSON_REAL;
         } else if ((type == JSON_TRUE || type == JSON_FALSE) && json_is_boolean(value)) {
-            // bool, ok.
-            continue;
-        } else if (type == JSON_INTEGER && json_typeof(value) == JSON_REAL) {
-            // mixed integer and real, ok but promote to real
-            type = JSON_REAL;
-            continue;
-        } else if (type == JSON_REAL && json_typeof(value) == JSON_INTEGER) {
-            // mixed real and integer, ok
-            continue;
-        } else if (type != json_typeof(value)) {
-            return CELIX_ILLEGAL_ARGUMENT;
-        } else if (versionType) {
-            if (json_typeof(value) != JSON_STRING || !celix_utils_isVersionJsonString(value)) {
-                return CELIX_ILLEGAL_ARGUMENT;
-            }
+            // Both JSON boolean types belong to a homogeneous boolean array.
+        } else if (valueType != type) {
+            return CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT;
         }
     }
 
-    switch (type) {
-        case JSON_STRING:
-            *out = versionType ? CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION : CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING;
-            break;
-        case JSON_INTEGER:
-            *out = CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG;
-            break;
-        case JSON_REAL:
-            *out = CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE;
-            break;
-        case JSON_TRUE:
-        case JSON_FALSE:
-            *out = CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL;
-            break;
-        default:
-            //JSON_NULL, JSON_OBJECT and  JSON_ARRAY
-            return CELIX_ILLEGAL_ARGUMENT;
+    if (numeric) {
+        return hasReal ? CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE : CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG;
     }
+    switch (type) {
+    case JSON_STRING:
+        return CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING;
+    case JSON_TRUE:
+    case JSON_FALSE:
+        return CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL;
+    case JSON_OBJECT:
+        return CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES;
+    case JSON_ARRAY:
+        return CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST;
+    default:
+        return CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT;
+    }
+}
 
-    return CELIX_SUCCESS;
+static celix_status_t
+celix_arrayList_addJsonValueAsVariant(celix_array_list_t* array, const json_t* value, int decodeFlags) {
+    celix_array_list_variant_t variant = {0};
+    celix_autoptr(celix_properties_t) properties = NULL;
+    celix_autoptr(celix_array_list_t) nested = NULL;
+    celix_status_t status = CELIX_SUCCESS;
+    if (json_is_null(value)) {
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_NULL;
+    } else if (json_is_string(value)) {
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_STRING;
+        variant.value.stringValue = json_string_value(value);
+    } else if (json_is_integer(value)) {
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_LONG;
+        variant.value.longValue = (long)json_integer_value(value);
+    } else if (json_is_real(value)) {
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE;
+        variant.value.doubleValue = json_real_value(value);
+    } else if (json_is_boolean(value)) {
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL;
+        variant.value.boolValue = json_boolean_value(value);
+    } else if (json_is_object(value)) {
+        status = celix_properties_decodeFromJson(value, 0, &properties);
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES;
+        variant.value.propertiesValue = properties;
+    } else if (json_is_array(value)) {
+        status = celix_arrayList_decodeFromJson(value, decodeFlags, &nested);
+        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST;
+        variant.value.arrayListValue = nested;
+    }
+    return CELIX_DO_IF(status, celix_arrayList_addVariant(array, &variant));
 }
 
 celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decodeFlags, celix_array_list_t** out) {
@@ -103,24 +109,12 @@ celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decod
         celix_err_push("Expected a json array.");
         return CELIX_ILLEGAL_ARGUMENT;
     }
-    if (json_array_size(jsonArray) == 0) {
-        if (decodeFlags & CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS) {
-            celix_err_push("Expected a non-empty json array.");
-            return CELIX_ILLEGAL_ARGUMENT;
-        }
-        return CELIX_SUCCESS;//empty array treated as out = NULL
-    }
-    celix_array_list_element_type_t elType;
-    celix_status_t status = celix_arrayList_determineArrayType(jsonArray, &elType);
-    if (status != CELIX_SUCCESS && (decodeFlags & CELIX_ARRAY_LIST_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS)) {
-        celix_autofree char* arrStr = json_dumps(jsonArray, JSON_ENCODE_ANY);
-        celix_err_pushf("Invalid mixed, null, object or multidimensional array: %s.", arrStr);
-        return status;
-    } else if (status != CELIX_SUCCESS) {
-        //ignore mixed types
-        return CELIX_SUCCESS;
+    if (json_array_size(jsonArray) == 0 && (decodeFlags & CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS)) {
+        celix_err_push("Expected a non-empty json array.");
+        return CELIX_ILLEGAL_ARGUMENT;
     }
 
+    celix_array_list_element_type_t elType = celix_arrayList_determineArrayType(jsonArray);
     celix_array_list_create_options_t opts = CELIX_EMPTY_ARRAY_LIST_CREATE_OPTIONS;
     opts.elementType = elType;
     celix_autoptr(celix_array_list_t) array = celix_arrayList_createWithOptions(&opts);
@@ -128,33 +122,41 @@ celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decod
         return ENOMEM;
     }
 
+    size_t index;
     json_t* value;
-    int index;
     json_array_foreach(jsonArray, index, value) {
+        celix_status_t status = CELIX_SUCCESS;
         switch (elType) {
-            case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
-                status = celix_arrayList_addString(array, json_string_value(value));
-                break;
-            case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
-                status = celix_arrayList_addLong(array, (long)json_integer_value(value));
-                break;
-            case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
-                status = celix_arrayList_addDouble(array, json_number_value(value));
-                break;
-            case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
-                status = celix_arrayList_addBool(array, json_boolean_value(value));
-                break;
-            case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION: {
-                celix_version_t* v;
-                status = celix_utils_jsonToVersion(value, &v);
-                status = CELIX_DO_IF(status, celix_arrayList_assignVersion(array, v));
-                break;
-            }
-            default:
-                // LCOV_EXCL_START
-                celix_err_pushf("Unexpected array list element type %d.", elType);
-                return CELIX_ILLEGAL_ARGUMENT;
-                // LCOV_EXCL_STOP
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
+            status = celix_arrayList_addString(array, json_string_value(value));
+            break;
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
+            status = celix_arrayList_addLong(array, (long)json_integer_value(value));
+            break;
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
+            status = celix_arrayList_addDouble(array, json_number_value(value));
+            break;
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
+            status = celix_arrayList_addBool(array, json_boolean_value(value));
+            break;
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES: {
+            celix_properties_t* properties = NULL;
+            status = celix_properties_decodeFromJson(value, 0, &properties);
+            status = CELIX_DO_IF(status, celix_arrayList_assignProperties(array, properties));
+            break;
+        }
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST: {
+            celix_array_list_t* nested = NULL;
+            status = celix_arrayList_decodeFromJson(value, decodeFlags, &nested);
+            status = CELIX_DO_IF(status, celix_arrayList_assignArrayList(array, nested));
+            break;
+        }
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT:
+            status = celix_arrayList_addJsonValueAsVariant(array, value, decodeFlags);
+            break;
+        default:
+            celix_err_pushf("Unexpected array list element type %d.", elType);
+            return CELIX_ILLEGAL_ARGUMENT;
         }
         if (status != CELIX_SUCCESS) {
             return status;
@@ -163,7 +165,6 @@ celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decod
     *out = celix_steal_ptr(array);
     return CELIX_SUCCESS;
 }
-
 celix_status_t celix_arrayList_loadFromStream(FILE* stream, int decodeFlags, celix_array_list_t** out) {
     if (!stream || !out) {
         celix_err_push("Invalid arguments.");
@@ -209,38 +210,76 @@ celix_status_t celix_arrayList_loadFromString(const char* input, int decodeFlags
     return celix_arrayList_loadFromStream(stream, decodeFlags, out);
 }
 
+static celix_status_t
+celix_arrayList_variantValueToJson(const celix_array_list_variant_t* variant, int flags, json_t** out) {
+    *out = NULL;
+    switch (variant->type) {
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_NULL:
+        *out = json_null();
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        *out = json_string(variant->value.stringValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_LONG:
+        *out = json_integer(variant->value.longValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE:
+        if (isnan(variant->value.doubleValue) || isinf(variant->value.doubleValue)) {
+            celix_err_push("Invalid NaN or Inf.");
+            return CELIX_ILLEGAL_ARGUMENT;
+        }
+        *out = json_real(variant->value.doubleValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL:
+        *out = json_boolean(variant->value.boolValue);
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION:
+        return celix_utils_versionToJson(variant->value.versionValue, out);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES:
+        return celix_properties_encodeToJson(variant->value.propertiesValue, 0, out);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
+        return celix_arrayList_encodeToJson(variant->value.arrayListValue, flags, out);
+    }
+    if (!*out) {
+        celix_err_push("Failed to create json value.");
+        return ENOMEM;
+    }
+    return CELIX_SUCCESS;
+}
+
 static celix_status_t celix_arrayList_elementEntryValueToJson(celix_array_list_element_type_t elType,
-                                                                    celix_array_list_entry_t entry,
-                                                                    int flags,
-                                                                    json_t** out) {
+                                                              celix_array_list_entry_t entry,
+                                                              int flags,
+                                                              json_t** out) {
     *out = NULL;
     switch (elType) {
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
-            *out = json_string(entry.stringVal);
-            break;
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
-            *out = json_integer(entry.longVal);
-            break;
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
-            if (isnan(entry.doubleVal) || isinf(entry.doubleVal)) {
-                if (flags & CELIX_ARRAY_LIST_ENCODE_ERROR_ON_NAN_INF) {
-                    celix_err_push("Invalid NaN or Inf.");
-                    return CELIX_ILLEGAL_ARGUMENT;
-                }
-                return CELIX_SUCCESS; // ignore NaN and Inf
-            }
-            *out = json_real(entry.doubleVal);
-            break;
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
-            *out = json_boolean(entry.boolVal);
-            break;
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION:
-            return celix_utils_versionToJson(entry.versionVal, out);
-        default:
-            // LCOV_EXCL_START
-            celix_err_pushf("Invalid array list element type %d.", elType);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
+        *out = json_string(entry.stringVal);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
+        *out = json_integer(entry.longVal);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
+        if (isnan(entry.doubleVal) || isinf(entry.doubleVal)) {
+            celix_err_push("Invalid NaN or Inf.");
             return CELIX_ILLEGAL_ARGUMENT;
-            // LCOV_EXCL_STOP
+        }
+        *out = json_real(entry.doubleVal);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
+        *out = json_boolean(entry.boolVal);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION:
+        return celix_utils_versionToJson(entry.versionVal, out);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES:
+        return celix_properties_encodeToJson(entry.propertiesVal, 0, out);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST:
+        return celix_arrayList_encodeToJson(entry.arrayListVal, flags, out);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT:
+        return celix_arrayList_variantValueToJson(entry.variantVal, flags, out);
+    default:
+        celix_err_pushf("Invalid array list element type %d.", elType);
+        return CELIX_ILLEGAL_ARGUMENT;
     }
     if (!*out) {
         celix_err_push("Failed to create json value.");
@@ -252,6 +291,7 @@ static celix_status_t celix_arrayList_elementEntryValueToJson(celix_array_list_e
 celix_status_t celix_arrayList_encodeToJson(const celix_array_list_t* list, int encodeFlags, json_t** out) {
     assert(list != NULL);
     assert(out != NULL);
+    *out = NULL;
     json_auto_t* array = json_array();
     if (!array) {
         celix_err_push("Failed to create json array.");
@@ -262,33 +302,26 @@ celix_status_t celix_arrayList_encodeToJson(const celix_array_list_t* list, int 
     celix_array_list_element_type_t elType = celix_arrayList_getElementType(list);
     for (int i = 0; i < size; ++i) {
         celix_array_list_entry_t arrayEntry = celix_arrayList_getEntry(list, i);
-        json_t* jsonValue;
+        json_t* jsonValue = NULL;
         celix_status_t status = celix_arrayList_elementEntryValueToJson(elType, arrayEntry, encodeFlags, &jsonValue);
         if (status != CELIX_SUCCESS) {
             celix_err_pushf("Failed to encode array element(%d).", i);
             return status;
-        } else if (!jsonValue) {
-            // ignore unset values
-        } else {
-            int rc = json_array_append_new(array, jsonValue);
-            if (rc != 0) {
-                celix_err_push("Failed to append json string to array.");
-                return ENOMEM;
-            }
+        }
+        if (json_array_append_new(array, jsonValue) != 0) {
+            celix_err_push("Failed to append json value to array.");
+            return ENOMEM;
         }
     }
 
-    if (json_array_size(array) == 0) {
-        if (encodeFlags & CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS) {
-            celix_err_pushf("Invalid empty array.");
-            return CELIX_ILLEGAL_ARGUMENT;
-        }
+    if (json_array_size(array) == 0 && (encodeFlags & CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS)) {
+        celix_err_push("Invalid empty array.");
+        return CELIX_ILLEGAL_ARGUMENT;
     }
 
     *out = celix_steal_ptr(array);
     return CELIX_SUCCESS;
 }
-
 celix_status_t celix_arrayList_saveToStream(const celix_array_list_t* list, int encodeFlags, FILE* stream) {
     if (!list || !stream) {
         celix_err_push("Invalid arguments.");
@@ -330,7 +363,7 @@ celix_status_t celix_arrayList_save(const celix_array_list_t* list, int encodeFl
     return status;
 }
 
-celix_status_t celix_arrayList_saveToString(const celix_array_list_t* list,  int encodeFlags, char** out) {
+celix_status_t celix_arrayList_saveToString(const celix_array_list_t* list, int encodeFlags, char** out) {
     if (!list || !out) {
         celix_err_push("Invalid arguments.");
         return CELIX_ILLEGAL_ARGUMENT;

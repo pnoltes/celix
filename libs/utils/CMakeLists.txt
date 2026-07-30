@@ -33,6 +33,7 @@ if (UTILS)
             src/properties.c
             src/properties_encoding.c
             src/utils.c
+            src/celix_properties_jsonpath.c
             src/filter.c
             src/celix_log_level.c
             src/celix_log_utils.c
