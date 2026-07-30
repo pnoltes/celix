@@ -26,6 +26,19 @@ Key Concepts
  - Components: Logic units managed by the Dependency Manager (DM) that handle service lifecycle (init, start, stop, deinit) declaratively.
  - Containers: Executables created via add_celix_container that launch a framework instance with preconfigured bundles.
 
+## Codebase Exploration
+
+Use Graphify for repository-wide architecture, dependencies, call paths, and
+change-impact analysis:
+
+- Missing index: `graphify extract . --code-only`
+- Existing index: `graphify update .`
+- Explore with `graphify query`, `graphify path`, `graphify explain`, and
+  `graphify affected`.
+
+Fall back to `rg` (ripgrep, a fast recursive text search) and direct source
+inspection only when Graphify is unavailable or incomplete.
+
 ## Building (Offline Priority)
 
 Assume no internet connection. Request confirmation before installing system packages.
