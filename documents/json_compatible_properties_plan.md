@@ -315,13 +315,21 @@ after success. Every failure must release the partially built tree.
 
 ### 3.2 Encoding and decoding flags
 
-Retain only flags that still express useful JSON behavior:
+Retain the flag that still expresses useful JSON output behavior:
 
-- `CELIX_PROPERTIES_ENCODE_PRETTY`;
-- `CELIX_PROPERTIES_DECODE_ERROR_ON_DUPLICATES`.
+- `CELIX_PROPERTIES_ENCODE_PRETTY`.
+
+Always configure Jansson to reject duplicate object member names. A `celix_properties_t` cannot represent both values,
+so accepting duplicates would silently choose one value and violate the no-data-loss goal. As rejection is
+unconditional, `CELIX_PROPERTIES_DECODE_ERROR_ON_DUPLICATES` no longer changes behavior and can be deprecated.
+
+For standalone array-list encoding, retain `CELIX_ARRAY_LIST_ENCODE_PRETTY`. Empty and heterogeneous arrays are now
+supported, and non-finite values must fail unconditionally, so the other array-list encode/decode flags can be
+deprecated.
 
 Deprecate the following without reusing their bit values:
 
+- duplicate-key flags, because duplicate JSON object members are always rejected;
 - flat/nested style and collision flags, because structure is now represented by values rather than key parsing;
 - error-on-empty-array flags, because empty arrays are supported;
 - error-on-null flags, because null is supported;
@@ -450,8 +458,10 @@ object; a returned default pointer is exactly the caller-supplied pointer.
 
 `celix_properties_checkPath` parses the path without evaluating it and returns `true` if it is valid and supported by the
 implemented RFC 9535 subset. It returns `false` for malformed or unsupported paths and prints a detailed error to
-`celix_err`. This lets applications validate paths during initialization when they need to distinguish invalid paths
-from valid paths that happen to select no values.
+`celix_err`. Design this primarily for tests, so applications can verify their fixed JSONPath expressions before
+production. Production code should normally use known-valid paths without checking on every retrieval. If a path is
+provided by a user or another untrusted external source, validate it once with `celix_properties_checkPath` before using
+it so that an invalid path can be distinguished from a valid path that selects no values.
 
 All convenience query functions use the same error model:
 
@@ -509,9 +519,12 @@ supported selector and add focused cases for:
 - descendant traversal through objects, arrays, empty values, and null;
 - structural mismatch producing an empty result;
 - invalid and explicitly unsupported queries;
+- `checkPath` returning true for supported syntax and false with an error for invalid or unsupported syntax;
+- invalid-path convenience behavior: single getters return defaults, `has*Path` returns false, and all-result getters
+  return a correctly typed empty list;
 - first typed result and default behavior;
 - `hasPath` being true for null while typed `has*Path` results remain exact;
-- all-result calls returning a non-`NULL` correctly typed empty list;
+- all-result calls returning a non-`NULL` correctly typed empty list for no matches and invalid paths;
 - deep-copy ownership of all-result lists;
 - overflow, nesting/result limits, and allocation failures.
 
@@ -533,48 +546,56 @@ Mirror the C convenience API and naming. Path syntax errors must not force norma
 exception. The expected public surface is:
 
 ```cpp
+class Properties;
+
 class PropertyValue {
 public:
     enum class Type { Null, String, Long, Double, Bool, Version, Properties, Array };
 
     Type getType() const noexcept;
     bool isNull() const noexcept;
-    std::string getString(std::string defaultValue = {}) const;
+    std::string getString(const std::string& defaultValue = {}) const;
     long getLong(long defaultValue = 0L) const;
     double getDouble(double defaultValue = 0.0) const;
     bool getBool(bool defaultValue = false) const;
-    celix::Version getVersion(celix::Version defaultValue = {}) const;
-    celix::Properties getProperties(celix::Properties defaultValue = {}) const;
-    std::vector<PropertyValue> getArray(std::vector<PropertyValue> defaultValue = {}) const;
+    celix::Version getVersion(const celix::Version& defaultValue = {}) const;
+    celix::Properties getProperties() const;
+    celix::Properties getProperties(const celix::Properties& defaultValue) const;
+    std::vector<PropertyValue> getArray(const std::vector<PropertyValue>& defaultValue = {}) const;
 };
 
 class Properties {
 public:
+    celix::Properties getProperties(
+        const std::string& key, const celix::Properties& defaultValue = {}) const;
+
     static bool checkPath(const std::string& path);
 
-    std::string getStringByPath(const std::string& path, std::string defaultValue = {}) const;
+    std::string getStringByPath(
+        const std::string& path, const std::string& defaultValue = {}) const;
     long getLongByPath(const std::string& path, long defaultValue = 0L) const;
     double getDoubleByPath(const std::string& path, double defaultValue = 0.0) const;
     bool getBoolByPath(const std::string& path, bool defaultValue = false) const;
-    celix::Version getVersionByPath(const std::string& path, celix::Version defaultValue = {}) const;
-    celix::Properties getPropertiesByPath(const std::string& path,
-                                          celix::Properties defaultValue = {}) const;
+    celix::Version getVersionByPath(
+        const std::string& path, const celix::Version& defaultValue = {}) const;
+    celix::Properties getPropertiesByPath(
+        const std::string& path, const celix::Properties& defaultValue = {}) const;
     std::vector<PropertyValue> getArrayByPath(
         const std::string& path,
-        std::vector<PropertyValue> defaultValue = {}) const;
+        const std::vector<PropertyValue>& defaultValue = {}) const;
 
     std::vector<std::string> getStringVectorByPath(
-        const std::string& path, std::vector<std::string> defaultValue = {}) const;
+        const std::string& path, const std::vector<std::string>& defaultValue = {}) const;
     std::vector<long> getLongVectorByPath(
-        const std::string& path, std::vector<long> defaultValue = {}) const;
+        const std::string& path, const std::vector<long>& defaultValue = {}) const;
     std::vector<double> getDoubleVectorByPath(
-        const std::string& path, std::vector<double> defaultValue = {}) const;
+        const std::string& path, const std::vector<double>& defaultValue = {}) const;
     std::vector<bool> getBoolVectorByPath(
-        const std::string& path, std::vector<bool> defaultValue = {}) const;
+        const std::string& path, const std::vector<bool>& defaultValue = {}) const;
     std::vector<celix::Version> getVersionVectorByPath(
-        const std::string& path, std::vector<celix::Version> defaultValue = {}) const;
+        const std::string& path, const std::vector<celix::Version>& defaultValue = {}) const;
     std::vector<celix::Properties> getPropertiesVectorByPath(
-        const std::string& path, std::vector<celix::Properties> defaultValue = {}) const;
+        const std::string& path, const std::vector<celix::Properties>& defaultValue = {}) const;
 
     std::vector<std::string> getAllStringsByPath(const std::string& path) const;
     std::vector<long> getAllLongsByPath(const std::string& path) const;
@@ -597,6 +618,14 @@ public:
 };
 ```
 
+Use `const&` for nontrivial input and default-value parameters (`std::string`, `celix::Version`, `celix::Properties`,
+and vectors); keep scalar defaults by value. Owning results such as strings, versions, properties copies, and vectors
+remain return-by-value APIs so that C++14 move construction can be used.
+
+Nested-object getters return an owning `celix::Properties` copy. A `const celix::Properties&` cannot be returned safely
+because the C tree stores a `celix_properties_t`, not a stable C++ wrapper object whose address can be referenced. Do not
+add a separate view type or a mutable wrapper cache solely to manufacture reference semantics.
+
 `PropertyValue` is a small owning C++14-compatible tagged-value wrapper. Do not use `std::variant`. Its implementation
 must own a deep copy of strings and structured C values through RAII, and its copy operations must remain deep and safe.
 It is the lossless C++ representation used only where a JSON result can be heterogeneous or recursively nested.
@@ -612,15 +641,18 @@ Array-list conversion follows these rules:
   and properties elements become owning `celix::Properties` values.
 - `getAllArraysByPath` applies that recursive conversion to every selected array node.
 - Empty C array lists become empty vectors. The C++ vector does not retain an otherwise unknowable element type.
-- Strings, versions, properties, and nested arrays in returned vectors are owning values. No returned vector or
-  `PropertyValue` may borrow storage from the queried `Properties` object.
+- Strings, versions, properties, and nested arrays in returned vectors are owning values. Returned vectors and
+  `PropertyValue` instances do not borrow storage from the queried `Properties` object.
 
 The C++ error model mirrors C: malformed or unsupported paths are printed to `celix_err` and getters return their
-default or an empty vector. `Properties::checkPath` provides explicit validation. Only allocation failure is translated
-to `std::bad_alloc`; an invalid path does not throw `celix::IllegalArgumentException`.
+default or an empty vector. `Properties::checkPath` is primarily for validating fixed paths in tests; production code
+should normally use known-valid paths directly. Validate a user-provided or otherwise untrusted path once with
+`Properties::checkPath` before retrieval. Only allocation failure is translated to `std::bad_alloc`; an invalid path
+does not throw `celix::IllegalArgumentException`.
 
 Add C++ tests for every method family, exact-type vector conversion, defaults, empty arrays, mixed arrays, nested arrays,
-deep ownership after destroying the source properties, invalid-path logging, `checkPath`, and allocation failure.
+deep ownership after destroying the source properties, independent nested-properties copies, invalid-path logging,
+`checkPath`, allocation failure, and default temporaries passed through `const&`.
 
 Update:
 
@@ -673,7 +705,10 @@ The implementation is complete when:
 - existing scalar and homogeneous-array properties APIs retain their behavior;
 - invalid/non-representable input fails atomically with useful `celix_err` context;
 - all supported RFC 9535 examples produce the specified nodelists;
-- unsupported JSONPath features fail explicitly;
-- single JSONPath getters return their default on no typed match;
-- all-result JSONPath calls return an owned, correctly typed, possibly empty array list on success;
+- unsupported JSONPath features are reported to `celix_err` and rejected by `checkPath`;
+- single JSONPath getters return their default on no typed match or an invalid path;
+- all-result JSONPath calls return an owned, correctly typed empty array list for no matches or an invalid path, with
+  `NULL` reserved for allocation failure;
+- C++ typed queries return owning `std::vector<T>` values and generic array queries preserve mixed and nested values
+  through `PropertyValue`;
 - C, C++, codec, JSONPath, fuzz, error-injection, scoped, and full-suite tests pass.
