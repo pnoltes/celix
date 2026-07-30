@@ -19,20 +19,52 @@
 
 #include <gtest/gtest.h>
 
+#include "celix_err.h"
 #include "celix_filter.h"
 #include "celix_utils.h"
-#include "celix_err.h"
 
 class FilterTestSuite : public ::testing::Test {
   public:
-    FilterTestSuite() {
-        celix_err_resetErrors();
-    }
+    FilterTestSuite() { celix_err_resetErrors(); }
 
-    ~FilterTestSuite() override {
-        celix_err_printErrors(stderr, nullptr, nullptr);
-    }
+    ~FilterTestSuite() override { celix_err_printErrors(stderr, nullptr, nullptr); }
 };
+
+TEST_F(FilterTestSuite, MatchNestedPropertiesAndArrayWithJsonPathAttribute) {
+    celix_autoptr(celix_properties_t) properties = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS,
+              celix_properties_loadFromString(
+                  R"({"parent":{"child":"value","count":42,"children":["zero","one","value"]}})", 0, &properties));
+
+    celix_autoptr(celix_filter_t) nested = celix_filter_create("($.parent.child=value)");
+    celix_autoptr(celix_filter_t) indexed = celix_filter_create("($.parent.children[2]=value)");
+    celix_autoptr(celix_filter_t) ordering = celix_filter_create("($.parent.count>=40)");
+    celix_autoptr(celix_filter_t) present = celix_filter_create("($.parent.children[1]=*)");
+    celix_autoptr(celix_filter_t) missing = celix_filter_create("($.parent.children[8]=value)");
+    ASSERT_NE(nullptr, nested);
+    ASSERT_NE(nullptr, indexed);
+    ASSERT_NE(nullptr, ordering);
+    ASSERT_NE(nullptr, present);
+    ASSERT_NE(nullptr, missing);
+
+    EXPECT_TRUE(celix_filter_match(nested, properties));
+    EXPECT_TRUE(celix_filter_match(indexed, properties));
+    EXPECT_TRUE(celix_filter_match(ordering, properties));
+    EXPECT_TRUE(celix_filter_match(present, properties));
+    EXPECT_FALSE(celix_filter_match(missing, properties));
+}
+
+TEST_F(FilterTestSuite, OnlyDollarPrefixedAttributesUseJsonPath) {
+    celix_autoptr(celix_properties_t) props = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS,
+              celix_properties_loadFromString(R"({"parent.child":"literal","parent":{"child":"nested"}})", 0, &props));
+    celix_autoptr(celix_filter_t) literal = celix_filter_create("(parent.child=literal)");
+    celix_autoptr(celix_filter_t) nestedWithoutDollar = celix_filter_create("(parent.child=nested)");
+    celix_autoptr(celix_filter_t) nestedExplicit = celix_filter_create("($.parent.child=nested)");
+    EXPECT_TRUE(celix_filter_match(literal, props));
+    EXPECT_FALSE(celix_filter_match(nestedWithoutDollar, props));
+    EXPECT_TRUE(celix_filter_match(nestedExplicit, props));
+}
 
 TEST_F(FilterTestSuite, CreateDestroyTest) {
     const char* filter_str = "(&(test_attr1=attr1)(|(test_attr2=attr2)(test_attr3=attr3)))";
@@ -218,7 +250,7 @@ TEST_F(FilterTestSuite, MatchTest) {
     ASSERT_NE(nullptr, props);
     celix_properties_set(props, "test_attr1", "attr1");
     celix_properties_set(props, "test_attr2", "attr2");
-    celix_properties_set(props, "empty_attr", ""); //note empty string as value
+    celix_properties_set(props, "empty_attr", ""); // note empty string as value
 
     // Test EQUALS
     filter = celix_filter_create("(test_attr1=attr1)");
@@ -324,13 +356,11 @@ TEST_F(FilterTestSuite, MatchTest) {
     EXPECT_FALSE(result);
     celix_filter_destroy(filter);
 
-
     // test GREATER greater
     filter = celix_filter_create("(test_attr2>attr1)");
     result = celix_filter_match(filter, props);
     EXPECT_TRUE(result);
     celix_filter_destroy(filter);
-
 
     // test GREATER equals
     filter = celix_filter_create("(test_attr2>attr2)");
@@ -338,13 +368,11 @@ TEST_F(FilterTestSuite, MatchTest) {
     EXPECT_FALSE(result);
     celix_filter_destroy(filter);
 
-
     // test GREATER false
     filter = celix_filter_create("(test_attr1>attr5)");
     result = celix_filter_match(filter, props);
     EXPECT_FALSE(result);
     celix_filter_destroy(filter);
-
 
     // test SUBSTRING equals
     filter = celix_filter_create("(test_attr1=attr*)");
@@ -359,21 +387,21 @@ TEST_F(FilterTestSuite, MatchTest) {
 }
 
 TEST_F(FilterTestSuite, MatchWithNullTest) {
-    //match with null filter, should return true
+    // match with null filter, should return true
     EXPECT_TRUE(celix_filter_match(nullptr, nullptr));
 
-    //match with null properties with a valid match all filter, should return true
+    // match with null properties with a valid match all filter, should return true
     celix_autoptr(celix_filter_t) filter1 = celix_filter_create("(|)");
     EXPECT_TRUE(celix_filter_match(filter1, nullptr));
 
-    //match with null properties, should return false if an attribute is needed
+    // match with null properties, should return false if an attribute is needed
     celix_autoptr(celix_filter_t) filter2 = celix_filter_create("(test_attr1=attr1)");
     EXPECT_FALSE(celix_filter_match(filter2, nullptr));
 }
 
-
 TEST_F(FilterTestSuite, MatchRecursionTest) {
-    auto* str = "(&(test_attr1=attr1)(|(&(test_attr2=attr2)(!(&(test_attr1=attr1)(test_attr3=attr3))))(test_attr3=attr3)))";
+    auto* str =
+        "(&(test_attr1=attr1)(|(&(test_attr2=attr2)(!(&(test_attr1=attr1)(test_attr3=attr3))))(test_attr3=attr3)))";
     auto* filter = celix_filter_create(str);
     auto* props = celix_properties_create();
     auto* key = "test_attr1";
@@ -458,8 +486,7 @@ TEST_F(FilterTestSuite, MissingOperandCreateTest) {
 }
 
 TEST_F(FilterTestSuite, TypedUntypedPropertiesAndFilterTest) {
-    celix_autoptr(celix_filter_t) filter =
-            celix_filter_create("(key>20)");
+    celix_autoptr(celix_filter_t) filter = celix_filter_create("(key>20)");
     celix_autoptr(celix_properties_t) props1 = celix_properties_create();
     celix_autoptr(celix_properties_t) props2 = celix_properties_create();
 
@@ -490,21 +517,19 @@ TEST_F(FilterTestSuite, TypedPropertiesAndFilterTest) {
     EXPECT_TRUE(celix_filter_match(filter2, props));
 
     celix_autoptr(celix_filter_t) filter3 =
-                celix_filter_create("(&(str<tesu)(long<2)(double<1.0)(bool<=true)(version<2.0.0))");
+        celix_filter_create("(&(str<tesu)(long<2)(double<1.0)(bool<=true)(version<2.0.0))");
     EXPECT_TRUE(celix_filter_match(filter3, props));
 
     celix_autoptr(celix_filter_t) filter4 =
-            celix_filter_create("(&(str!=test)(long!=1)(double!=0.0)(bool!=true)(bool2=true)(version!=1.2.3))");
+        celix_filter_create("(&(str!=test)(long!=1)(double!=0.0)(bool!=true)(bool2=true)(version!=1.2.3))");
     EXPECT_FALSE(celix_filter_match(filter4, props));
 
     celix_autoptr(celix_filter_t) filter5 = celix_filter_create("(strBool=true)");
     EXPECT_TRUE(celix_filter_match(filter5, props));
 
-    celix_autoptr(celix_filter_t) filter6 =
-            celix_filter_create("(bool2<true)");
+    celix_autoptr(celix_filter_t) filter6 = celix_filter_create("(bool2<true)");
     EXPECT_TRUE(celix_filter_match(filter6, props));
 }
-
 
 TEST_F(FilterTestSuite, SubStringTest) {
     celix_autoptr(celix_properties_t) props = celix_properties_create();
@@ -512,76 +537,76 @@ TEST_F(FilterTestSuite, SubStringTest) {
     celix_properties_set(props, "test2", "*ValueWithStar");
     celix_properties_set(props, "test3", " Value");
 
-    //test filter with matching subInitial
+    // test filter with matching subInitial
     celix_autoptr(celix_filter_t) filter1 = celix_filter_create("(test=Jo*)");
     EXPECT_NE(nullptr, filter1);
     EXPECT_TRUE(celix_filter_match(filter1, props));
 
-    //test filter with un-matching subInitial
+    // test filter with un-matching subInitial
     celix_autoptr(celix_filter_t) filter2 = celix_filter_create("(test=Joo*)");
     EXPECT_NE(nullptr, filter2);
     EXPECT_FALSE(celix_filter_match(filter2, props));
 
-    //test filter with matching subFinal
+    // test filter with matching subFinal
     celix_autoptr(celix_filter_t) filter3 = celix_filter_create("(test=*Doe)");
     EXPECT_NE(nullptr, filter3);
     EXPECT_TRUE(celix_filter_match(filter3, props));
 
-    //test filter with un-matching subFinal
+    // test filter with un-matching subFinal
     celix_autoptr(celix_filter_t) filter4 = celix_filter_create("(test=*Doo)");
     EXPECT_NE(nullptr, filter4);
     EXPECT_FALSE(celix_filter_match(filter4, props));
 
-    //test filter with matching subAny
+    // test filter with matching subAny
     celix_autoptr(celix_filter_t) filter5 = celix_filter_create("(test=*Bob*)");
     EXPECT_NE(nullptr, filter5);
     EXPECT_TRUE(celix_filter_match(filter5, props));
 
-    //test filter with un-matching subAny
+    // test filter with un-matching subAny
     celix_autoptr(celix_filter_t) filter6 = celix_filter_create("(test=*Boo*)");
     EXPECT_NE(nullptr, filter6);
     EXPECT_FALSE(celix_filter_match(filter6, props));
 
-    //test filter with matching subAny, subInitial and subFinal
+    // test filter with matching subAny, subInitial and subFinal
     celix_autoptr(celix_filter_t) filter7 = celix_filter_create("(test=Jo*Bob*Doe)");
     EXPECT_NE(nullptr, filter7);
     EXPECT_TRUE(celix_filter_match(filter7, props));
 
-    //test filter with un-matching subAny, subInitial and subFinal
+    // test filter with un-matching subAny, subInitial and subFinal
     celix_autoptr(celix_filter_t) filter8 = celix_filter_create("(test=Jo*Boo*Doe)");
     EXPECT_NE(nullptr, filter8);
     EXPECT_FALSE(celix_filter_match(filter8, props));
 
-    //test filter with un-matching overlapping subAny and subInitial
+    // test filter with un-matching overlapping subAny and subInitial
     celix_autoptr(celix_filter_t) filter9 = celix_filter_create("(test=John B*Bob*b Doe)");
     EXPECT_NE(nullptr, filter9);
     EXPECT_FALSE(celix_filter_match(filter9, props));
 
-    //test filter with un-matching overlapping subAny and subFinal
+    // test filter with un-matching overlapping subAny and subFinal
     celix_autoptr(celix_filter_t) filter10 = celix_filter_create("(test=*Bob*b Doe)");
     EXPECT_NE(nullptr, filter10);
     EXPECT_FALSE(celix_filter_match(filter10, props));
 
-    //test filter with a starting escaped asterisk
+    // test filter with a starting escaped asterisk
     celix_autoptr(celix_filter_t) filter11 = celix_filter_create("(test2=\\*Value*)");
     EXPECT_NE(nullptr, filter11);
     EXPECT_TRUE(celix_filter_match(filter11, props));
 
-    //test filter with an invalid substring
+    // test filter with an invalid substring
     celix_autoptr(celix_filter_t) filter12 = celix_filter_create("(test=Bob*");
     EXPECT_EQ(nullptr, filter12);
 
-    //test filter with mathing subInitial beginning with whitespace
+    // test filter with mathing subInitial beginning with whitespace
     celix_autoptr(celix_filter_t) filter13 = celix_filter_create("(test3= Value*)");
     EXPECT_NE(nullptr, filter13);
     EXPECT_TRUE(celix_filter_match(filter13, props));
 
-    //test filter with matching subInitial consisting of spaces
+    // test filter with matching subInitial consisting of spaces
     celix_autoptr(celix_filter_t) filter14 = celix_filter_create("(test3= *)");
     EXPECT_NE(nullptr, filter14);
     EXPECT_TRUE(celix_filter_match(filter14, props));
 
-    //test filter with double escaped asterisk on both sides
+    // test filter with double escaped asterisk on both sides
     celix_autoptr(celix_filter_t) filter15 = celix_filter_create("(test=*John*)");
     EXPECT_NE(nullptr, filter15);
     EXPECT_TRUE(celix_filter_match(filter15, props));
@@ -590,11 +615,11 @@ TEST_F(FilterTestSuite, SubStringTest) {
 TEST_F(FilterTestSuite, CreateEmptyFilter) {
     celix_autoptr(celix_properties_t) props = celix_properties_create();
 
-    celix_autoptr(celix_filter_t) filter1 = celix_filter_create(nullptr); //fallback to "(|)"
+    celix_autoptr(celix_filter_t) filter1 = celix_filter_create(nullptr); // fallback to "(|)"
     EXPECT_TRUE(filter1 != nullptr);
     EXPECT_TRUE(celix_filter_match(filter1, props));
 
-    celix_autoptr(celix_filter_t) filter2 = celix_filter_create(""); //fallback to "(|)"
+    celix_autoptr(celix_filter_t) filter2 = celix_filter_create(""); // fallback to "(|)"
     EXPECT_TRUE(filter2 != nullptr);
     EXPECT_TRUE(celix_filter_match(filter2, props));
 
@@ -614,13 +639,12 @@ TEST_F(FilterTestSuite, LogicalOperatorsWithNoCriteriaTest) {
     EXPECT_TRUE(filter2 != nullptr);
     EXPECT_TRUE(celix_filter_match(filter2, props));
 
-    celix_autoptr(celix_filter_t) filter3 = celix_filter_create("(!)"); //NOT with no criteria is not valid
+    celix_autoptr(celix_filter_t) filter3 = celix_filter_create("(!)"); // NOT with no criteria is not valid
     EXPECT_TRUE(filter3 == nullptr);
 }
 
-
 TEST_F(FilterTestSuite, InvalidEscapeTest) {
-    EXPECT_EQ(nullptr, celix_filter_create("(\\")); //escape without following char
+    EXPECT_EQ(nullptr, celix_filter_create("(\\")); // escape without following char
 }
 
 TEST_F(FilterTestSuite, UnmatchedTypeMatchTest) {
@@ -629,15 +653,15 @@ TEST_F(FilterTestSuite, UnmatchedTypeMatchTest) {
     celix_properties_setLong(props, "long", 20);
 
     celix_autoptr(celix_filter_t) filter1 = celix_filter_create("(str<3)");
-    EXPECT_TRUE(filter1 != nullptr); //note string is compared as string
+    EXPECT_TRUE(filter1 != nullptr); // note string is compared as string
 
     celix_autoptr(celix_filter_t) filter2 = celix_filter_create("(long<3)");
     EXPECT_TRUE(filter2 != nullptr);
-    EXPECT_FALSE(celix_filter_match(filter2, props)); //note long is compared as long
+    EXPECT_FALSE(celix_filter_match(filter2, props)); // note long is compared as long
 }
 
 TEST_F(FilterTestSuite, MatchArrayTypesTest) {
-    //Given a string, long, double, bool and version array list.
+    // Given a string, long, double, bool and version array list.
     celix_autoptr(celix_array_list_t) stringList = celix_arrayList_createStringArray();
     celix_arrayList_addString(stringList, "a");
     celix_arrayList_addString(stringList, "b");
@@ -654,7 +678,7 @@ TEST_F(FilterTestSuite, MatchArrayTypesTest) {
     celix_arrayList_assignVersion(versionList, celix_version_createVersionFromString("2.0.0"));
     celix_arrayList_assignVersion(versionList, celix_version_createVersionFromString("3.0.0"));
 
-    //And a properties with these array lists
+    // And a properties with these array lists
     celix_autoptr(celix_properties_t) props = celix_properties_create();
     celix_properties_setArrayList(props, "strings", stringList);
     celix_properties_setArrayList(props, "longs", longList);
@@ -759,4 +783,30 @@ TEST_F(FilterTestSuite, SubStringWithArrayAttributesTest) {
     celix_autoptr(celix_filter_t) filter5 = celix_filter_create("(strings=*Smith)");
     EXPECT_TRUE(filter5 != nullptr);
     EXPECT_TRUE(celix_filter_match(filter5, props));
+}
+
+TEST_F(FilterTestSuite, StructuredValuesOnlyMatchPresence) {
+    celix_autoptr(celix_properties_t) props = nullptr;
+    ASSERT_EQ(
+        CELIX_SUCCESS,
+        celix_properties_loadFromString(
+            R"({"nothing":null,"object":{"child":"value"},"objects":[{"child":"value"}],"arrays":[["value"]],"variant":[1,"value"],"empty":[]})",
+            0,
+            &props));
+
+    for (const char* key : {"nothing", "object", "objects", "arrays", "variant", "empty"}) {
+        celix_autoptr(celix_filter_t) presence = celix_filter_create((std::string{"("} + key + "=*)").c_str());
+        celix_autoptr(celix_filter_t) equality = celix_filter_create((std::string{"("} + key + "=value)").c_str());
+        celix_autoptr(celix_filter_t) ordering = celix_filter_create((std::string{"("} + key + ">=value)").c_str());
+        celix_autoptr(celix_filter_t) approximate = celix_filter_create((std::string{"("} + key + "~=value)").c_str());
+        EXPECT_TRUE(celix_filter_match(presence, props)) << key;
+        EXPECT_FALSE(celix_filter_match(equality, props)) << key;
+        EXPECT_FALSE(celix_filter_match(ordering, props)) << key;
+        EXPECT_FALSE(celix_filter_match(approximate, props)) << key;
+    }
+
+    celix_autoptr(celix_filter_t) nestedScalar = celix_filter_create("($.object.child=value)");
+    celix_autoptr(celix_filter_t) arrayScalar = celix_filter_create("($.objects[0].child=value)");
+    EXPECT_TRUE(celix_filter_match(nestedScalar, props));
+    EXPECT_TRUE(celix_filter_match(arrayScalar, props));
 }

@@ -28,28 +28,31 @@
 
 #include <assert.h>
 #include <jansson.h>
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 
-#define CELIX_PROPERTIES_JSONPATH_SEPARATOR '.'
-
 static celix_status_t
 celix_properties_decodeValue(celix_properties_t* props, const char* key, json_t* jsonValue, int flags);
+
+static celix_status_t celix_properties_jsonIntegerToLong(const json_t* value, const char* key, long* out) {
+    json_int_t integer = json_integer_value(value);
+    if (sizeof(long) < sizeof(json_int_t) && (integer < (json_int_t)LONG_MIN || integer > (json_int_t)LONG_MAX)) {
+        celix_err_pushf("JSON integer for key '%s' does not fit in a Celix long value", key);
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    *out = (long)integer;
+    return CELIX_SUCCESS;
+}
 
 static celix_status_t celix_properties_arrayEntryValueToJson(const char* key,
                                                              const celix_properties_entry_t* entry,
                                                              int flags,
                                                              json_t** out) {
     *out = NULL;
-    int encodeArrayFlags = 0;
-    if (flags & CELIX_PROPERTIES_ENCODE_ERROR_ON_EMPTY_ARRAYS) {
-        encodeArrayFlags |= CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS;
-    }
-    if (flags & CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF) {
-        encodeArrayFlags |= CELIX_ARRAY_LIST_ENCODE_ERROR_ON_NAN_INF;
-    }
+    (void)flags;
     json_auto_t* array = NULL;
-    celix_status_t status = celix_arrayList_encodeToJson(entry->typed.arrayValue, encodeArrayFlags, &array);
+    celix_status_t status = celix_arrayList_encodeToJson(entry->typed.arrayValue, 0, &array);
     if (status != CELIX_SUCCESS) {
         celix_err_pushf("Failed to encode array list for key %s.", key);
         return status;
@@ -64,6 +67,10 @@ celix_properties_entryValueToJson(const char* key, const celix_properties_entry_
     *out = NULL;
     switch (entry->valueType) {
     case CELIX_PROPERTIES_VALUE_TYPE_STRING:
+        if (!celix_utils_isValidUtf8(entry->value)) {
+            celix_err_pushf("Invalid UTF-8 string value for key '%s'.", key);
+            return CELIX_ILLEGAL_ARGUMENT;
+        }
         *out = json_string(entry->value);
         break;
     case CELIX_PROPERTIES_VALUE_TYPE_LONG:
@@ -71,11 +78,8 @@ celix_properties_entryValueToJson(const char* key, const celix_properties_entry_
         break;
     case CELIX_PROPERTIES_VALUE_TYPE_DOUBLE:
         if (isnan(entry->typed.doubleValue) || isinf(entry->typed.doubleValue)) {
-            if (flags & CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF) {
-                celix_err_pushf("Invalid NaN or Inf in key '%s'.", key);
-                return CELIX_ILLEGAL_ARGUMENT;
-            }
-            return CELIX_SUCCESS; // ignore NaN and Inf
+            celix_err_pushf("Invalid NaN or Inf in key '%s'.", key);
+            return CELIX_ILLEGAL_ARGUMENT;
         }
         *out = json_real(entry->typed.doubleValue);
         break;
@@ -88,7 +92,7 @@ celix_properties_entryValueToJson(const char* key, const celix_properties_entry_
         *out = json_null();
         break;
     case CELIX_PROPERTIES_VALUE_TYPE_PROPERTIES:
-        return celix_properties_encodeToJson(entry->typed.propertiesValue, 0, out);
+        return celix_properties_encodeToJson(entry->typed.propertiesValue, flags, out);
     case CELIX_PROPERTIES_VALUE_TYPE_ARRAY_LIST:
         return celix_properties_arrayEntryValueToJson(key, entry, flags, out);
     default:
@@ -105,21 +109,7 @@ celix_properties_entryValueToJson(const char* key, const celix_properties_entry_
     return CELIX_SUCCESS;
 }
 
-static celix_status_t celix_properties_addJsonValueToJson(json_t* value, const char* key, json_t* obj, int flags) {
-    if (!value) {
-        // ignore unset values
-        return CELIX_SUCCESS;
-    }
-
-    json_t* field = json_object_get(obj, key);
-    if (field) {
-        if (flags & CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS) {
-            celix_err_pushf("Invalid key collision. key '%s' already exists.", key);
-            json_decref(value);
-            return CELIX_ILLEGAL_ARGUMENT;
-        }
-    }
-
+static celix_status_t celix_properties_addJsonValueToJson(json_t* value, const char* key, json_t* obj) {
     int rc = json_object_set_new(obj, key, value);
     if (rc != 0) {
         celix_err_push("Failed to set json object");
@@ -134,57 +124,8 @@ static celix_status_t celix_properties_addPropertiesEntryFlatToJson(const celix_
                                                                     int flags) {
     json_t* value;
     celix_status_t status = celix_properties_entryValueToJson(key, entry, flags, &value);
-    status = CELIX_DO_IF(status, celix_properties_addJsonValueToJson(value, key, root, flags));
+    status = CELIX_DO_IF(status, celix_properties_addJsonValueToJson(value, key, root));
     return status;
-}
-
-static celix_status_t celix_properties_addPropertiesEntryToJson(const celix_properties_entry_t* entry,
-                                                                const char* key,
-                                                                json_t* root,
-                                                                int flags) {
-    json_t* jsonObj = root;
-    const char* fieldName = key;
-    const char* slash = strchr(key, CELIX_PROPERTIES_JSONPATH_SEPARATOR);
-    while (slash) {
-        char buf[64];
-        char* name = celix_utils_writeOrCreateString(buf, sizeof(buf), "%.*s", (int)(slash - fieldName), fieldName);
-        celix_auto(celix_utils_string_guard_t) strGuard = celix_utils_stringGuard_init(buf, name);
-        if (!name) {
-            celix_err_push("Failed to create name string");
-            return ENOMEM;
-        }
-        json_t* subObj = json_object_get(jsonObj, name);
-        if (subObj && !json_is_object(subObj)) {
-            if (flags & CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS) {
-                celix_err_pushf("Invalid key collision. Key '%s' already exists.", name);
-                return CELIX_ILLEGAL_ARGUMENT;
-            }
-            return CELIX_SUCCESS;
-        }
-        if (!subObj) {
-            subObj = json_object();
-            if (!subObj) {
-                celix_err_push("Failed to create json object");
-                return ENOMEM;
-            }
-            int rc = json_object_set_new(jsonObj, name, subObj);
-            if (rc != 0) {
-                celix_err_push("Failed to set json object");
-                return ENOMEM;
-            }
-        }
-
-        jsonObj = subObj;
-        fieldName = slash + 1;
-        slash = strchr(fieldName, CELIX_PROPERTIES_JSONPATH_SEPARATOR);
-    }
-
-    json_t* value;
-    celix_status_t status = celix_properties_entryValueToJson(fieldName, entry, flags, &value);
-    if (status != CELIX_SUCCESS) {
-        return status;
-    }
-    return celix_properties_addJsonValueToJson(value, fieldName, jsonObj, flags);
 }
 
 celix_status_t celix_properties_encodeToJson(const celix_properties_t* properties, int encodeFlags, json_t** out) {
@@ -195,19 +136,12 @@ celix_status_t celix_properties_encodeToJson(const celix_properties_t* propertie
         return ENOMEM;
     }
 
-    if (!(encodeFlags & CELIX_PROPERTIES_ENCODE_FLAT_STYLE) && !(encodeFlags & CELIX_PROPERTIES_ENCODE_NESTED_STYLE)) {
-        // no encoding flags set, default to flat
-        encodeFlags |= CELIX_PROPERTIES_ENCODE_FLAT_STYLE;
-    }
-
     CELIX_PROPERTIES_ITERATE(properties, iter) {
-        celix_status_t status;
-        if (encodeFlags & CELIX_PROPERTIES_ENCODE_FLAT_STYLE) {
-            status = celix_properties_addPropertiesEntryFlatToJson(&iter.entry, iter.key, root, encodeFlags);
-        } else {
-            assert(encodeFlags & CELIX_PROPERTIES_ENCODE_NESTED_STYLE);
-            status = celix_properties_addPropertiesEntryToJson(&iter.entry, iter.key, root, encodeFlags);
+        if (!celix_utils_isValidUtf8(iter.key)) {
+            celix_err_push("Cannot encode a property with an invalid UTF-8 key");
+            return CELIX_ILLEGAL_ARGUMENT;
         }
+        celix_status_t status = celix_properties_addPropertiesEntryFlatToJson(&iter.entry, iter.key, root, encodeFlags);
         if (status != CELIX_SUCCESS) {
             return status;
         }
@@ -275,46 +209,30 @@ celix_status_t celix_properties_saveToString(const celix_properties_t* propertie
 
 static celix_status_t
 celix_properties_decodeArray(celix_properties_t* props, const char* key, const json_t* jsonArray, int flags) {
-    int decodeArrayFlags = 0;
-    if (flags & CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_ARRAYS) {
-        decodeArrayFlags |= CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS;
-    }
-    if (flags & CELIX_PROPERTIES_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS) {
-        decodeArrayFlags |= CELIX_ARRAY_LIST_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS;
-    }
     celix_autoptr(celix_array_list_t) array = NULL;
-    celix_status_t status = celix_arrayList_decodeFromJson(jsonArray, decodeArrayFlags, &array);
+    celix_status_t status = celix_arrayList_decodeFromJson(jsonArray, flags, &array);
     if (status != CELIX_SUCCESS) {
         celix_err_pushf("Failed to decode array list for key '%s'.", key);
         return status;
-    }
-    if (array == NULL) {
-        // ignore empty arrays or mixed type arrays
-        return CELIX_SUCCESS;
     }
     return celix_properties_assignArrayList(props, key, celix_steal_ptr(array));
 }
 
 static celix_status_t
 celix_properties_decodeValue(celix_properties_t* props, const char* key, json_t* jsonValue, int flags) {
-    if (strncmp(key, "", 1) == 0) {
-        if (flags & CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_KEYS) {
-            celix_err_push("Key cannot be empty.");
-            return CELIX_ILLEGAL_ARGUMENT;
-        }
-    }
-
-    if (!json_is_object(jsonValue) && celix_properties_hasKey(props, key) &&
-        (flags & CELIX_PROPERTIES_DECODE_ERROR_ON_COLLISIONS)) {
-        celix_err_pushf("Invalid key collision. Key '%s' already exists.", key);
-        return CELIX_ILLEGAL_ARGUMENT;
-    }
-
     celix_status_t status = CELIX_SUCCESS;
     if (json_is_string(jsonValue)) {
-        status = celix_properties_setString(props, key, json_string_value(jsonValue));
+        if ((flags & CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS) && celix_utils_isVersionJsonString(jsonValue)) {
+            celix_version_t* version = NULL;
+            status = celix_utils_jsonToVersion(jsonValue, &version);
+            status = CELIX_DO_IF(status, celix_properties_assignVersion(props, key, version));
+        } else {
+            status = celix_properties_setString(props, key, json_string_value(jsonValue));
+        }
     } else if (json_is_integer(jsonValue)) {
-        status = celix_properties_setLong(props, key, json_integer_value(jsonValue));
+        long longValue;
+        status = celix_properties_jsonIntegerToLong(jsonValue, key, &longValue);
+        status = CELIX_DO_IF(status, celix_properties_setLong(props, key, longValue));
     } else if (json_is_real(jsonValue)) {
         status = celix_properties_setDouble(props, key, json_real_value(jsonValue));
     } else if (json_is_boolean(jsonValue)) {
@@ -326,10 +244,6 @@ celix_properties_decodeValue(celix_properties_t* props, const char* key, json_t*
     } else if (json_is_array(jsonValue)) {
         status = celix_properties_decodeArray(props, key, jsonValue, flags);
     } else if (json_is_null(jsonValue)) {
-        if (flags & CELIX_PROPERTIES_DECODE_ERROR_ON_NULL_VALUES) {
-            celix_err_pushf("Invalid null value for key '%s'.", key);
-            return CELIX_ILLEGAL_ARGUMENT;
-        }
         status = celix_properties_setNull(props, key);
     } else {
         // LCOV_EXCL_START

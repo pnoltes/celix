@@ -346,3 +346,52 @@ TEST_F(CxxPropertiesTestSuite, JsonPathTest) {
     EXPECT_EQ(42, values.front());
     EXPECT_TRUE(props.getAllLongsByPath("$.nested.missing").empty());
 }
+
+TEST_F(CxxPropertiesTestSuite, RecursiveJsonPathParityAndOwnedResults) {
+    auto props = celix::Properties::loadFromString(
+        R"({"strings":["a","b"],"longs":[1,2],"doubles":[1.5,2.5],"bools":[true,false],"children":[{"name":"first"},{"name":"second"}],"nestedArrays":[[1],[2]],"mixed":[null,"text",3,[4]],"nested":{"value":42}})");
+    props.setNull("explicitNull");
+    celix::Properties addedChild{};
+    addedChild.set("value", 43L);
+    props.setProperties("addedChild", addedChild);
+
+    celix_properties_assignVersion(props.getCProperties(), "version", celix_version_create(1, 2, 3, nullptr));
+    auto* versions = celix_arrayList_createVersionArray();
+    celix_arrayList_assignVersion(versions, celix_version_create(2, 0, 0, nullptr));
+    celix_properties_assignArrayList(props.getCProperties(), "versions", versions);
+
+    EXPECT_TRUE(props.hasNullPath("$.explicitNull"));
+    EXPECT_EQ(43, props.getPropertiesByPath("$.addedChild").getLong("value", -1));
+    EXPECT_EQ(celix::Version(1, 2, 3), props.getVersionByPath("$.version"));
+    EXPECT_EQ(2u, props.getStringVectorByPath("$.strings").size());
+    EXPECT_EQ(2u, props.getLongVectorByPath("$.longs").size());
+    EXPECT_EQ(2u, props.getDoubleVectorByPath("$.doubles").size());
+    EXPECT_EQ(2u, props.getBoolVectorByPath("$.bools").size());
+    EXPECT_EQ(1u, props.getVersionVectorByPath("$.versions").size());
+    EXPECT_EQ(2u, props.getPropertiesVectorByPath("$.children").size());
+    EXPECT_EQ(4u, props.getArrayByPath("$.mixed").size());
+    EXPECT_EQ(2u, props.getAllStringsByPath("$..name").size());
+    EXPECT_EQ(2u, props.getAllLongsByPath("$.longs[*]").size());
+    EXPECT_EQ(2u, props.getAllDoublesByPath("$.doubles[*]").size());
+    EXPECT_EQ(2u, props.getAllBoolsByPath("$.bools[*]").size());
+    EXPECT_EQ(1u, props.getAllVersionsByPath("$.version").size());
+    EXPECT_EQ(2u, props.getAllPropertiesByPath("$.children[*]").size());
+    EXPECT_EQ(2u, props.getAllArraysByPath("$.nestedArrays[*]").size());
+
+    auto values = props.getAllValuesByPath("$.mixed[*]");
+    ASSERT_EQ(4u, values.size());
+    EXPECT_EQ(celix::PropertyValue::Type::Null, values[0].getType());
+    EXPECT_EQ(celix::PropertyValue::Type::String, values[1].getType());
+    EXPECT_EQ("text", values[1].getString());
+    EXPECT_EQ(celix::PropertyValue::Type::Long, values[2].getType());
+    EXPECT_EQ(3, values[2].getLong());
+    EXPECT_EQ(celix::PropertyValue::Type::Array, values[3].getType());
+
+    // Selected values are owning deep copies and remain valid after their source is destroyed.
+    auto selectedChildren = props.getAllPropertiesByPath("$.children[*]");
+    auto selectedArrays = props.getAllArraysByPath("$.nestedArrays[*]");
+    props = celix::Properties{};
+    EXPECT_EQ("first", selectedChildren[0].getString("name"));
+    EXPECT_EQ(1, selectedArrays[0][0].getLong());
+    EXPECT_EQ("text", values[1].getString());
+}

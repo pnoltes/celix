@@ -68,8 +68,13 @@ bool celix_utils_isVersionJsonString(const json_t* string);
  */
 celix_status_t celix_utils_jsonErrorToStatus(enum json_error_code error);
 
+/**
+ * @brief Check whether a NUL-terminated string is well-formed UTF-8.
+ */
+bool celix_utils_isValidUtf8(const char* value);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif //CELIX_CELIX_JSON_UTILS_PRIVATE_H
+#endif // CELIX_CELIX_JSON_UTILS_PRIVATE_H

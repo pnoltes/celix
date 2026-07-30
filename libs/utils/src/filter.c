@@ -18,11 +18,11 @@
  */
 
 #include <assert.h>
+#include <celix_utils.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <celix_utils.h>
 
 #include "celix_convert_utils.h"
 #include "celix_err.h"
@@ -297,12 +297,12 @@ static celix_filter_t* celix_filter_parseItem(const char* filterString, int* pos
         }
         break;
     }
-    //LCOV_EXCL_START
+    // LCOV_EXCL_START
     default: {
         celix_err_pushf("Filter Error: Invalid operand char `%c`", op);
         return NULL;
     }
-    //LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP
     }
     return celix_steal_ptr(filter);
 }
@@ -531,12 +531,9 @@ static celix_status_t celix_filter_compile(celix_filter_t* filter) {
         if (!internal) {
             return ENOMEM;
         }
-        internal->longValue =
-            celix_utils_convertStringToLong(filter->value, 0, &internal->convertedToLong);
-        internal->doubleValue =
-                celix_utils_convertStringToDouble(filter->value, 0.0, &internal->convertedToDouble);
-        internal->boolValue =
-                celix_utils_convertStringToBool(filter->value, false, &internal->convertedToBool);
+        internal->longValue = celix_utils_convertStringToLong(filter->value, 0, &internal->convertedToLong);
+        internal->doubleValue = celix_utils_convertStringToDouble(filter->value, 0.0, &internal->convertedToDouble);
+        internal->boolValue = celix_utils_convertStringToBool(filter->value, false, &internal->convertedToBool);
 
         celix_status_t convertStatus = celix_version_tryParse(filter->value, &internal->versionValue);
         if (convertStatus == ENOMEM) {
@@ -610,17 +607,18 @@ static bool celix_utils_convertCompareToBool(enum celix_filter_operand_enum op, 
         return cmp < 0;
     case CELIX_FILTER_OPERAND_LESSEQUAL:
         return cmp <= 0;
-    //LCOV_EXCL_START
+    // LCOV_EXCL_START
     default:
         assert(false);
         return false;
-    //LCOV_EXCL_STOP
+        // LCOV_EXCL_STOP
     }
 }
 
-static bool celix_utils_matchLongArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, long attributeValue) {
+static bool
+celix_utils_matchLongArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, long attributeValue) {
     assert(list != NULL);
-    for (int i = 0 ; i < celix_arrayList_size(list); ++i) {
+    for (int i = 0; i < celix_arrayList_size(list); ++i) {
         int cmp = celix_filter_cmpLong(celix_arrayList_getLong(list, i), attributeValue);
         if (celix_utils_convertCompareToBool(op, cmp)) {
             return true;
@@ -629,9 +627,11 @@ static bool celix_utils_matchLongArrays(enum celix_filter_operand_enum op, const
     return false;
 }
 
-static bool celix_utils_matchDoubleArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, double attributeValue) {
+static bool celix_utils_matchDoubleArrays(enum celix_filter_operand_enum op,
+                                          const celix_array_list_t* list,
+                                          double attributeValue) {
     assert(list != NULL);
-    for (int i = 0 ; i < celix_arrayList_size(list); ++i) {
+    for (int i = 0; i < celix_arrayList_size(list); ++i) {
         int cmp = celix_filter_cmpDouble(celix_arrayList_getDouble(list, i), attributeValue);
         if (celix_utils_convertCompareToBool(op, cmp)) {
             return true;
@@ -640,10 +640,10 @@ static bool celix_utils_matchDoubleArrays(enum celix_filter_operand_enum op, con
     return false;
 }
 
-
-static bool celix_utils_matchBoolArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, bool attributeValue) {
+static bool
+celix_utils_matchBoolArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, bool attributeValue) {
     assert(list != NULL);
-    for (int i = 0 ; i < celix_arrayList_size(list); ++i) {
+    for (int i = 0; i < celix_arrayList_size(list); ++i) {
         int cmp = celix_filter_cmpBool(celix_arrayList_getBool(list, i), attributeValue);
         if (celix_utils_convertCompareToBool(op, cmp)) {
             return true;
@@ -652,9 +652,11 @@ static bool celix_utils_matchBoolArrays(enum celix_filter_operand_enum op, const
     return false;
 }
 
-static bool celix_utils_matchVersionArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, celix_version_t* attributeValue) {
+static bool celix_utils_matchVersionArrays(enum celix_filter_operand_enum op,
+                                           const celix_array_list_t* list,
+                                           celix_version_t* attributeValue) {
     assert(list != NULL);
-    for (int i = 0 ; i < celix_arrayList_size(list); ++i) {
+    for (int i = 0; i < celix_arrayList_size(list); ++i) {
         int cmp = celix_version_compareTo(celix_arrayList_getVersion(list, i), attributeValue);
         if (celix_utils_convertCompareToBool(op, cmp)) {
             return true;
@@ -663,9 +665,11 @@ static bool celix_utils_matchVersionArrays(enum celix_filter_operand_enum op, co
     return false;
 }
 
-static bool celix_utils_matchStringArrays(enum celix_filter_operand_enum op, const celix_array_list_t* list, const char* attributeValue) {
+static bool celix_utils_matchStringArrays(enum celix_filter_operand_enum op,
+                                          const celix_array_list_t* list,
+                                          const char* attributeValue) {
     assert(list != NULL);
-    for (int i = 0 ; i < celix_arrayList_size(list); ++i) {
+    for (int i = 0; i < celix_arrayList_size(list); ++i) {
         int cmp = strcmp(celix_arrayList_getString(list, i), attributeValue);
         if (celix_utils_convertCompareToBool(op, cmp)) {
             return true;
@@ -673,7 +677,6 @@ static bool celix_utils_matchStringArrays(enum celix_filter_operand_enum op, con
     }
     return false;
 }
-
 
 static bool celix_filter_matchSubStringForValue(const celix_filter_t* filter, const char* value) {
     assert(filter->children && celix_arrayList_size(filter->children) >= 2);
@@ -744,6 +747,16 @@ static bool celix_filter_matchApprox(const celix_filter_t* filter, const celix_p
 }
 
 static bool celix_filter_matchPropertyEntry(const celix_filter_t* filter, const celix_properties_entry_t* entry) {
+    if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_NULL ||
+        entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_PROPERTIES ||
+        (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_ARRAY_LIST &&
+         (celix_arrayList_getElementType(entry->typed.arrayValue) == CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES ||
+          celix_arrayList_getElementType(entry->typed.arrayValue) == CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST ||
+          celix_arrayList_getElementType(entry->typed.arrayValue) == CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT))) {
+        // Structured values intentionally have a JSON compatibility snapshot in entry->value, but LDAP filters must
+        // never interpret that snapshot as a scalar. They match only the presence operand handled by the caller.
+        return false;
+    }
     if (filter->operand == CELIX_FILTER_OPERAND_SUBSTRING) {
         return celix_filter_matchSubString(filter, entry);
     } else if (filter->operand == CELIX_FILTER_OPERAND_APPROX) {
@@ -754,8 +767,7 @@ static bool celix_filter_matchPropertyEntry(const celix_filter_t* filter, const 
            filter->operand == CELIX_FILTER_OPERAND_LESS || filter->operand == CELIX_FILTER_OPERAND_GREATEREQUAL ||
            filter->operand == CELIX_FILTER_OPERAND_LESSEQUAL);
 
-
-    //match for array types
+    // match for array types
     if (celix_filter_isPropertyEntryArrayWithElementType(entry, CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG)) {
         return celix_utils_matchLongArrays(filter->operand, entry->typed.arrayValue, filter->internal->longValue);
     } else if (celix_filter_isPropertyEntryArrayWithElementType(entry, CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE)) {
@@ -768,7 +780,7 @@ static bool celix_filter_matchPropertyEntry(const celix_filter_t* filter, const 
         return celix_utils_matchStringArrays(filter->operand, entry->typed.arrayValue, filter->value);
     }
 
-    //regular compare -> match
+    // regular compare -> match
     int cmp;
     if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_LONG && filter->internal->convertedToLong) {
         cmp = celix_filter_cmpLong(entry->typed.longValue, filter->internal->longValue);
@@ -784,6 +796,55 @@ static bool celix_filter_matchPropertyEntry(const celix_filter_t* filter, const 
         cmp = strcmp(entry->value, filter->value);
     }
     return celix_utils_convertCompareToBool(filter->operand, cmp);
+}
+
+static bool celix_filter_usesJsonPath(const celix_filter_t* filter) {
+    return filter->attribute[0] == '$';
+}
+
+static celix_status_t celix_filter_setVariantProperty(celix_properties_t* properties,
+                                                      const celix_array_list_variant_t* value) {
+    switch (value->type) {
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_NULL:
+        return celix_properties_setNull(properties, "value");
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        return celix_properties_setString(properties, "value", value->value.stringValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_LONG:
+        return celix_properties_setLong(properties, "value", value->value.longValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE:
+        return celix_properties_setDouble(properties, "value", value->value.doubleValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL:
+        return celix_properties_setBool(properties, "value", value->value.boolValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION:
+        return celix_properties_setVersion(properties, "value", value->value.versionValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES:
+        return celix_properties_setProperties(properties, "value", value->value.propertiesValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
+        return celix_properties_setArrayList(properties, "value", value->value.arrayListValue);
+    }
+    return CELIX_ILLEGAL_ARGUMENT;
+}
+
+static bool celix_filter_matchJsonPath(const celix_filter_t* filter, const celix_properties_t* properties) {
+    const char* path = filter->attribute;
+    if (filter->operand == CELIX_FILTER_OPERAND_PRESENT) {
+        return celix_properties_hasPath(properties, path);
+    }
+
+    celix_autoptr(celix_array_list_t) matches = celix_properties_getAllValuesByPath(properties, path);
+    if (!matches)
+        return false;
+    for (int i = 0; i < celix_arrayList_size(matches); ++i) {
+        celix_autoptr(celix_properties_t) selected = celix_properties_create();
+        if (!selected)
+            return false;
+        celix_status_t status = celix_filter_setVariantProperty(selected, celix_arrayList_getVariant(matches, i));
+        if (status != CELIX_SUCCESS)
+            return false;
+        if (celix_filter_matchPropertyEntry(filter, celix_properties_getEntry(selected, "value")))
+            return true;
+    }
+    return false;
 }
 
 celix_status_t filter_getString(celix_filter_t* filter, const char** filterStr) {
@@ -853,8 +914,12 @@ bool celix_filter_match(const celix_filter_t* filter, const celix_properties_t* 
         return true; // if filter is NULL, it matches
     }
 
-    if (filter->operand == CELIX_FILTER_OPERAND_PRESENT) {
-        return celix_properties_get(properties, filter->attribute, NULL) != NULL;
+    if ((filter->operand == CELIX_FILTER_OPERAND_PRESENT ||
+         (filter->operand >= CELIX_FILTER_OPERAND_EQUAL && filter->operand <= CELIX_FILTER_OPERAND_SUBSTRING)) &&
+        celix_filter_usesJsonPath(filter)) {
+        return celix_filter_matchJsonPath(filter, properties);
+    } else if (filter->operand == CELIX_FILTER_OPERAND_PRESENT) {
+        return celix_properties_hasKey(properties, filter->attribute);
     } else if (filter->operand == CELIX_FILTER_OPERAND_AND) {
         celix_array_list_t* children = filter->children;
         for (int i = 0; i < celix_arrayList_size(children); i++) {

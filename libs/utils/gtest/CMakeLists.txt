@@ -29,6 +29,7 @@ add_executable(test_utils
         src/CelixUtilsTestSuite.cc
         src/ConvertUtilsTestSuite.cc
         src/PropertiesTestSuite.cc
+        src/PropertiesJsonPathTestSuite.cc
         src/PropertiesEncodingTestSuite.cc
         src/CelixJsonUtilsTestSuite.cc
         src/CelixArrayListEncodingTestSuite.cc
@@ -145,6 +146,7 @@ if (EI_TESTS)
             src/HashMapErrorInjectionTestSuite.cc
             src/FilterErrorInjectionTestSuite.cc
             src/PropertiesEncodingErrorInjectionTestSuite.cc
+            src/PropertiesJsonPathErrorInjectionTestSuite.cc
             src/CelixArrayListEncodingErrorInjectionTestSuite.cc
             src/CelixJsonUtilsErrorInjectionTestSuite.cc
     )

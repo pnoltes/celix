@@ -17,13 +17,49 @@
  * under the License.
  */
 
-#include "celix_json_utils_private.h"
 #include "celix_err.h"
-#include "celix_utils.h"
+#include "celix_json_utils_private.h"
 #include "celix_stdlib_cleanup.h"
+#include "celix_utils.h"
 
-#include <string.h>
 #include <assert.h>
+#include <stdint.h>
+#include <string.h>
+
+bool celix_utils_isValidUtf8(const char* value) {
+    const unsigned char* input = (const unsigned char*)value;
+    while (*input != '\0') {
+        uint32_t codepoint;
+        size_t trailing;
+        if (*input <= 0x7f) {
+            ++input;
+            continue;
+        } else if (*input >= 0xc2 && *input <= 0xdf) {
+            codepoint = *input & 0x1f;
+            trailing = 1;
+        } else if (*input >= 0xe0 && *input <= 0xef) {
+            codepoint = *input & 0x0f;
+            trailing = 2;
+        } else if (*input >= 0xf0 && *input <= 0xf4) {
+            codepoint = *input & 0x07;
+            trailing = 3;
+        } else {
+            return false;
+        }
+        ++input;
+        for (size_t i = 0; i < trailing; ++i, ++input) {
+            if ((*input & 0xc0) != 0x80) {
+                return false;
+            }
+            codepoint = (codepoint << 6) | (*input & 0x3f);
+        }
+        if ((trailing == 2 && codepoint < 0x800) || (trailing == 3 && codepoint < 0x10000) || codepoint > 0x10ffff ||
+            (codepoint >= 0xd800 && codepoint <= 0xdfff)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 celix_status_t celix_utils_versionToJson(const celix_version_t* version, json_t** out) {
     assert(version != NULL);
@@ -67,40 +103,40 @@ celix_status_t celix_utils_jsonToVersion(const json_t* json, celix_version_t** o
     return CELIX_SUCCESS;
 }
 
-bool celix_utils_isVersionJsonString(const json_t* string)
-{
+bool celix_utils_isVersionJsonString(const json_t* string) {
     if (!json_is_string(string)) {
         return false;
     }
     const char* value = json_string_value(string);
     assert(value != NULL);
-    return strncmp(value, "version<", 8) == 0 && value[strlen(value) - 1] == '>';
+    size_t length = strlen(value);
+    return length >= 9 && strncmp(value, "version<", 8) == 0 && value[length - 1] == '>';
 }
 
 celix_status_t celix_utils_jsonErrorToStatus(enum json_error_code error) {
     switch (error) {
-        case json_error_unknown:
-            return CELIX_ILLEGAL_STATE;
-        case json_error_out_of_memory:
-        case json_error_stack_overflow:
-            return ENOMEM;
-        case json_error_cannot_open_file:
-            return CELIX_FILE_IO_EXCEPTION;
-        case json_error_invalid_argument:
-        case json_error_invalid_utf8:
-        case json_error_premature_end_of_input:
-        case json_error_end_of_input_expected:
-        case json_error_invalid_syntax:
-        case json_error_invalid_format:
-        case json_error_wrong_type:
-        case json_error_null_character:
-        case json_error_null_value:
-        case json_error_null_byte_in_key:
-        case json_error_duplicate_key:
-        case json_error_numeric_overflow:
-        case json_error_item_not_found:
-        case json_error_index_out_of_range:
-        default:
-            return CELIX_ILLEGAL_ARGUMENT;
+    case json_error_unknown:
+        return CELIX_ILLEGAL_STATE;
+    case json_error_out_of_memory:
+    case json_error_stack_overflow:
+        return ENOMEM;
+    case json_error_cannot_open_file:
+        return CELIX_FILE_IO_EXCEPTION;
+    case json_error_invalid_argument:
+    case json_error_invalid_utf8:
+    case json_error_premature_end_of_input:
+    case json_error_end_of_input_expected:
+    case json_error_invalid_syntax:
+    case json_error_invalid_format:
+    case json_error_wrong_type:
+    case json_error_null_character:
+    case json_error_null_value:
+    case json_error_null_byte_in_key:
+    case json_error_duplicate_key:
+    case json_error_numeric_overflow:
+    case json_error_item_not_found:
+    case json_error_index_out_of_range:
+    default:
+        return CELIX_ILLEGAL_ARGUMENT;
     }
 }

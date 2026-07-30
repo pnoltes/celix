@@ -36,38 +36,30 @@ extern "C" {
  */
 
 /**
- * @brief Flag to indicate that the encoding should be pretty printed. e.g. encoded with additional whitespaces, newlines and indentation.
+ * @brief Flag to indicate that the encoding should be pretty printed. e.g. encoded with additional whitespaces,
+ * newlines and indentation.
  *
  * If this flag is not set, the encoding will be compact. e.g. without additional whitespaces, newlines and indentation.
  */
 #define CELIX_ARRAY_LIST_ENCODE_PRETTY 0x01
 
 /**
- * @brief Flag to indicate that the encoding should fail if an empty array is encountered.
- *
- * If this flag is not set, an empty array will be encoded as an empty json array representation("[]").
- *
- * Although empty arrays are valid in json, they cannot decoded to a valid celix_array_list_t.
+ * @brief Deprecated compatibility flag. Empty arrays are valid JSON and are always encoded as `[]`.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS 0x10
 
 /**
- * @brief Flag to indicate that the encoding should fail if a NaN or Inf value is encountered.
- *
- * If this flag is not set, the encoding will not fail and the NaN and Inf value will be ignored.
- *
- * NaN and Inf values are not valid in json, as such celix_array_list_t with these values cannot be encoded to json.
+ * @brief Deprecated compatibility flag. Non-finite numbers are never valid JSON and are always rejected.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_ARRAY_LIST_ENCODE_ERROR_ON_NAN_INF 0x20
 
-/**
- * @brief Flag to indicate that the encoding should be strict. e.g. fail on empty arrays and NaN/Inf values.
- */
-#define CELIX_ARRAY_LIST_ENCODE_STRICT \
+/** @brief Deprecated combination of compatibility flags. Non-finite values are rejected unconditionally. */
+#define CELIX_ARRAY_LIST_ENCODE_STRICT                                                                                 \
     (CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS | CELIX_ARRAY_LIST_ENCODE_ERROR_ON_NAN_INF)
 
-/** @} */// End celix_array_list_t encoding flags
-
+/** @} */ // End celix_array_list_t encoding flags
 
 /**
  * @brief Encode the given celix_array_list_t as a JSON representation，and write it to the given stream.
@@ -83,14 +75,18 @@ extern "C" {
  * - CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL: Encoded as a JSON boolean.
  * - CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION: Encoded as a JSON string with a "version<" prefix and a ">" suffix
  * (e.g. "version<1.2.3>").
- * - CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED and CELIX_ARRAY_LIST_ELEMENT_TYPE_POINTER: Not supported and will result in an error.
+ * - CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES: Encoded as a JSON object.
+ * - CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST: Encoded recursively as a JSON array.
+ * - CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT: Each element is encoded according to its variant tag.
+ * - CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED and CELIX_ARRAY_LIST_ELEMENT_TYPE_POINTER: Not supported and will result in
+ * an error.
  *
  * @param list The celix_array_list_t to encode.
  * @param encodeFlags The encoding flags to use.
  * @param stream The stream to write the JSON representation to.
  * @return CELIX_SUCCESS if the encoding was successful.
- *        CELIX_ILLEGAL_ARGUMENT if the `list` or `stream` is NULL, or the provided list cannot be encoded to a JSON representation.
- *        ENOMEM if there was not enough memory.
+ *        CELIX_ILLEGAL_ARGUMENT if the `list` or `stream` is NULL, or the provided list cannot be encoded to a JSON
+ * representation. ENOMEM if there was not enough memory.
  */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_saveToStream(const celix_array_list_t* list, int encodeFlags, FILE* stream);
@@ -106,9 +102,9 @@ celix_status_t celix_arrayList_saveToStream(const celix_array_list_t* list, int 
  * @param encodeFlags The encoding flags to use.
  * @param filename The file to write the JSON representation to.
  * @return CELIX_SUCCESS if the encoding was successful.
- *       CELIX_ILLEGAL_ARGUMENT if the `list` or `filename` is NULL, or the provided list cannot be encoded to a JSON representation.
- *       CELIX_FILE_IO_EXCEPTION if the file could not be opened for writing.
- *       ENOMEM if there was not enough memory.
+ *       CELIX_ILLEGAL_ARGUMENT if the `list` or `filename` is NULL, or the provided list cannot be encoded to a JSON
+ * representation. CELIX_FILE_IO_EXCEPTION if the file could not be opened for writing. ENOMEM if there was not enough
+ * memory.
  */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_save(const celix_array_list_t* list, int encodeFlags, const char* filename);
@@ -122,10 +118,11 @@ celix_status_t celix_arrayList_save(const celix_array_list_t* list, int encodeFl
  *
  * @param list The celix_array_list_t to encode.
  * @param encodeFlags The encoding flags to use.
- * @param out The resulting JSON string representation. The caller is responsible for freeing the returned string using free.
+ * @param out The resulting JSON string representation. The caller is responsible for freeing the returned string using
+ * free.
  * @return CELIX_SUCCESS if the encoding was successful.
- *         CELIX_ILLEGAL_ARGUMENT if the `list` or `out` is NULL, or the provided list cannot be encoded to a JSON representation.
- *         ENOMEM if there was not enough memory.
+ *         CELIX_ILLEGAL_ARGUMENT if the `list` or `out` is NULL, or the provided list cannot be encoded to a JSON
+ * representation. ENOMEM if there was not enough memory.
  */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_saveToString(const celix_array_list_t* list, int encodeFlags, char** out);
@@ -136,28 +133,30 @@ celix_status_t celix_arrayList_saveToString(const celix_array_list_t* list, int 
  */
 
 /**
- * @brief Flag to indicate that the decoding should fail if an empty array is encountered.
- *
- * If this flag is not set, the decoding will not fail and the empty json array representation("[]") will be ignored, then a NULL celix_array_list_t* will be returned.
+ * @brief Deprecated compatibility flag. Empty arrays always decode to an empty variant array list.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS 0x01
 
 /**
- * @brief Flag to indicate that the decoding should fail if an unsupported array type is encountered.
- *
- * If this flag is not set, the decoding will not fail and the unsupported array type will be ignored, then a NULL celix_array_list_t* will be returned.
+ * @brief Deprecated compatibility flag. Every JSON array shape is represented, using variants when needed.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_ARRAY_LIST_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS 0x02
 
 /**
- * @brief Flag to indicate that the decoding should be strict. e.g. fail on empty arrays and unsupported array types.
+ * @brief Opt-in compatibility flag to decode tagged `version<...>` JSON strings as Celix versions.
  *
+ * Without this flag every JSON string remains a string. This flag uses the same bit as the corresponding properties
+ * flag so it can be propagated through recursive decoding.
  */
-#define CELIX_ARRAY_LIST_DECODE_STRICT \
+#define CELIX_ARRAY_LIST_DECODE_LEGACY_VERSION_STRINGS 0x40
+
+/** @brief Deprecated combination of no-op compatibility flags. */
+#define CELIX_ARRAY_LIST_DECODE_STRICT                                                                                 \
     (CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS | CELIX_ARRAY_LIST_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS)
 
-/** @} */// End celix_array_list_t decoding flags
-
+/** @} */ // End celix_array_list_t decoding flags
 
 /**
  * @brief Decode a celix_array_list_t from a JSON representation in the given stream.
@@ -170,15 +169,20 @@ celix_status_t celix_arrayList_saveToString(const celix_array_list_t* list, int 
  * - JSON integer: Decoded as a CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG.
  * - JSON real: Decoded as a CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE.
  * - JSON boolean: Decoded as a CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL.
- * - JSON string with a "version<" prefix and a ">" suffix: Decoded as a CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION.
- * (e.g. "version<1.2.3>").
- * - Other JSON types: Not supported and will result in an error.
+ * - JSON object: Decoded as CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES.
+ * - JSON array: Decoded recursively as CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST.
+ * - Mixed or null-containing arrays: Decoded as CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT.
+ *
+ * JSON strings are not inferred as Celix versions unless CELIX_ARRAY_LIST_DECODE_LEGACY_VERSION_STRINGS is set. Mixed
+ * integer/real arrays remain variants so integer precision and the JSON numeric type are preserved.
  *
  * @param stream The stream to read the JSON representation from.
  * @param decodeFlags The decoding flags to use.
- * @param out The decoded celix_array_list_t. The caller is responsible for destroying the returned celix_array_list_t using celix_arrayList_destroy.
+ * @param out The decoded celix_array_list_t. The caller is responsible for destroying the returned celix_array_list_t
+ using celix_arrayList_destroy.
  * @return CELIX_SUCCESS if the decoding was successful.
- *        CELIX_ILLEGAL_ARGUMENT if the `stream` or `out` is NULL, or the provided stream cannot be decoded to a celix_array_list_t.
+ *        CELIX_ILLEGAL_ARGUMENT if the `stream` or `out` is NULL, or the provided stream cannot be decoded to a
+ celix_array_list_t.
  *        ENOMEM if there was not enough memory.
  */
 CELIX_UTILS_EXPORT
@@ -193,11 +197,12 @@ celix_status_t celix_arrayList_loadFromStream(FILE* stream, int decodeFlags, cel
  *
  * @param filename The file to read the JSON representation from.
  * @param decodeFlags The decoding flags to use.
- * @param out The decoded celix_array_list_t. The caller is responsible for destroying the returned celix_array_list_t using celix_arrayList_destroy.
+ * @param out The decoded celix_array_list_t. The caller is responsible for destroying the returned celix_array_list_t
+ * using celix_arrayList_destroy.
  * @return CELIX_SUCCESS if the decoding was successful.
- *        CELIX_ILLEGAL_ARGUMENT if the `filename` or `out` is NULL, or the provided file cannot be decoded to a celix_array_list_t.
- *        CELIX_FILE_IO_EXCEPTION if the file could not be opened for reading.
- *        ENOMEM if there was not enough memory.
+ *        CELIX_ILLEGAL_ARGUMENT if the `filename` or `out` is NULL, or the provided file cannot be decoded to a
+ * celix_array_list_t. CELIX_FILE_IO_EXCEPTION if the file could not be opened for reading. ENOMEM if there was not
+ * enough memory.
  */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_load(const char* filename, int decodeFlags, celix_array_list_t** out);
@@ -211,10 +216,11 @@ celix_status_t celix_arrayList_load(const char* filename, int decodeFlags, celix
  *
  * @param input The JSON representation to decode.
  * @param decodeFlags The decoding flags to use.
- * @param out The decoded celix_array_list_t. The caller is responsible for destroying the returned celix_array_list_t using celix_arrayList_destroy.
+ * @param out The decoded celix_array_list_t. The caller is responsible for destroying the returned celix_array_list_t
+ * using celix_arrayList_destroy.
  * @return CELIX_SUCCESS if the decoding was successful.
- *        CELIX_ILLEGAL_ARGUMENT if the `input` or `out` is NULL, or the provided string cannot be decoded to a celix_array_list_t.
- *        ENOMEM if there was not enough memory.
+ *        CELIX_ILLEGAL_ARGUMENT if the `input` or `out` is NULL, or the provided string cannot be decoded to a
+ * celix_array_list_t. ENOMEM if there was not enough memory.
  */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_loadFromString(const char* input, int decodeFlags, celix_array_list_t** out);
@@ -223,4 +229,4 @@ celix_status_t celix_arrayList_loadFromString(const char* input, int decodeFlags
 }
 #endif
 
-#endif //CELIX_CELIX_ARRAY_LIST_ENCODING_H
+#endif // CELIX_CELIX_ARRAY_LIST_ENCODING_H

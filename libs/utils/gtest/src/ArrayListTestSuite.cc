@@ -645,3 +645,33 @@ TEST_F(ArrayListTestSuite, InitialCapacityOptionTest) {
     // Second add requires realloc
     EXPECT_EQ(CELIX_SUCCESS, celix_arrayList_addString(list, "v2"));
 }
+TEST_F(ArrayListTestSuite, NegativeIndexesReturnDocumentedDefaults) {
+    celix_autoptr(celix_array_list_t) strings = celix_arrayList_createStringArray();
+    celix_autoptr(celix_array_list_t) longs = celix_arrayList_createLongArray();
+    celix_autoptr(celix_array_list_t) doubles = celix_arrayList_createDoubleArray();
+    celix_autoptr(celix_array_list_t) bools = celix_arrayList_createBoolArray();
+    celix_arrayList_addString(strings, "value");
+    celix_arrayList_addLong(longs, 42);
+    celix_arrayList_addDouble(doubles, 42.0);
+    celix_arrayList_addBool(bools, true);
+
+    EXPECT_EQ(nullptr, celix_arrayList_getString(strings, -1));
+    EXPECT_EQ(0, celix_arrayList_getLong(longs, -1));
+    EXPECT_DOUBLE_EQ(0.0, celix_arrayList_getDouble(doubles, -1));
+    EXPECT_FALSE(celix_arrayList_getBool(bools, -1));
+}
+
+TEST_F(ArrayListTestSuite, DirectRecursiveSelfAssignmentKeepsParentOwnership) {
+    celix_autoptr(celix_array_list_t) nested = celix_arrayList_createArrayListArray();
+    ASSERT_NE(nullptr, nested);
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_arrayList_assignArrayList(nested, nested));
+    EXPECT_EQ(0, celix_arrayList_size(nested));
+
+    celix_autoptr(celix_array_list_t) variants = celix_arrayList_createVariantArray();
+    celix_array_list_variant_t self = {
+        .type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST,
+        .value = {.arrayListValue = variants},
+    };
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_arrayList_addVariant(variants, &self));
+    EXPECT_EQ(0, celix_arrayList_size(variants));
+}

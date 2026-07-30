@@ -105,39 +105,11 @@ TEST_F(PropertiesEncodingErrorInjectionTestSuite, EncodeErrorTest) {
     celix_properties_set(props, "key.with.slash", "value");
     celix_properties_set(props, "key-with-out-slash", "value");
 
-    // When an error injected is prepared for celix_utils_writeOrCreateString() from celix_properties_saveToString
-    celix_ei_expect_celix_utils_writeOrCreateString((void*)celix_properties_saveToString, 3, nullptr);
-
-    // And I call celix_properties_saveToString using NESTED encoding (whitebox-knowledge)
-    char* out;
-    auto status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &out);
-
-    // Then I expect an error
-    EXPECT_EQ(ENOMEM, status);
-
-    // When an error injected is prepared for json_object() from celix_properties_saveToString
-    celix_ei_expect_json_object((void*)celix_properties_saveToString, 3, nullptr);
-
-    // And I call celix_properties_saveToString using NESTED encoding (whitebox-knowledge)
-    status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &out);
-
-    // Then I expect an error
-    EXPECT_EQ(ENOMEM, status);
-
-    // When an error injected is prepared for json_object_set_new() from celix_properties_saveToString
-    celix_ei_expect_json_object_set_new((void*)celix_properties_saveToString, 3, -1);
-
-    // And I call celix_properties_saveToString using NESTED encoding (whitebox-knowledge)
-    status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &out);
-
-    // Then I expect an error
-    EXPECT_EQ(ENOMEM, status);
-
     // When an error injected is prepared for json_string() from celix_properties_saveToString
     celix_ei_expect_json_string((void*)celix_properties_saveToString, 4, nullptr);
 
-    // And I call celix_properties_saveToString using NESTED encoding (whitebox-knowledge)
-    status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &out);
+    char* out = nullptr;
+    auto status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &out);
 
     // Then I expect an error
     EXPECT_EQ(ENOMEM, status);
@@ -151,8 +123,8 @@ TEST_F(PropertiesEncodingErrorInjectionTestSuite, EncodeErrorTest) {
     // Then I expect an error
     EXPECT_EQ(ENOMEM, status);
 
-    // And I expect 5 error message in celix_err
-    EXPECT_EQ(5, celix_err_getErrorCount());
+    // And I expect one error for each active failure path.
+    EXPECT_EQ(2, celix_err_getErrorCount());
     celix_err_printErrors(stderr, "Test Error: ", "\n");
 }
 

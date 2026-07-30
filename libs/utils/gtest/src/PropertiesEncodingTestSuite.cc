@@ -95,15 +95,14 @@ TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithNaNAndInfValuesTest) 
         celix_autoptr(celix_properties_t) props = celix_properties_create();
         celix_properties_setDouble(props, key, strtod(key, nullptr));
 
-        // Scalars retain the legacy behavior until the properties encoder is updated in a later sequence step.
-        celix_autofree char* output;
+        // Non-finite values are never valid JSON and are rejected independently of flags.
+        char* output = nullptr;
         auto status = celix_properties_saveToString(props, 0, &output);
-        ASSERT_EQ(CELIX_SUCCESS, status);
-        EXPECT_STREQ("{}", output);
+        ASSERT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
 
         // And saving the properties to a string with the flag CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF fails
         celix_err_resetErrors();
-        char* output2;
+        char* output2 = nullptr;
         status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF, &output2);
         EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
 
@@ -249,9 +248,10 @@ TEST_F(PropertiesSerializationTestSuite, SaveJSONPathKeysTest) {
     // Then the stream contains the JSON representation snippets of the properties
     EXPECT_NE(nullptr, strstr(output, R"("key1":"value1")")) << "JSON: " << output;
     EXPECT_NE(nullptr, strstr(output, R"("key2":"value2")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("object1":{"key3":"value3","key4":"value4"})")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("object2":{"key5":"value5"})")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("object3":{"object4":{"key6":"value6"}})")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("object1.key3":"value3")")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("object1.key4":"value4")")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("object2.key5":"value5")")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("object3.object4.key6":"value6")")) << "JSON: " << output;
 
     // And the buf is a valid JSON object
     json_error_t error;
@@ -276,9 +276,11 @@ TEST_F(PropertiesSerializationTestSuite, SaveJPathKeysWithCollisionTest) {
     auto status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &output);
     ASSERT_EQ(CELIX_SUCCESS, status);
 
-    // Then the stream contains the JSON representation of the properties with the collisions resolved
-    EXPECT_NE(nullptr, strstr(output, R"({"key1":{"key2":"value2"},"key4":{"key5":{"key6":"value3"}}})"))
-        << "JSON: " << output;
+    // Literal member names never collide through separator interpretation.
+    EXPECT_NE(nullptr, strstr(output, R"("key1.key2.key3":"value1")")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("key1.key2":"value2")")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("key4.key5.key6.key7":"value4")")) << "JSON: " << output;
+    EXPECT_NE(nullptr, strstr(output, R"("key4.key5.key6":"value3")")) << "JSON: " << output;
 
     // And the buf is a valid JSON object
     json_error_t error;
@@ -322,47 +324,13 @@ TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithKeyNamesWithDotsTest)
     auto status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &output);
     ASSERT_EQ(CELIX_SUCCESS, status);
 
-    // Then the out contains the JSON representation snippets of the properties
-    EXPECT_NE(nullptr, strstr(output, R"("a":{"key":{"name":{"with":{"dots":"value1"}}}})")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("keyThatStartsWithDot":"value3")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("":"value5")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("":"value6")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("Dots":"value7")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("":"value8")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("":"value9")")) << "JSON: " << output;
-    EXPECT_NE(nullptr, strstr(output, R"("Dots":"value10")")) << "JSON: " << output;
-
-    // And the output is a valid JSON object
+    // The output is valid and every dotted key is literal.
     json_error_t error;
     json_t* root = json_loads(output, 0, &error);
-    EXPECT_NE(nullptr, root) << "Unexpected JSON error: " << error.text;
-
-    // And the structure for (e.g.) value10 is correct
-    json_t* node = json_object_get(root, "object");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "key");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "With");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "Double");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_object(node));
-    node = json_object_get(node, "Dots");
-    ASSERT_NE(nullptr, node);
-    ASSERT_TRUE(json_is_string(node));
-    EXPECT_STREQ("value10", json_string_value(node));
+    ASSERT_NE(nullptr, root) << "Unexpected JSON error: " << error.text;
+    EXPECT_STREQ("value1", json_string_value(json_object_get(root, "a.key.name.with.dots")));
+    EXPECT_STREQ("value3", json_string_value(json_object_get(root, ".keyThatStartsWithDot")));
+    EXPECT_STREQ("value10", json_string_value(json_object_get(root, "object.key..With..Double..Dots")));
 
     json_decref(root);
 }
@@ -384,20 +352,18 @@ TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithKeyCollision) {
     // Then the save succeeds
     ASSERT_EQ(CELIX_SUCCESS, status);
 
-    // And both keys are serialized (one as a flat key) (flat key name is whitebox knowledge)
-    EXPECT_NE(nullptr, strstr(output1, R"({"key1":{"key2":"value2"}})")) << "JSON: " << output1;
+    // And both literal keys are serialized.
+    EXPECT_NE(nullptr, strstr(output1, R"("key1.key2.key3":"value1")")) << "JSON: " << output1;
+    EXPECT_NE(nullptr, strstr(output1, R"("key1.key2":"value2")")) << "JSON: " << output1;
 
     // When saving the properties to a string with the error on key collision flag
     char* output2;
     status = celix_properties_saveToString(
         props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE | CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS, &output2);
 
-    // Then the save fails, because the keys collide
-    ASSERT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
-
-    // And at least one error message is added to celix_err
-    EXPECT_GE(celix_err_getErrorCount(), 1);
-    celix_err_printErrors(stderr, "Test Error: ", "\n");
+    // The legacy collision/style flags are no-ops.
+    celix_autofree char* output2Guard = output2;
+    ASSERT_EQ(CELIX_SUCCESS, status);
 }
 
 TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithAndWithoutStrictFlagTest) {
@@ -414,15 +380,12 @@ TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithAndWithoutStrictFlagT
     ASSERT_EQ(CELIX_SUCCESS, status);
 
     // When saving the properties to a string with the strict flag
-    char* output2;
+    celix_autofree char* output2 = nullptr;
     status = celix_properties_saveToString(props, CELIX_PROPERTIES_ENCODE_STRICT, &output2);
 
-    // Then the save fails, because the empty array generates an error
-    ASSERT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
-
-    // And at least one error message is added to celix_err
-    EXPECT_GE(celix_err_getErrorCount(), 1);
-    celix_err_printErrors(stderr, "Test Error: ", "\n");
+    // Then the retained strict flag is a no-op for valid empty arrays.
+    ASSERT_EQ(CELIX_SUCCESS, status);
+    EXPECT_STREQ(output, output2);
 }
 
 TEST_F(PropertiesSerializationTestSuite, SavePropertiesWithPrettyPrintTest) {
@@ -482,15 +445,14 @@ TEST_F(PropertiesSerializationTestSuite, SaveCxxPropertiesTest) {
     // The result is equals to a default save
     EXPECT_EQ(result, result2);
 
-    // When saving the properties to a string using an errors on duplicate key flag
-    EXPECT_THROW(props.saveToString(celix::Properties::EncodingFlags::Strict), celix::IllegalArgumentException);
+    // Deprecated error/style flags are no-ops for valid JSON values.
+    EXPECT_EQ(result, props.saveToString(celix::Properties::EncodingFlags::Strict));
 
     // When saving the properties to a string using combined flags
-    EXPECT_THROW(props.saveToString(
-                     celix::Properties::EncodingFlags::Pretty | celix::Properties::EncodingFlags::ErrorOnEmptyArrays |
-                     celix::Properties::EncodingFlags::ErrorOnCollisions |
-                     celix::Properties::EncodingFlags::ErrorOnNanInf | celix::Properties::EncodingFlags::NestedStyle),
-                 celix::IllegalArgumentException);
+    EXPECT_NO_THROW(props.saveToString(
+        celix::Properties::EncodingFlags::Pretty | celix::Properties::EncodingFlags::ErrorOnEmptyArrays |
+        celix::Properties::EncodingFlags::ErrorOnCollisions | celix::Properties::EncodingFlags::ErrorOnNanInf |
+        celix::Properties::EncodingFlags::NestedStyle));
 
     // When saving the properties to an invalid filename location
     EXPECT_THROW(props.save("/non-existing/no/rights/file.json"), celix::IOException);
@@ -586,24 +548,22 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithArrayListsTest) {
     EXPECT_STREQ("version<1.2.3.qualifier>", celix_arrayList_getString(versionArr, 0));
     EXPECT_STREQ("version<4.5.6.qualifier>", celix_arrayList_getString(versionArr, 1));
 
-    // And the mixed json real and int arrays are correctly loaded as double arrays
+    // Mixed JSON integer/real arrays preserve each numeric tag and value.
     auto* mixedRealAndIntArr1 = celix_properties_getArrayList(props, "mixedRealAndIntArr1");
     ASSERT_NE(nullptr, mixedRealAndIntArr1);
-    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE, celix_arrayList_getElementType(mixedRealAndIntArr1));
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT, celix_arrayList_getElementType(mixedRealAndIntArr1));
     EXPECT_EQ(4, celix_arrayList_size(mixedRealAndIntArr1));
-    EXPECT_DOUBLE_EQ(1.0, celix_arrayList_getDouble(mixedRealAndIntArr1, 0));
-    EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getDouble(mixedRealAndIntArr1, 1));
-    EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getDouble(mixedRealAndIntArr1, 2));
-    EXPECT_DOUBLE_EQ(3.0, celix_arrayList_getDouble(mixedRealAndIntArr1, 3));
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_LONG, celix_arrayList_getVariant(mixedRealAndIntArr1, 0)->type);
+    EXPECT_EQ(1, celix_arrayList_getVariant(mixedRealAndIntArr1, 0)->value.longValue);
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE, celix_arrayList_getVariant(mixedRealAndIntArr1, 1)->type);
+    EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getVariant(mixedRealAndIntArr1, 1)->value.doubleValue);
 
     auto* mixedRealAndIntArr2 = celix_properties_getArrayList(props, "mixedRealAndIntArr2");
     ASSERT_NE(nullptr, mixedRealAndIntArr2);
-    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE, celix_arrayList_getElementType(mixedRealAndIntArr2));
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT, celix_arrayList_getElementType(mixedRealAndIntArr2));
     EXPECT_EQ(4, celix_arrayList_size(mixedRealAndIntArr2));
-    EXPECT_DOUBLE_EQ(1.0, celix_arrayList_getDouble(mixedRealAndIntArr2, 0));
-    EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getDouble(mixedRealAndIntArr2, 1));
-    EXPECT_DOUBLE_EQ(2.0, celix_arrayList_getDouble(mixedRealAndIntArr2, 2));
-    EXPECT_DOUBLE_EQ(3.0, celix_arrayList_getDouble(mixedRealAndIntArr2, 3));
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE, celix_arrayList_getVariant(mixedRealAndIntArr2, 0)->type);
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_LONG, celix_arrayList_getVariant(mixedRealAndIntArr2, 1)->type);
 }
 
 TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithInvalidInputTest) {
@@ -650,14 +610,12 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithEmptyArrayTest) {
     EXPECT_EQ(0, celix_arrayList_size(empty));
 
     // When loading the properties from string with a strict flag
-    celix_properties_t* props2;
+    celix_autoptr(celix_properties_t) props2 = nullptr;
     status = celix_properties_loadFromString(inputJSON, CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_ARRAYS, &props2);
 
-    // Then loading fails, because the empty array generates an error
-    ASSERT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
-
-    // And at least one error message is added to celix_err
-    ASSERT_GE(celix_err_getErrorCount(), 1);
+    // The legacy flag is a no-op and the valid array remains present.
+    ASSERT_EQ(CELIX_SUCCESS, status);
+    EXPECT_EQ(0, celix_arrayList_size(celix_properties_getArrayList(props2, "key1")));
 }
 
 TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithNestedObjectsTest) {
@@ -701,6 +659,17 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithDuplicatesTest) {
     // And at least one error message is added to celix_err
     EXPECT_GE(celix_err_getErrorCount(), 1);
     celix_err_printErrors(stderr, "Test Error: ", "\n");
+}
+
+TEST_F(PropertiesSerializationTestSuite, NestedDuplicateMembersAreRejected) {
+    for (const char* input : {R"({"nested":{"key":1,"key":2}})",
+                              R"({"array":[{"key":1,"key":2}]})",
+                              R"({"array":[[null,{"key":1,"key":2}]]})"}) {
+        celix_properties_t* props = nullptr;
+        EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_properties_loadFromString(input, 0, &props)) << input;
+        EXPECT_EQ(nullptr, props);
+        celix_err_resetErrors();
+    }
 }
 
 TEST_F(PropertiesSerializationTestSuite, LoadPropertiesEscapedDotsTest) {
@@ -747,12 +716,9 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithAndWithoutStrictFlagT
         celix_autoptr(celix_properties_t) props = nullptr;
         auto status = celix_properties_loadFromStream(stream, CELIX_PROPERTIES_DECODE_STRICT, &props);
 
-        // Then decoding fails
-        EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
-
-        // And at least one error message is added to celix_err
-        EXPECT_GE(celix_err_getErrorCount(), 1);
-        celix_err_printErrors(stderr, "Test Error: ", "\n");
+        // Strict is retained as a compatibility no-op for these valid JSON constructs.
+        EXPECT_EQ(CELIX_SUCCESS, status);
+        EXPECT_EQ(1, celix_properties_size(props));
 
         fclose(stream);
     }
@@ -788,6 +754,31 @@ TEST_F(PropertiesSerializationTestSuite, LoadPropertiesWithInvalidVersionsTest) 
     ASSERT_EQ(CELIX_SUCCESS, celix_properties_loadFromString(input, 0, &props));
     EXPECT_EQ(CELIX_PROPERTIES_VALUE_TYPE_STRING, celix_properties_getType(props, "key"));
     EXPECT_STREQ("version<1.2.3.<qualifier>>", celix_properties_getString(props, "key"));
+}
+
+TEST_F(PropertiesSerializationTestSuite, LegacyVersionStringsRequireExplicitFlagAndPropagateRecursively) {
+    constexpr const char* input =
+        R"({"version":"version<1.2.3>","nested":{"version":"version<2.3.4>"},"versions":["version<3.4.5>"]})";
+    celix_autoptr(celix_properties_t) standard = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS, celix_properties_loadFromString(input, 0, &standard));
+    EXPECT_EQ(CELIX_PROPERTIES_VALUE_TYPE_STRING, celix_properties_getType(standard, "version"));
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING,
+              celix_arrayList_getElementType(celix_properties_getArrayList(standard, "versions")));
+
+    celix_autoptr(celix_properties_t) legacy = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS,
+              celix_properties_loadFromString(input, CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS, &legacy));
+    EXPECT_EQ(CELIX_PROPERTIES_VALUE_TYPE_VERSION, celix_properties_getType(legacy, "version"));
+    EXPECT_EQ(CELIX_PROPERTIES_VALUE_TYPE_VERSION,
+              celix_properties_getType(celix_properties_getProperties(legacy, "nested"), "version"));
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION,
+              celix_arrayList_getElementType(celix_properties_getArrayList(legacy, "versions")));
+
+    celix_autoptr(celix_properties_t) empty = nullptr;
+    EXPECT_EQ(
+        CELIX_SUCCESS,
+        celix_properties_loadFromString(R"({"empty":""})", CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS, &empty));
+    EXPECT_STREQ("", celix_properties_getString(empty, "empty"));
 }
 
 TEST_F(PropertiesSerializationTestSuite, LoadWithInvalidStreamTest) {
@@ -917,20 +908,26 @@ TEST_F(PropertiesSerializationTestSuite, KeyCollision) {
     celix_autofree char* output = nullptr;
     auto status = celix_properties_saveToString(
         props, CELIX_PROPERTIES_ENCODE_NESTED_STYLE | CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS, &output);
-    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
+    EXPECT_EQ(CELIX_SUCCESS, status);
+    EXPECT_NE(nullptr, strstr(output, R"("a.b.haha.arbifdadfsfa":"value1")"));
+    EXPECT_NE(nullptr, strstr(output, R"("a.b.haha":"value2")"));
 
     celix_autoptr(celix_properties_t) props2 = celix_properties_create();
     // pick keys such that key1 appears before key2 when iterating over the properties
     celix_properties_set(props2, "a.b.c", "value1");
     celix_properties_set(props2, "a.b.c.d", "value2");
+    celix_autofree char* output2 = nullptr;
     status = celix_properties_saveToString(
-        props2, CELIX_PROPERTIES_ENCODE_NESTED_STYLE | CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS, &output);
-    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
-    status = celix_properties_saveToString(props2, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &output);
-    // "a.b.c.d" is silently discarded
-    EXPECT_STREQ(R"({"a":{"b":{"c":"value1"}}})", output);
-    std::cout << output << std::endl;
+        props2, CELIX_PROPERTIES_ENCODE_NESTED_STYLE | CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS, &output2);
     EXPECT_EQ(CELIX_SUCCESS, status);
+    EXPECT_NE(nullptr, strstr(output2, R"("a.b.c":"value1")"));
+    EXPECT_NE(nullptr, strstr(output2, R"("a.b.c.d":"value2")"));
+
+    celix_autofree char* output3 = nullptr;
+    status = celix_properties_saveToString(props2, CELIX_PROPERTIES_ENCODE_NESTED_STYLE, &output3);
+    EXPECT_EQ(CELIX_SUCCESS, status);
+    EXPECT_NE(nullptr, strstr(output3, R"("a.b.c":"value1")"));
+    EXPECT_NE(nullptr, strstr(output3, R"("a.b.c.d":"value2")"));
 }
 TEST_F(PropertiesSerializationTestSuite, RecursiveJsonObjectRoundTripTest) {
     constexpr const char* input = R"({"a.b":1,"a":{"b":2,"n":null,"items":[{},[1],null]}})";

@@ -27,11 +27,14 @@ The properties are a key-value map with string keys and values with can be of a 
 - Double (double)
 - Bool (bool)
 - Version (celix_version_t*)
+- Null
+- Nested Properties (celix_properties_t*)
 - String Array (celix_array_list_t*)
 - Long Array (celix_array_list_t*)
 - Double Array (celix_array_list_t*)
 - Bool Array (celix_array_list_t*)
 - Version Array (celix_array_list_t*)
+- Properties Array, Nested Array, and Variant Array (celix_array_list_t*)
 
 ## Configuration Properties
 Properties can be used - and are used in the Apache Celix framework - for runtime configuration and metadata.
@@ -103,6 +106,29 @@ used to match the properties set, the filter will not match. This is because the
 comparison and in that case "10" is not greater than "5". 
 When the same filter is used to match a properties set with a property "myLong" with long value 10, the filter will 
 match.
+
+Structured values (null, nested properties, properties arrays, nested arrays, variants, and empty arrays) match only
+the LDAP presence operand, for example `(metadata=*)`. Scalar comparison operands never compare the JSON compatibility
+snapshot exposed by property iteration.
+
+### Nested property filters
+
+A filter attribute is interpreted as JSONPath only when it starts with `$`. For example,
+`($.parent.child=value)` selects a nested property and `($.parent.children[2]=value)` selects the third array element.
+An attribute without a leading `$` is always a literal root property key, including names containing dots or brackets.
+
+For example, given `{"service.name":"literal","service":{"name":"nested"}}`:
+
+- `(service.name=literal)` matches the root property named `service.name`.
+- `($.service.name=nested)` matches the nested `name` property.
+- `($['service.name']=literal)` explicitly matches the root property whose name contains a dot.
+
+This follows RFC 9535 JSONPath syntax: each dot starts a child segment, so `$.service.name` addresses the nested value,
+while bracket notation `$['service.name']` addresses the root member whose name contains the dot.
+
+JSONPath selection can produce several scalar values; the filter matches when any selected value satisfies the
+operand. Presence matches when at least one selected node exists. Structured selected nodes still follow the
+presence-only rule described above.
 
 ## Apache Celix Filter C++ API
 The Apache Celix Filter C++ API is a header only API which can be used to create and match filters.

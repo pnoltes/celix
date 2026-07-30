@@ -180,7 +180,8 @@ Use this deterministic decoding rule:
 | empty | `VARIANT` |
 | all strings | `STRING` |
 | all integers fitting in `long` | `LONG` |
-| integers and reals | `DOUBLE` |
+| all reals | `DOUBLE` |
+| integers and reals mixed together | `VARIANT` |
 | all booleans | `BOOL` |
 | all objects | `PROPERTIES` |
 | all arrays | `ARRAY_LIST` |
@@ -188,6 +189,11 @@ Use this deterministic decoding rule:
 
 Do not infer `VERSION` from JSON strings in the JSON-compatible default mode. Programmatically created version arrays
 remain supported and encode as arrays of tagged strings.
+
+JSON integers and reals are distinct value types. Do not promote a mixed integer/real JSON array to `DOUBLE`: doing so
+can round a large integer and makes an exact JSON tree round trip impossible. Represent a mixed numeric array as
+`VARIANT`, retaining a `LONG` or `DOUBLE` tag for every element. Programmatically created homogeneous double arrays
+remain supported.
 
 A variant entry must be able to contain another array list or properties object, so arbitrarily nested JSON arrays can
 be represented. Empty arrays use `VARIANT` because their element type is unknowable; unlike today, an empty variant list
@@ -202,7 +208,7 @@ Extend `ArrayListTestSuite.cc`, `ArrayListErrorInjectionTestSuite.cc`,
 - a variant list containing every variant type;
 - deep nesting and direct-cycle rejection;
 - empty variant arrays;
-- mixed integer/real promotion to a double array;
+- mixed integer/real decoding to a variant array without changing either numeric value or tag;
 - all-object, all-array, all-null, and genuinely heterogeneous arrays;
 - rollback and cleanup after every new fallible allocation;
 - preservation of the backing union size, with a compile-time assertion where portable;
@@ -358,6 +364,8 @@ In `PropertiesEncodingTestSuite.cc`:
 6. Assert that no entry is omitted for empty arrays, null, heterogeneous arrays, objects, or nested arrays.
 7. Assert that dotted and slashed keys are unchanged.
 8. Test duplicate-key policy, integer boundaries, non-finite numbers, invalid JSON, deep nesting, and allocation errors.
+9. Include a mixed numeric boundary case such as `[9007199254740993, 0.5]` to prove that array inference does not
+   round an integer through `double`.
 
 Update the fuzz corpus in `libs/utils/fuzzing/properties_corpus` with null, empty, mixed, object, nested-array, escaped-key,
 and deeply nested examples. Keep the decoder bounded against excessive nesting.
@@ -665,6 +673,104 @@ Update:
 Document that a Celix version is an extension type encoded as a JSON string and is not recoverable as a version in
 standards-compatible decoding unless the explicit legacy-version flag is used.
 
+## Implementation-review correction gate
+
+The initial implementation must not be considered complete merely because the existing utils tests pass. Before
+continuing with feature work, reconcile it with the contracts above and add tests that fail on the current incomplete
+behavior.
+
+### Correct the recursive storage and codec foundation
+
+- Add the private ownership-transfer helper for variant entries described in Stage 1. The JSON decoder currently creates
+  a structured child and then deep-copies it through the public borrowed-value API. Publish the already-owned child
+  atomically instead.
+- Preserve the real error status while creating `celix_properties_entry_t::value` snapshots. Invalid UTF-8,
+  non-finite numbers, invalid variant tags, and other illegal values must not be reported as `CELIX_ENOMEM`.
+- Make structured setters atomic if snapshot generation fails, and add error context for invalid direct self-assignment
+  and every new public invalid-input path.
+- Document the exceptional ownership rule for rejected direct self-assignment: an assign function cannot both destroy
+  the supplied object and leave the parent alive when both pointers are the same. Test this case separately from normal
+  insertion failure, where assign APIs must destroy the supplied value.
+- Reject negative indexes in the new array-list getters without reading before the backing array. Keep their behavior
+  consistent with the documented invalid-index result.
+- Configure standalone array-list JSON loading with `JSON_REJECT_DUPLICATES`, because an array can contain objects. Test
+  duplicate members at the root properties level and inside standalone arrays, nested arrays, and variant entries.
+- Apply decode policy consistently at every recursion boundary. Do not pass `0` for nested objects while forwarding
+  flags to nested arrays. Once obsolete flags are no-ops, recursion should use only the remaining meaningful flags.
+- Perform the documented `json_int_t`-to-`long` range check in homogeneous arrays, variant entries, and properties.
+  Never cast first and check later.
+
+### Remove remaining lossy legacy behavior
+
+- Non-finite property doubles are still omitted when the error flag is absent. Make rejection unconditional for scalar,
+  homogeneous-array, nested, and variant values, with the failing key/index in `celix_err`.
+- The old flat/nested key-splitting implementation and its collision behavior are still active. Either remove them or
+  move them behind explicitly named legacy flags. The JSON-compatible path must always treat dots, slashes, empty
+  strings, and escape characters as literal member-name content.
+- Mark obsolete C and C++ flags as deprecated and make the documented no-op flags actually be no-ops. Remove tests that
+  preserve strict-mode rejection of valid empty arrays or null values, and replace them with compatibility/no-op tests.
+- Keep unconditional duplicate rejection and unconditional non-finite rejection independent of legacy or strict flags.
+- Update the public header comments, `documents/properties_encoding.md`, examples, and release notes at the same time as
+  the flag behavior. The current comments still describe empty arrays as unrepresentable and nested key splitting as
+  the default object model.
+
+### Complete the downstream consumer audit
+
+- Update LDAP filter matching before structured values are exposed broadly. Null, nested properties, structured arrays,
+  and variants match presence only; equality, approximation, substring, and ordering must not compare the cached JSON
+  string in `entry.value`.
+- Interpret a filter attribute as JSONPath only when it starts with `$`. Attributes without `$` remain literal root keys,
+  including names containing dots or brackets.
+- Add focused filter tests for null, nested objects, object arrays, nested arrays, variants, and empty arrays. Retain the
+  existing scalar and homogeneous scalar-array behavior.
+- Review every source-tree use of the public properties and array-list type enums, `entry.value`,
+  `celix_properties_getArrayList`, and `celix_arrayList_getElementType`. For each switch or type assumption, either add
+  the new cases or document why the input is restricted before the switch.
+- Permit structured values in framework service properties so local services can use the complete properties model and
+  JSONPath filter matching. Validate or adapt structured values at downstream serialization boundaries such as RSA/DFI;
+  a compact JSON snapshot is an iteration compatibility value, not permission for an existing string consumer to accept
+  a structured value silently.
+
+### Replace the partial JSONPath implementation
+
+- Keep the JSONPath API private or experimental until the parser/evaluator implements the complete documented subset.
+  The initial resolver supports only a single chain of child names and array indexes; it does not implement nodelists,
+  wildcards, selector unions, slices, descendants, RFC string unescaping, or optional grammar whitespace.
+- Parse once into selectors and evaluate against an ordered nodelist. Single-result getters scan for the first matching
+  exact type; all-result getters retain every typed match and duplicate node in RFC order.
+- Give the internal parser/evaluator a status-bearing result rather than a single boolean. It must distinguish malformed
+  input, allocation failure, no match, and a structural mismatch so that allocation failure is the only reason an
+  all-result API returns `NULL`.
+- Decode quoted member-name selectors, including JSON escapes, Unicode escapes, empty names, and escaped quotes, before
+  property lookup. Validate dot-name shorthand according to the supported RFC grammar instead of accepting arbitrary
+  bytes until the next delimiter.
+- Add checked traversal/result limits and either iterative descendant traversal or an enforced nesting limit. Add the
+  parser/evaluator fuzz target before exporting the API.
+- Add the dedicated regular and error-injection suites from Stage 4. Existing convenience tests for `$.name` and
+  `$[index]` do not establish subset compliance.
+
+### Finish C++ parity and error handling
+
+- Add the missing null and nested-properties setters, version and array single-result getters, every typed all-result
+  family, homogeneous vector getters, generic arrays, generic values, and the owning recursive `PropertyValue`.
+- Ensure every selected nested-properties copy is checked before constructing `celix::Properties`. A failed
+  `celix_properties_copy` must throw `std::bad_alloc`, not create a wrapper containing `nullptr`.
+- Keep invalid paths non-throwing as documented, while translating only actual allocation failures to
+  `std::bad_alloc`. This depends on the C evaluator preserving the error distinction.
+- Add C++ error-injection and lifetime tests for selected properties, default properties, strings, versions, homogeneous
+  arrays, variants, and nested arrays.
+
+### Restore review and repository hygiene
+
+- Replace the abbreviated header in new C/C++ sources with the repository's standard ASF license header.
+- Minimize unrelated whole-file formatting churn before review. Format new and materially changed C/C++ code with the
+  repository `.clang-format`, but keep the functional diff separable from tool-only reformatting and Graphify setup.
+- Add or update fuzz corpus files, Doxygen, user documentation, deprecation notes, and release notes in the same staged
+  commits as the behavior they describe.
+- Run the scoped utils suite after every corrective step and the full suite before submission. Passing the existing
+  scoped suite is a baseline, not evidence that the new error, ownership, filter, JSONPath, and compatibility paths are
+  covered.
+
 ## Suggested change sequence
 
 Keep each step buildable and reviewable:
@@ -699,7 +805,8 @@ line coverage as required by the project.
 The implementation is complete when:
 
 - any valid JSON object within documented depth/size limits decodes without ignored members;
-- decoding and re-encoding preserves its JSON tree, modulo object member order and numeric formatting;
+- decoding and re-encoding preserves its JSON tree, modulo object member order and non-lossy numeric formatting;
+- mixed integer/real arrays preserve each element's numeric value and JSON numeric type without `double` promotion;
 - empty, object, nested, null, and heterogeneous arrays are first-class array-list values;
 - nested properties, not key separators or encoding flags, determine JSON object nesting;
 - existing scalar and homogeneous-array properties APIs retain their behavior;

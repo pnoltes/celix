@@ -148,9 +148,11 @@ static celix_status_t celix_properties_fillEntry(celix_properties_t* properties,
         entry->value = CELIX_PROPERTIES_NULL_STRVAL;
     } else if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_PROPERTIES) {
         char* value = NULL;
-        if (celix_properties_saveToString(entry->typed.propertiesValue, 0, &value) == CELIX_SUCCESS) {
-            entry->value = value;
+        celix_status_t status = celix_properties_saveToString(entry->typed.propertiesValue, 0, &value);
+        if (status != CELIX_SUCCESS) {
+            return status;
         }
+        entry->value = value;
     } else if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_BOOL) {
         entry->value = entry->typed.boolValue ? CELIX_PROPERTIES_BOOL_TRUE_STRVAL : CELIX_PROPERTIES_BOOL_FALSE_STRVAL;
     } else if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_ARRAY_LIST) {
@@ -159,7 +161,10 @@ static celix_status_t celix_properties_fillEntry(celix_properties_t* properties,
             elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST ||
             elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT) {
             char* value = NULL;
-            (void)celix_arrayList_saveToString(entry->typed.arrayValue, 0, &value);
+            celix_status_t status = celix_arrayList_saveToString(entry->typed.arrayValue, 0, &value);
+            if (status != CELIX_SUCCESS) {
+                return status;
+            }
             entry->value = value;
         } else {
             entry->value = celix_utils_arrayListToString(entry->typed.arrayValue);
@@ -246,22 +251,25 @@ static void celix_properties_destroyEntry(celix_properties_t* properties, celix_
  * Create entry and optionally use the short properties optimization buffers.
  * Only 1 of the types values (strValue, LongValue, etc) should be provided.
  */
-static celix_properties_entry_t* celix_properties_createEntry(celix_properties_t* properties,
-                                                              celix_properties_entry_t* prototype) {
+static celix_status_t celix_properties_createEntry(celix_properties_t* properties,
+                                                   celix_properties_entry_t* prototype,
+                                                   celix_properties_entry_t** out) {
+    *out = NULL;
     celix_properties_entry_t* entry = celix_properties_allocEntry(properties);
     if (entry == NULL) {
         celix_properties_freeTypedEntry(properties, prototype);
         celix_err_pushf("Cannot allocate property entry");
-        return NULL;
+        return CELIX_ENOMEM;
     }
 
     celix_status_t status = celix_properties_fillEntry(properties, entry, prototype);
     if (status != CELIX_SUCCESS) {
         celix_err_pushf("Cannot fill property entry");
         celix_properties_destroyEntry(properties, entry);
-        return NULL;
+        return status;
     }
-    return entry;
+    *out = entry;
+    return CELIX_SUCCESS;
 }
 
 /**
@@ -280,9 +288,10 @@ static celix_status_t celix_properties_createAndSetEntry(celix_properties_t* pro
         return CELIX_ILLEGAL_ARGUMENT;
     }
 
-    celix_properties_entry_t* entry = celix_properties_createEntry(properties, prototype);
-    if (!entry) {
-        return CELIX_ENOMEM;
+    celix_properties_entry_t* entry = NULL;
+    celix_status_t status = celix_properties_createEntry(properties, prototype, &entry);
+    if (status != CELIX_SUCCESS) {
+        return status;
     }
 
     const char* mapKey = key;
@@ -295,7 +304,7 @@ static celix_status_t celix_properties_createAndSetEntry(celix_properties_t* pro
         }
     }
 
-    celix_status_t status = celix_stringHashMap_put(properties->map, mapKey, entry);
+    status = celix_stringHashMap_put(properties->map, mapKey, entry);
     if (status != CELIX_SUCCESS) {
         celix_properties_destroyEntry(properties, entry);
         if (mapKey != key) {
@@ -688,7 +697,12 @@ bool celix_properties_isNull(const celix_properties_t* properties, const char* k
 
 celix_status_t
 celix_properties_setProperties(celix_properties_t* properties, const char* key, const celix_properties_t* value) {
-    if (!value || value == properties) {
+    if (!value) {
+        celix_err_push("Cannot set a NULL nested properties value");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    if (value == properties) {
+        celix_err_push("Cannot set properties as a direct child of itself");
         return CELIX_ILLEGAL_ARGUMENT;
     }
     celix_properties_t* copy = celix_properties_copy(value);
@@ -700,10 +714,17 @@ celix_properties_setProperties(celix_properties_t* properties, const char* key, 
 
 celix_status_t
 celix_properties_assignProperties(celix_properties_t* properties, const char* key, celix_properties_t* value) {
-    if (!value || value == properties) {
+    if (!value) {
+        celix_err_push("Cannot assign a NULL nested properties value");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    if (value == properties) {
+        // Unlike every other rejected assign, this value cannot be destroyed without destroying its parent.
+        celix_err_push("Cannot assign properties as a direct child of itself; ownership remains with the caller");
         return CELIX_ILLEGAL_ARGUMENT;
     }
     if (!key) {
+        celix_err_push("Cannot assign nested properties with a NULL key");
         celix_properties_destroy(value);
         return CELIX_ILLEGAL_ARGUMENT;
     }
@@ -722,6 +743,7 @@ celix_status_t
 celix_properties_setArrayList(celix_properties_t* properties, const char* key, const celix_array_list_t* values) {
     if (!key || !values || celix_arrayList_getElementType(values) == CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED ||
         celix_arrayList_getElementType(values) == CELIX_ARRAY_LIST_ELEMENT_TYPE_POINTER) {
+        celix_err_push("Cannot set an invalid array-list property");
         return CELIX_ILLEGAL_ARGUMENT;
     }
     celix_array_list_t* copy = celix_arrayList_copy(values);
@@ -738,6 +760,7 @@ celix_status_t
 celix_properties_assignArrayList(celix_properties_t* properties, const char* key, celix_array_list_t* values) {
     if (!key || !values || celix_arrayList_getElementType(values) == CELIX_ARRAY_LIST_ELEMENT_TYPE_UNDEFINED ||
         celix_arrayList_getElementType(values) == CELIX_ARRAY_LIST_ELEMENT_TYPE_POINTER) {
+        celix_err_push("Cannot assign an invalid array-list property");
         celix_arrayList_destroy(values);
         return CELIX_ILLEGAL_ARGUMENT;
     }

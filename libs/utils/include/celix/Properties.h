@@ -34,6 +34,55 @@
 
 namespace celix {
 
+class Properties;
+
+/**
+ * Owning, recursive C++14 representation of a JSON-compatible property value.
+ */
+class PropertyValue {
+  public:
+    enum class Type { Null, String, Long, Double, Bool, Version, Properties, Array };
+
+    PropertyValue() = default;
+    PropertyValue(const PropertyValue& rhs);
+    PropertyValue(PropertyValue&&) noexcept = default;
+    PropertyValue& operator=(const PropertyValue& rhs);
+    PropertyValue& operator=(PropertyValue&&) noexcept = default;
+
+    Type getType() const noexcept { return type; }
+    bool isNull() const noexcept { return type == Type::Null; }
+    std::string getString(const std::string& fallback = {}) const {
+        return type == Type::String ? stringValue : fallback;
+    }
+    long getLong(long fallback = 0L) const noexcept { return type == Type::Long ? longValue : fallback; }
+    double getDouble(double fallback = 0.0) const noexcept { return type == Type::Double ? doubleValue : fallback; }
+    bool getBool(bool fallback = false) const noexcept { return type == Type::Bool ? boolValue : fallback; }
+    celix::Version getVersion(const celix::Version& fallback = {}) const {
+        return type == Type::Version ? versionValue : fallback;
+    }
+    celix::Properties getProperties() const;
+    celix::Properties getProperties(const celix::Properties& fallback) const;
+    std::vector<PropertyValue> getArray(const std::vector<PropertyValue>& fallback = {}) const {
+        return type == Type::Array ? arrayValue : fallback;
+    }
+
+  private:
+    friend class Properties;
+    static PropertyValue fromVariant(const celix_array_list_variant_t* value);
+    static std::vector<PropertyValue> fromArray(const celix_array_list_t* value);
+    static PropertyValue fromArrayElement(const celix_array_list_t* value, int index);
+    static PropertyValue fromProperties(const celix_properties_t* value);
+
+    Type type{Type::Null};
+    std::string stringValue{};
+    long longValue{0};
+    double doubleValue{0.0};
+    bool boolValue{false};
+    celix::Version versionValue{};
+    std::shared_ptr<celix_properties_t> propertiesValue{};
+    std::vector<PropertyValue> arrayValue{};
+};
+
 /**
  * @brief A iterator for celix::Properties.
  */
@@ -223,7 +272,9 @@ class Properties {
      * @brief Copy C properties and take ownership -> dtor will destroy C properties.
      */
     static Properties copy(const celix_properties_t* copyProps) {
-        return Properties{celix_properties_copy(copyProps), true};
+        auto* result = celix_properties_copy(copyProps);
+        throwIfNull(result);
+        return Properties{result, true};
     }
 
     /**
@@ -773,6 +824,20 @@ class Properties {
         throwIfEnomem(status);
     }
 
+    /** Set an explicit JSON null property. */
+    void setNull(const std::string& key) {
+        auto status = celix_properties_setNull(cProps.get(), key.c_str());
+        throwIfEnomem(status);
+    }
+
+    /** Set an owning copy of a nested properties value. */
+    void setProperties(const std::string& key, const Properties& value) {
+        auto status = celix_properties_setProperties(cProps.get(), key.c_str(), value.cProps.get());
+        throwIfEnomem(status);
+        if (status != CELIX_SUCCESS)
+            celix::impl::throwException(status, "Cannot set nested celix::Properties");
+    }
+
     /**
      * @brief Set a long array value for a property.
      *
@@ -885,7 +950,7 @@ class Properties {
 
     Properties getProperties(const std::string& key, const Properties& defaultValue = {}) const {
         const auto* value = celix_properties_getProperties(cProps.get(), key.c_str());
-        return value ? Properties{celix_properties_copy(value), true} : defaultValue;
+        return value ? Properties::copy(value) : defaultValue;
     }
 
     static bool checkPath(const std::string& path) { return celix_properties_checkPath(path.c_str()); }
@@ -906,9 +971,87 @@ class Properties {
         return celix_properties_getBoolByPath(cProps.get(), path.c_str(), defaultValue);
     }
 
+    celix::Version getVersionByPath(const std::string& path, const celix::Version& defaultValue = {}) const {
+        const auto* value = celix_properties_getVersionByPath(cProps.get(), path.c_str(), nullptr);
+        return value ? celix::Version{celix_version_getMajor(value),
+                                      celix_version_getMinor(value),
+                                      celix_version_getMicro(value),
+                                      celix_version_getQualifier(value)}
+                     : defaultValue;
+    }
+
     Properties getPropertiesByPath(const std::string& path, const Properties& defaultValue = {}) const {
         const auto* value = celix_properties_getPropertiesByPath(cProps.get(), path.c_str(), nullptr);
-        return value ? Properties{celix_properties_copy(value), true} : defaultValue;
+        return value ? Properties::copy(value) : defaultValue;
+    }
+
+    std::vector<PropertyValue> getArrayByPath(const std::string& path,
+                                              const std::vector<PropertyValue>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        return value ? PropertyValue::fromArray(value) : defaultValue;
+    }
+
+    std::vector<std::string> getStringVectorByPath(const std::string& path,
+                                                   const std::vector<std::string>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        if (!value || celix_arrayList_getElementType(value) != CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING)
+            return defaultValue;
+        std::vector<std::string> result;
+        result.reserve(celix_arrayList_size(value));
+        for (int i = 0; i < celix_arrayList_size(value); ++i)
+            result.emplace_back(celix_arrayList_getString(value, i));
+        return result;
+    }
+
+    std::vector<long> getLongVectorByPath(const std::string& path, const std::vector<long>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        return value && celix_arrayList_getElementType(value) == CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG
+                   ? convertToVector<long>(value, {}, celix_arrayList_getLong)
+                   : defaultValue;
+    }
+
+    std::vector<double> getDoubleVectorByPath(const std::string& path,
+                                              const std::vector<double>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        return value && celix_arrayList_getElementType(value) == CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE
+                   ? convertToVector<double>(value, {}, celix_arrayList_getDouble)
+                   : defaultValue;
+    }
+
+    std::vector<bool> getBoolVectorByPath(const std::string& path, const std::vector<bool>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        return value && celix_arrayList_getElementType(value) == CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL
+                   ? convertToVector<bool>(value, {}, celix_arrayList_getBool)
+                   : defaultValue;
+    }
+
+    std::vector<celix::Version> getVersionVectorByPath(const std::string& path,
+                                                       const std::vector<celix::Version>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        if (!value || celix_arrayList_getElementType(value) != CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION)
+            return defaultValue;
+        std::vector<celix::Version> result;
+        result.reserve(celix_arrayList_size(value));
+        for (int i = 0; i < celix_arrayList_size(value); ++i) {
+            const auto* version = celix_arrayList_getVersion(value, i);
+            result.emplace_back(celix_version_getMajor(version),
+                                celix_version_getMinor(version),
+                                celix_version_getMicro(version),
+                                celix_version_getQualifier(version));
+        }
+        return result;
+    }
+
+    std::vector<Properties> getPropertiesVectorByPath(const std::string& path,
+                                                      const std::vector<Properties>& defaultValue = {}) const {
+        const auto* value = celix_properties_getArrayListByPath(cProps.get(), path.c_str(), nullptr);
+        if (!value || celix_arrayList_getElementType(value) != CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES)
+            return defaultValue;
+        std::vector<Properties> result;
+        result.reserve(celix_arrayList_size(value));
+        for (int i = 0; i < celix_arrayList_size(value); ++i)
+            result.emplace_back(Properties::copy(celix_arrayList_getProperties(value, i)));
+        return result;
     }
 
     bool hasPath(const std::string& path) const { return celix_properties_hasPath(cProps.get(), path.c_str()); }
@@ -920,6 +1063,9 @@ class Properties {
         return celix_properties_hasDoublePath(cProps.get(), path.c_str());
     }
     bool hasBoolPath(const std::string& path) const { return celix_properties_hasBoolPath(cProps.get(), path.c_str()); }
+    bool hasVersionPath(const std::string& path) const {
+        return celix_properties_hasVersionPath(cProps.get(), path.c_str());
+    }
     bool hasPropertiesPath(const std::string& path) const {
         return celix_properties_hasPropertiesPath(cProps.get(), path.c_str());
     }
@@ -946,14 +1092,57 @@ class Properties {
         return result;
     }
 
+    std::vector<double> getAllDoublesByPath(const std::string& path) const {
+        celix_autoptr(celix_array_list_t) list = celix_properties_getAllDoublesByPath(cProps.get(), path.c_str());
+        throwIfNull(list);
+        return convertToVector<double>(list, {}, celix_arrayList_getDouble);
+    }
+
+    std::vector<bool> getAllBoolsByPath(const std::string& path) const {
+        celix_autoptr(celix_array_list_t) list = celix_properties_getAllBoolsByPath(cProps.get(), path.c_str());
+        throwIfNull(list);
+        return convertToVector<bool>(list, {}, celix_arrayList_getBool);
+    }
+
+    std::vector<celix::Version> getAllVersionsByPath(const std::string& path) const {
+        celix_autoptr(celix_array_list_t) list = celix_properties_getAllVersionsByPath(cProps.get(), path.c_str());
+        throwIfNull(list);
+        std::vector<celix::Version> result;
+        result.reserve(celix_arrayList_size(list));
+        for (int i = 0; i < celix_arrayList_size(list); ++i) {
+            const auto* version = celix_arrayList_getVersion(list, i);
+            result.emplace_back(celix_version_getMajor(version),
+                                celix_version_getMinor(version),
+                                celix_version_getMicro(version),
+                                celix_version_getQualifier(version));
+        }
+        return result;
+    }
+
     std::vector<Properties> getAllPropertiesByPath(const std::string& path) const {
         celix_autoptr(celix_array_list_t) list = celix_properties_getAllPropertiesByPath(cProps.get(), path.c_str());
         throwIfNull(list);
         std::vector<Properties> result{};
         for (int i = 0; i < celix_arrayList_size(list); ++i) {
-            result.emplace_back(Properties{celix_properties_copy(celix_arrayList_getProperties(list, i)), true});
+            result.emplace_back(Properties::copy(celix_arrayList_getProperties(list, i)));
         }
         return result;
+    }
+
+    std::vector<std::vector<PropertyValue>> getAllArraysByPath(const std::string& path) const {
+        celix_autoptr(celix_array_list_t) list = celix_properties_getAllArrayListsByPath(cProps.get(), path.c_str());
+        throwIfNull(list);
+        std::vector<std::vector<PropertyValue>> result;
+        result.reserve(celix_arrayList_size(list));
+        for (int i = 0; i < celix_arrayList_size(list); ++i)
+            result.emplace_back(PropertyValue::fromArray(celix_arrayList_getArrayList(list, i)));
+        return result;
+    }
+
+    std::vector<PropertyValue> getAllValuesByPath(const std::string& path) const {
+        celix_autoptr(celix_array_list_t) list = celix_properties_getAllValuesByPath(cProps.get(), path.c_str());
+        throwIfNull(list);
+        return PropertyValue::fromArray(list);
     }
 
     /**
@@ -988,16 +1177,13 @@ class Properties {
     enum class EncodingFlags : int {
         None = 0,                                /**< No special encoding flags. */
         Pretty = CELIX_PROPERTIES_ENCODE_PRETTY, /**< Encode in a pretty format, with indentation and line breaks. */
-        FlatStyle = CELIX_PROPERTIES_ENCODE_FLAT_STYLE, /**< Encode in a flat style, with all keys at the top level. */
-        NestedStyle = CELIX_PROPERTIES_ENCODE_NESTED_STYLE, /**< Encode in a nested style, with nested objects for
-                                                               each key based on a `/` separator. */
-        ErrorOnCollisions = CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS,    /**< If set, encoding will fail if there
-                                                                               are collisions between keys. */
-        ErrorOnEmptyArrays = CELIX_PROPERTIES_ENCODE_ERROR_ON_EMPTY_ARRAYS, /**< If set, encoding will fail if there
-                                                                               are empty arrays. */
-        ErrorOnNanInf = CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF, /**< If set, encoding will fail if there are NaN
-                                                                     or Inf values. */
-        Strict = CELIX_PROPERTIES_ENCODE_STRICT, /**< If set, encoding will fail if there are any errors. */
+        FlatStyle = CELIX_PROPERTIES_ENCODE_FLAT_STYLE,                     /**< Deprecated no-op compatibility flag. */
+        NestedStyle = CELIX_PROPERTIES_ENCODE_NESTED_STYLE,                 /**< Deprecated no-op compatibility flag. */
+        ErrorOnCollisions = CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS,    /**< Deprecated no-op compatibility flag. */
+        ErrorOnEmptyArrays = CELIX_PROPERTIES_ENCODE_ERROR_ON_EMPTY_ARRAYS, /**< Deprecated no-op compatibility flag. */
+        ErrorOnNanInf =
+            CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF, /**< Deprecated no-op; non-finite values always fail. */
+        Strict = CELIX_PROPERTIES_ENCODE_STRICT,      /**< Deprecated combination of compatibility flags. */
     };
 
     /**
@@ -1006,7 +1192,7 @@ class Properties {
      * For more information how a properties object is encoded to JSON, see the celix_properties_loadFromStream
      *
      * For a overview of the possible encode flags, see the EncodingFlags flags documentation.
-     * The default encoding style is a compact and flat JSON representation.
+     * The default encoding is compact and property member names are literal.
      *
      * @param[in] filename The file to write the JSON representation of the properties object to.
      * @param[in] encodingFlags The flags to use when encoding the input string.
@@ -1029,7 +1215,7 @@ class Properties {
      * For more information how a properties object is encoded to JSON, see the celix_properties_loadFromStream
      *
      * For a overview of the possible encode flags, see the EncodingFlags flags documentation.
-     * The default encoding style is a compact and flat JSON representation.
+     * The default encoding is compact and property member names are literal.
      *
      * @param[in] encodeFlags The flags to use when encoding the input string.
      * @throws celix::IllegalArgumentException If the provided properties cannot be encoded to JSON.
@@ -1056,21 +1242,17 @@ class Properties {
      * @enum DecodeFlags
      */
     enum class DecodeFlags : int {
-        None = 0,                                                           /**< No special decoding flags. */
-        ErrorOnDuplicates = CELIX_PROPERTIES_DECODE_ERROR_ON_DUPLICATES,    /**< If set, decoding will fail if there
-                                                                               are duplicate keys. */
-        ErrorOnCollisions = CELIX_PROPERTIES_DECODE_ERROR_ON_COLLISIONS,    /**< If set, decoding will fail if there
-                                                                               are collisions between keys. */
-        ErrorOnNullValues = CELIX_PROPERTIES_DECODE_ERROR_ON_NULL_VALUES,   /**< If set, decoding will fail if there
-                                                                               are null values. */
-        ErrorOnEmptyArrays = CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_ARRAYS, /**< If set, decoding will fail if there
-                                                                               are empty arrays. */
-        ErrorOnEmptyKeys = CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_KEYS,     /**< If set, decoding will fail if there are
-                                                                               empty ("") keys. */
-        ErrorOnUnsupportedArrays =
-            CELIX_PROPERTIES_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS, /**< If set, decoding will fail if there
-                                                        are unsupported array types or mixed array types. */
-        Strict = CELIX_PROPERTIES_DECODE_STRICT /**< If set, decoding will fail if there are any errors. */
+        None = 0, /**< No special decoding flags. */
+        ErrorOnDuplicates =
+            CELIX_PROPERTIES_DECODE_ERROR_ON_DUPLICATES, /**< Deprecated no-op; duplicates always fail. */
+        ErrorOnCollisions = CELIX_PROPERTIES_DECODE_ERROR_ON_COLLISIONS,    /**< Deprecated no-op compatibility flag. */
+        ErrorOnNullValues = CELIX_PROPERTIES_DECODE_ERROR_ON_NULL_VALUES,   /**< Deprecated no-op compatibility flag. */
+        ErrorOnEmptyArrays = CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_ARRAYS, /**< Deprecated no-op compatibility flag. */
+        ErrorOnEmptyKeys = CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_KEYS,     /**< Deprecated no-op compatibility flag. */
+        ErrorOnUnsupportedArrays = CELIX_PROPERTIES_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS, /**< Deprecated no-op. */
+        LegacyVersionStrings =
+            CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS, /**< Decode tagged strings as versions. */
+        Strict = CELIX_PROPERTIES_DECODE_STRICT             /**< Deprecated combination of no-op compatibility flags. */
     };
 
     /**
@@ -1212,6 +1394,134 @@ class Properties {
 
     std::shared_ptr<celix_properties_t> cProps;
 };
+
+inline PropertyValue PropertyValue::fromProperties(const celix_properties_t* value) {
+    PropertyValue result;
+    result.type = Type::Properties;
+    auto* copy = celix_properties_copy(value);
+    if (!copy)
+        throw std::bad_alloc{};
+    result.propertiesValue =
+        std::shared_ptr<celix_properties_t>{copy, [](celix_properties_t* props) { celix_properties_destroy(props); }};
+    return result;
+}
+
+inline PropertyValue PropertyValue::fromVariant(const celix_array_list_variant_t* value) {
+    PropertyValue result;
+    switch (value->type) {
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_NULL:
+        result.type = Type::Null;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        result.type = Type::String;
+        result.stringValue = value->value.stringValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_LONG:
+        result.type = Type::Long;
+        result.longValue = value->value.longValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE:
+        result.type = Type::Double;
+        result.doubleValue = value->value.doubleValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL:
+        result.type = Type::Bool;
+        result.boolValue = value->value.boolValue;
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION:
+        result.type = Type::Version;
+        result.versionValue = celix::Version{celix_version_getMajor(value->value.versionValue),
+                                             celix_version_getMinor(value->value.versionValue),
+                                             celix_version_getMicro(value->value.versionValue),
+                                             celix_version_getQualifier(value->value.versionValue)};
+        break;
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES:
+        return fromProperties(value->value.propertiesValue);
+    case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
+        result.type = Type::Array;
+        result.arrayValue = fromArray(value->value.arrayListValue);
+        break;
+    }
+    return result;
+}
+
+inline PropertyValue PropertyValue::fromArrayElement(const celix_array_list_t* value, int index) {
+    PropertyValue result;
+    switch (celix_arrayList_getElementType(value)) {
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
+        result.type = Type::String;
+        result.stringValue = celix_arrayList_getString(value, index);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
+        result.type = Type::Long;
+        result.longValue = celix_arrayList_getLong(value, index);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
+        result.type = Type::Double;
+        result.doubleValue = celix_arrayList_getDouble(value, index);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
+        result.type = Type::Bool;
+        result.boolValue = celix_arrayList_getBool(value, index);
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION: {
+        const auto* version = celix_arrayList_getVersion(value, index);
+        result.type = Type::Version;
+        result.versionValue = celix::Version{celix_version_getMajor(version),
+                                             celix_version_getMinor(version),
+                                             celix_version_getMicro(version),
+                                             celix_version_getQualifier(version)};
+        break;
+    }
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES:
+        return fromProperties(celix_arrayList_getProperties(value, index));
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST:
+        result.type = Type::Array;
+        result.arrayValue = fromArray(celix_arrayList_getArrayList(value, index));
+        break;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT:
+        return fromVariant(celix_arrayList_getVariant(value, index));
+    default:
+        break;
+    }
+    return result;
+}
+
+inline std::vector<PropertyValue> PropertyValue::fromArray(const celix_array_list_t* value) {
+    std::vector<PropertyValue> result;
+    result.reserve(celix_arrayList_size(value));
+    for (int i = 0; i < celix_arrayList_size(value); ++i)
+        result.emplace_back(fromArrayElement(value, i));
+    return result;
+}
+
+inline PropertyValue::PropertyValue(const PropertyValue& rhs)
+    : type{rhs.type}, stringValue{rhs.stringValue}, longValue{rhs.longValue}, doubleValue{rhs.doubleValue},
+      boolValue{rhs.boolValue}, versionValue{rhs.versionValue}, arrayValue{rhs.arrayValue} {
+    if (rhs.propertiesValue) {
+        auto* copy = celix_properties_copy(rhs.propertiesValue.get());
+        if (!copy)
+            throw std::bad_alloc{};
+        propertiesValue = std::shared_ptr<celix_properties_t>{
+            copy, [](celix_properties_t* props) { celix_properties_destroy(props); }};
+    }
+}
+
+inline PropertyValue& PropertyValue::operator=(const PropertyValue& rhs) {
+    if (this != &rhs) {
+        PropertyValue copy{rhs};
+        *this = std::move(copy);
+    }
+    return *this;
+}
+
+inline celix::Properties PropertyValue::getProperties() const {
+    return type == Type::Properties ? celix::Properties::copy(propertiesValue.get()) : celix::Properties{};
+}
+
+inline celix::Properties PropertyValue::getProperties(const celix::Properties& fallback) const {
+    return type == Type::Properties ? celix::Properties::copy(propertiesValue.get()) : fallback;
+}
 } // namespace celix
 
 /**

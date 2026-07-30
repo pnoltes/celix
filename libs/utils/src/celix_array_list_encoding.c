@@ -18,15 +18,18 @@
  */
 #include "celix_array_list_encoding.h"
 #include "celix_array_list_encoding_private.h"
+#include "celix_array_list_private.h"
 #include "celix_err.h"
 #include "celix_json_utils_private.h"
 #include "celix_properties_private.h"
 #include "celix_stdio_cleanup.h"
 #include "celix_stdlib_cleanup.h"
+#include "celix_utils.h"
 
 #include <assert.h>
 #include <errno.h>
 #include <jansson.h>
+#include <limits.h>
 #include <math.h>
 #include <string.h>
 
@@ -37,12 +40,14 @@ static celix_array_list_element_type_t celix_arrayList_determineArrayType(const 
 
     json_type type = json_typeof(json_array_get(jsonArray, 0));
     bool numeric = type == JSON_INTEGER || type == JSON_REAL;
+    bool hasInteger = type == JSON_INTEGER;
     bool hasReal = type == JSON_REAL;
     size_t index;
     json_t* value;
     json_array_foreach(jsonArray, index, value) {
         json_type valueType = json_typeof(value);
         if (numeric && (valueType == JSON_INTEGER || valueType == JSON_REAL)) {
+            hasInteger = hasInteger || valueType == JSON_INTEGER;
             hasReal = hasReal || valueType == JSON_REAL;
         } else if ((type == JSON_TRUE || type == JSON_FALSE) && json_is_boolean(value)) {
             // Both JSON boolean types belong to a homogeneous boolean array.
@@ -52,6 +57,9 @@ static celix_array_list_element_type_t celix_arrayList_determineArrayType(const 
     }
 
     if (numeric) {
+        if (hasInteger && hasReal) {
+            return CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT;
+        }
         return hasReal ? CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE : CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG;
     }
     switch (type) {
@@ -69,36 +77,73 @@ static celix_array_list_element_type_t celix_arrayList_determineArrayType(const 
     }
 }
 
+static celix_status_t celix_arrayList_jsonIntegerToLong(const json_t* value, long* out) {
+    json_int_t integer = json_integer_value(value);
+    if (sizeof(long) < sizeof(json_int_t) && (integer < (json_int_t)LONG_MIN || integer > (json_int_t)LONG_MAX)) {
+        celix_err_push("JSON integer does not fit in a Celix long value");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    *out = (long)integer;
+    return CELIX_SUCCESS;
+}
+
 static celix_status_t
 celix_arrayList_addJsonValueAsVariant(celix_array_list_t* array, const json_t* value, int decodeFlags) {
-    celix_array_list_variant_t variant = {0};
+    celix_autofree celix_array_list_variant_t* variant = calloc(1, sizeof(*variant));
+    if (!variant) {
+        celix_err_push("Failed to allocate a variant array-list entry");
+        return CELIX_ENOMEM;
+    }
+    celix_autofree char* stringValue = NULL;
+    celix_autoptr(celix_version_t) version = NULL;
     celix_autoptr(celix_properties_t) properties = NULL;
     celix_autoptr(celix_array_list_t) nested = NULL;
     celix_status_t status = CELIX_SUCCESS;
     if (json_is_null(value)) {
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_NULL;
+        variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_NULL;
     } else if (json_is_string(value)) {
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_STRING;
-        variant.value.stringValue = json_string_value(value);
+        if ((decodeFlags & CELIX_ARRAY_LIST_DECODE_LEGACY_VERSION_STRINGS) && celix_utils_isVersionJsonString(value)) {
+            variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION;
+            status = celix_utils_jsonToVersion(value, &version);
+        } else {
+            variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_STRING;
+            stringValue = celix_utils_strdup(json_string_value(value));
+            if (!stringValue) {
+                return CELIX_ENOMEM;
+            }
+        }
     } else if (json_is_integer(value)) {
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_LONG;
-        variant.value.longValue = (long)json_integer_value(value);
+        variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_LONG;
+        status = celix_arrayList_jsonIntegerToLong(value, &variant->value.longValue);
     } else if (json_is_real(value)) {
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE;
-        variant.value.doubleValue = json_real_value(value);
+        variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE;
+        variant->value.doubleValue = json_real_value(value);
     } else if (json_is_boolean(value)) {
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL;
-        variant.value.boolValue = json_boolean_value(value);
+        variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_BOOL;
+        variant->value.boolValue = json_boolean_value(value);
     } else if (json_is_object(value)) {
-        status = celix_properties_decodeFromJson(value, 0, &properties);
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES;
-        variant.value.propertiesValue = properties;
+        variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES;
+        status = celix_properties_decodeFromJson(value, decodeFlags, &properties);
     } else if (json_is_array(value)) {
+        variant->type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST;
         status = celix_arrayList_decodeFromJson(value, decodeFlags, &nested);
-        variant.type = CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST;
-        variant.value.arrayListValue = nested;
+    } else {
+        celix_err_push("Unsupported JSON value in variant array");
+        return CELIX_ILLEGAL_ARGUMENT;
     }
-    return CELIX_DO_IF(status, celix_arrayList_addVariant(array, &variant));
+    if (status != CELIX_SUCCESS) {
+        return status;
+    }
+    if (variant->type == CELIX_ARRAY_LIST_VARIANT_TYPE_STRING) {
+        variant->value.stringValue = celix_steal_ptr(stringValue);
+    } else if (variant->type == CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION) {
+        variant->value.versionValue = celix_steal_ptr(version);
+    } else if (variant->type == CELIX_ARRAY_LIST_VARIANT_TYPE_PROPERTIES) {
+        variant->value.propertiesValue = celix_steal_ptr(properties);
+    } else if (variant->type == CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST) {
+        variant->value.arrayListValue = celix_steal_ptr(nested);
+    }
+    return celix_arrayList_assignVariant(array, celix_steal_ptr(variant));
 }
 
 celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decodeFlags, celix_array_list_t** out) {
@@ -109,12 +154,19 @@ celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decod
         celix_err_push("Expected a json array.");
         return CELIX_ILLEGAL_ARGUMENT;
     }
-    if (json_array_size(jsonArray) == 0 && (decodeFlags & CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS)) {
-        celix_err_push("Expected a non-empty json array.");
-        return CELIX_ILLEGAL_ARGUMENT;
-    }
-
     celix_array_list_element_type_t elType = celix_arrayList_determineArrayType(jsonArray);
+    if (elType == CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING &&
+        (decodeFlags & CELIX_ARRAY_LIST_DECODE_LEGACY_VERSION_STRINGS)) {
+        bool allVersions = true;
+        size_t versionIndex;
+        json_t* versionValue;
+        json_array_foreach(jsonArray, versionIndex, versionValue) {
+            allVersions = allVersions && celix_utils_isVersionJsonString(versionValue);
+        }
+        if (allVersions) {
+            elType = CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION;
+        }
+    }
     celix_array_list_create_options_t opts = CELIX_EMPTY_ARRAY_LIST_CREATE_OPTIONS;
     opts.elementType = elType;
     celix_autoptr(celix_array_list_t) array = celix_arrayList_createWithOptions(&opts);
@@ -131,7 +183,9 @@ celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decod
             status = celix_arrayList_addString(array, json_string_value(value));
             break;
         case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
-            status = celix_arrayList_addLong(array, (long)json_integer_value(value));
+            long longValue;
+            status = celix_arrayList_jsonIntegerToLong(value, &longValue);
+            status = CELIX_DO_IF(status, celix_arrayList_addLong(array, longValue));
             break;
         case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
             status = celix_arrayList_addDouble(array, json_number_value(value));
@@ -139,9 +193,15 @@ celix_status_t celix_arrayList_decodeFromJson(const json_t* jsonArray, int decod
         case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
             status = celix_arrayList_addBool(array, json_boolean_value(value));
             break;
+        case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION: {
+            celix_version_t* version = NULL;
+            status = celix_utils_jsonToVersion(value, &version);
+            status = CELIX_DO_IF(status, celix_arrayList_assignVersion(array, version));
+            break;
+        }
         case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES: {
             celix_properties_t* properties = NULL;
-            status = celix_properties_decodeFromJson(value, 0, &properties);
+            status = celix_properties_decodeFromJson(value, decodeFlags, &properties);
             status = CELIX_DO_IF(status, celix_arrayList_assignProperties(array, properties));
             break;
         }
@@ -171,7 +231,7 @@ celix_status_t celix_arrayList_loadFromStream(FILE* stream, int decodeFlags, cel
         return CELIX_ILLEGAL_ARGUMENT;
     }
     json_error_t jsonError;
-    size_t jsonFlags = 0;
+    size_t jsonFlags = JSON_REJECT_DUPLICATES;
     json_auto_t* root = json_loadf(stream, jsonFlags, &jsonError);
     if (!root) {
         celix_err_pushf("Failed to parse json from %s:%i:%i: %s.",
@@ -218,6 +278,10 @@ celix_arrayList_variantValueToJson(const celix_array_list_variant_t* variant, in
         *out = json_null();
         break;
     case CELIX_ARRAY_LIST_VARIANT_TYPE_STRING:
+        if (!celix_utils_isValidUtf8(variant->value.stringValue)) {
+            celix_err_push("Invalid UTF-8 string in variant array-list entry.");
+            return CELIX_ILLEGAL_ARGUMENT;
+        }
         *out = json_string(variant->value.stringValue);
         break;
     case CELIX_ARRAY_LIST_VARIANT_TYPE_LONG:
@@ -239,6 +303,9 @@ celix_arrayList_variantValueToJson(const celix_array_list_variant_t* variant, in
         return celix_properties_encodeToJson(variant->value.propertiesValue, 0, out);
     case CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST:
         return celix_arrayList_encodeToJson(variant->value.arrayListValue, flags, out);
+    default:
+        celix_err_pushf("Invalid array-list variant type %d.", variant->type);
+        return CELIX_ILLEGAL_ARGUMENT;
     }
     if (!*out) {
         celix_err_push("Failed to create json value.");
@@ -254,6 +321,10 @@ static celix_status_t celix_arrayList_elementEntryValueToJson(celix_array_list_e
     *out = NULL;
     switch (elType) {
     case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
+        if (!celix_utils_isValidUtf8(entry.stringVal)) {
+            celix_err_push("Invalid UTF-8 string in array-list entry.");
+            return CELIX_ILLEGAL_ARGUMENT;
+        }
         *out = json_string(entry.stringVal);
         break;
     case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
@@ -312,11 +383,6 @@ celix_status_t celix_arrayList_encodeToJson(const celix_array_list_t* list, int 
             celix_err_push("Failed to append json value to array.");
             return ENOMEM;
         }
-    }
-
-    if (json_array_size(array) == 0 && (encodeFlags & CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS)) {
-        celix_err_push("Invalid empty array.");
-        return CELIX_ILLEGAL_ARGUMENT;
     }
 
     *out = celix_steal_ptr(array);

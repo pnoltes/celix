@@ -70,7 +70,7 @@ celix_status_t celix_bundleManifest_create(celix_properties_t* attributes, celix
 
 celix_status_t celix_bundleManifest_createFromFile(const char* filename, celix_bundle_manifest_t** manifestOut) {
     celix_properties_t* properties = NULL;
-    celix_status_t status = celix_properties_load(filename, 0, &properties);
+    celix_status_t status = celix_properties_load(filename, CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS, &properties);
     if (status != CELIX_SUCCESS) {
         return status;
     }

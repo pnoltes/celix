@@ -170,6 +170,10 @@ CELIX_DEFINE_AUTOPTR_CLEANUP_FUNC(celix_filter_t, celix_filter_destroy)
 
 /**
  * @brief Check whether the provided filter matches the provided properties.
+ *
+ * A filter attribute is interpreted as a JSONPath only when it starts with `$`. Attributes without a leading `$` are
+ * always matched as literal root property keys, including attributes containing dots or brackets.
+ *
  * @param[in] filter The filter.
  * @param[in] props The properties.
  * @return True if the filter matches the properties, false otherwise. If filter is NULL always returns true and

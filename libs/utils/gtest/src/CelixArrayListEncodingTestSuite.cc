@@ -281,9 +281,12 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadEmptyArrayTest) {
 }
 
 TEST_F(CelixArrayListEncodingTestSuite, LoadEmptyArrayWithEmptyErrorFlagsTest) {
-    celix_array_list_t* list = nullptr;
+    celix_autoptr(celix_array_list_t) list = nullptr;
     auto status = celix_arrayList_loadFromString(R"([])", CELIX_ARRAY_LIST_DECODE_ERROR_ON_EMPTY_ARRAYS, &list);
-    ASSERT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
+    ASSERT_EQ(CELIX_SUCCESS, status);
+    ASSERT_NE(nullptr, list);
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT, celix_arrayList_getElementType(list));
+    EXPECT_EQ(0, celix_arrayList_size(list));
 }
 
 TEST_F(CelixArrayListEncodingTestSuite, LoadNotSupportTypeArrayTest) {
@@ -306,12 +309,15 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadMixedIntegerAndRealArrayTest) {
     {
         // integer before real
         celix_autoptr(celix_array_list_t) list = nullptr;
-        auto status = celix_arrayList_loadFromString(R"([1, 2.2, 3])", 0, &list);
+        auto status = celix_arrayList_loadFromString(R"([9007199254740993, 2.2, 3])", 0, &list);
         ASSERT_EQ(CELIX_SUCCESS, status);
         ASSERT_EQ(3, celix_arrayList_size(list));
-        ASSERT_EQ(1, celix_arrayList_getDouble(list, 0));
-        ASSERT_EQ(2.2, celix_arrayList_getDouble(list, 1));
-        ASSERT_EQ(3, celix_arrayList_getDouble(list, 2));
+        ASSERT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT, celix_arrayList_getElementType(list));
+        EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_LONG, celix_arrayList_getVariant(list, 0)->type);
+        EXPECT_EQ(9007199254740993L, celix_arrayList_getVariant(list, 0)->value.longValue);
+        EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE, celix_arrayList_getVariant(list, 1)->type);
+        EXPECT_DOUBLE_EQ(2.2, celix_arrayList_getVariant(list, 1)->value.doubleValue);
+        EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_LONG, celix_arrayList_getVariant(list, 2)->type);
     }
 
     {
@@ -320,9 +326,10 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadMixedIntegerAndRealArrayTest) {
         auto status = celix_arrayList_loadFromString(R"([1.1, 2, 3])", 0, &list);
         ASSERT_EQ(CELIX_SUCCESS, status);
         ASSERT_EQ(3, celix_arrayList_size(list));
-        ASSERT_EQ(1.1, celix_arrayList_getDouble(list, 0));
-        ASSERT_EQ(2, celix_arrayList_getDouble(list, 1));
-        ASSERT_EQ(3, celix_arrayList_getDouble(list, 2));
+        ASSERT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT, celix_arrayList_getElementType(list));
+        EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE, celix_arrayList_getVariant(list, 0)->type);
+        EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_LONG, celix_arrayList_getVariant(list, 1)->type);
+        EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_LONG, celix_arrayList_getVariant(list, 2)->type);
     }
 }
 
@@ -343,6 +350,28 @@ TEST_F(CelixArrayListEncodingTestSuite, LoadMixedVersionAndStringArrayTest) {
     ASSERT_EQ(CELIX_SUCCESS, status);
     ASSERT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING, celix_arrayList_getElementType(list));
     EXPECT_STREQ("str", celix_arrayList_getString(list, 1));
+}
+
+TEST_F(CelixArrayListEncodingTestSuite, LegacyVersionStringFlagIsExplicitAndRecursive) {
+    celix_autoptr(celix_array_list_t) standard = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_loadFromString(R"(["version<1.2.3>"])", 0, &standard));
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING, celix_arrayList_getElementType(standard));
+
+    celix_autoptr(celix_array_list_t) legacy = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS,
+              celix_arrayList_loadFromString(
+                  R"(["version<1.2.3>"])", CELIX_ARRAY_LIST_DECODE_LEGACY_VERSION_STRINGS, &legacy));
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION, celix_arrayList_getElementType(legacy));
+
+    celix_autoptr(celix_array_list_t) mixed = nullptr;
+    ASSERT_EQ(CELIX_SUCCESS,
+              celix_arrayList_loadFromString(R"([null,"version<2.3.4>",["version<3.4.5>"]])",
+                                             CELIX_ARRAY_LIST_DECODE_LEGACY_VERSION_STRINGS,
+                                             &mixed));
+    ASSERT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT, celix_arrayList_getElementType(mixed));
+    EXPECT_EQ(CELIX_ARRAY_LIST_VARIANT_TYPE_VERSION, celix_arrayList_getVariant(mixed, 1)->type);
+    EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION,
+              celix_arrayList_getElementType(celix_arrayList_getVariant(mixed, 2)->value.arrayListValue));
 }
 
 TEST_F(CelixArrayListEncodingTestSuite, SaveArrayListToStreamWithInvalidArgsTest) {
@@ -389,7 +418,8 @@ TEST_F(CelixArrayListEncodingTestSuite, SaveEmptyArrayListTest) {
     {
         celix_autofree char* output = nullptr;
         auto status = celix_arrayList_saveToString(list, CELIX_ARRAY_LIST_ENCODE_ERROR_ON_EMPTY_ARRAYS, &output);
-        ASSERT_EQ(CELIX_ILLEGAL_ARGUMENT, status);
+        ASSERT_EQ(CELIX_SUCCESS, status);
+        EXPECT_STREQ("[]", output);
     }
 }
 
@@ -431,4 +461,14 @@ TEST_F(CelixArrayListEncodingTestSuite, RecursiveAndVariantArraysRoundTripTest) 
     celix_autoptr(celix_array_list_t) decoded = nullptr;
     ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_loadFromString(output, 0, &decoded));
     EXPECT_TRUE(celix_arrayList_equals(list, decoded));
+}
+
+TEST_F(CelixArrayListEncodingTestSuite, DuplicateMembersAreRejectedAtEveryArrayNestingBoundary) {
+    for (const char* input :
+         {R"([{"key":1,"key":2}])", R"([[{"key":1,"key":2}]])", R"([null,{"key":1,"key":2},"variant"]})"}) {
+        celix_array_list_t* list = nullptr;
+        EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_arrayList_loadFromString(input, 0, &list)) << input;
+        EXPECT_EQ(nullptr, list);
+        celix_err_resetErrors();
+    }
 }

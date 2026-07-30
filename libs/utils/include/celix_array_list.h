@@ -590,7 +590,10 @@ celix_status_t celix_arrayList_assignProperties(celix_array_list_t* list, celix_
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_addArrayList(celix_array_list_t* list, const celix_array_list_t* value);
 
-/** @brief Appends and takes ownership of a nested array list. Direct self-insertion is rejected. */
+/**
+ * @brief Appends and takes ownership of a nested array list. Direct self-insertion is rejected and is the sole error
+ * for which ownership remains with the caller; destroying the supplied value would destroy the destination itself.
+ */
 CELIX_UTILS_EXPORT
 celix_status_t celix_arrayList_assignArrayList(celix_array_list_t* list, celix_array_list_t* value);
 

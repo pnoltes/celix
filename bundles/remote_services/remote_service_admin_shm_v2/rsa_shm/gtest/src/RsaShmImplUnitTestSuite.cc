@@ -272,6 +272,9 @@ TEST_F(RsaShmUnitTestSuite, ExportService) {
         celix_array_list_t *regs = nullptr;
         celix_properties_t *prop = celix_properties_create();
         celix_properties_set(prop, "AdditionKey", "AdditionValue");
+        celix_properties_t* nested = celix_properties_create();
+        ASSERT_EQ(CELIX_SUCCESS, celix_properties_set(nested, "child", "value"));
+        ASSERT_EQ(CELIX_SUCCESS, celix_properties_assignProperties(prop, "StructuredKey", nested));
         auto status = rsaShm_exportService(admin, const_cast<char *>(std::to_string(calcSvcId).c_str()), prop, &regs);
         EXPECT_EQ(CELIX_SUCCESS, status);
         EXPECT_GE(1, celix_arrayList_size(regs));
@@ -284,6 +287,7 @@ TEST_F(RsaShmUnitTestSuite, ExportService) {
             status = exportReference_getExportedEndpoint(ref, &endpoint);
             EXPECT_EQ(CELIX_SUCCESS, status);
             EXPECT_STREQ("AdditionValue", celix_properties_get(endpoint->properties, "AdditionKey", nullptr));
+            EXPECT_FALSE(celix_properties_hasKey(endpoint->properties, "StructuredKey"));
             EXPECT_EQ(nullptr,
                       celix_properties_get(endpoint->properties, CELIX_RSA_SERVICE_EXPORTED_INTERFACES, nullptr));
             EXPECT_STREQ(RSA_SHM_CALCULATOR_SERVICE,
@@ -864,7 +868,6 @@ TEST_F(RsaShmRpcTestSuite, CallRemoteService) {
     status = rsaShm_removeImportedService(clientAdmin.get(), importReg);
     EXPECT_EQ(CELIX_SUCCESS, status);
 }
-
 
 
 

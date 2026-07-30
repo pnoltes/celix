@@ -724,24 +724,35 @@ celix_status_t remoteServiceAdmin_removeExportedService(remote_service_admin_t *
     return status;
 }
 
+static bool remoteServiceAdmin_isLegacyStringProperty(const celix_properties_entry_t* entry) {
+    if (entry->valueType >= CELIX_PROPERTIES_VALUE_TYPE_STRING &&
+        entry->valueType <= CELIX_PROPERTIES_VALUE_TYPE_VERSION) {
+        return true;
+    }
+    if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_ARRAY_LIST) {
+        celix_array_list_element_type_t type = celix_arrayList_getElementType(entry->typed.arrayValue);
+        return type >= CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING && type <= CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION;
+    }
+    return false;
+}
+
 static celix_status_t remoteServiceAdmin_createEndpointDescription(remote_service_admin_t *admin, service_reference_pt reference, celix_properties_t *props, char *interface, endpoint_description_t **endpoint) {
 
     celix_status_t status = CELIX_SUCCESS;
     celix_properties_t *endpointProperties = celix_properties_create();
 
-    unsigned int size = 0;
-    char **keys;
-
-    serviceReference_getPropertyKeys(reference, &keys, &size);
-    for (int i = 0; i < size; i++) {
-        char *key = keys[i];
-        const char *value = NULL;
-
-        if (serviceReference_getProperty(reference, key, &value) == CELIX_SUCCESS
-            && strcmp(key, (char*) CELIX_RSA_SERVICE_EXPORTED_INTERFACES) != 0
-            && strcmp(key, (char*) CELIX_RSA_SERVICE_EXPORTED_CONFIGS) != 0
-            && strcmp(key, (char*) CELIX_FRAMEWORK_SERVICE_NAME) != 0) {
-            celix_properties_set(endpointProperties, key, value);
+    service_registration_t* registration = NULL;
+    celix_properties_t* serviceProperties = NULL;
+    if (serviceReference_getServiceRegistration(reference, &registration) == CELIX_SUCCESS &&
+        serviceRegistration_getProperties(registration, &serviceProperties) == CELIX_SUCCESS) {
+        CELIX_PROPERTIES_ITERATE(serviceProperties, iter) {
+            if (!remoteServiceAdmin_isLegacyStringProperty(&iter.entry)) {
+                RSA_LOG_WARNING(admin, "RSA: Skipping structured endpoint property '%s'.", iter.key);
+            } else if (strcmp(iter.key, (char*) CELIX_RSA_SERVICE_EXPORTED_INTERFACES) != 0
+                       && strcmp(iter.key, (char*) CELIX_RSA_SERVICE_EXPORTED_CONFIGS) != 0
+                       && strcmp(iter.key, (char*) CELIX_FRAMEWORK_SERVICE_NAME) != 0) {
+                celix_properties_set(endpointProperties, iter.key, iter.entry.value);
+            }
         }
     }
 
@@ -777,7 +788,11 @@ static celix_status_t remoteServiceAdmin_createEndpointDescription(remote_servic
 
     if (props != NULL) {
         CELIX_PROPERTIES_ITERATE(props, iter) {
-            celix_properties_set(endpointProperties, iter.key, iter.entry.value);
+            if (remoteServiceAdmin_isLegacyStringProperty(&iter.entry)) {
+                celix_properties_set(endpointProperties, iter.key, iter.entry.value);
+            } else {
+                RSA_LOG_WARNING(admin, "RSA: Skipping structured endpoint property '%s'.", iter.key);
+            }
         }
     }
 
@@ -791,8 +806,6 @@ static celix_status_t remoteServiceAdmin_createEndpointDescription(remote_servic
         (*endpoint)->serviceName = strndup(interface, 1024*10);
         (*endpoint)->properties = endpointProperties;
     }
-
-    free(keys);
 
     return status;
 }
@@ -1095,6 +1108,10 @@ static celix_status_t remoteServiceAdmin_send(void *handle, endpoint_description
         struct curl_slist *metadataHeader = NULL;
         if (metadata != NULL && celix_properties_size(metadata) > 0) {
             CELIX_PROPERTIES_ITERATE(metadata, iter) {
+                if (!remoteServiceAdmin_isLegacyStringProperty(&iter.entry)) {
+                    RSA_LOG_WARNING(rsa, "RSA: Skipping non-scalar request metadata '%s'.", iter.key);
+                    continue;
+                }
                 size_t length = strlen(iter.key) + strlen(iter.entry.value) + 18; // "X-RSA-Metadata-key: val\0"
                 char header[length];
                 snprintf(header, length, "X-RSA-Metadata-%s: %s", iter.key, iter.entry.value);

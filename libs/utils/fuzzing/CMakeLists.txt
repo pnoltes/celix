@@ -32,6 +32,11 @@ target_link_libraries(celix_filter_fuzzer PRIVATE utils_cuf)
 target_compile_options(celix_filter_fuzzer PRIVATE -fsanitize=fuzzer)
 target_link_options(celix_filter_fuzzer PRIVATE -fsanitize=fuzzer)
 
+add_executable(celix_properties_jsonpath_fuzzer src/PropertiesJsonPathFuzz.cc)
+target_link_libraries(celix_properties_jsonpath_fuzzer PRIVATE utils_cuf)
+target_compile_options(celix_properties_jsonpath_fuzzer PRIVATE -fsanitize=fuzzer)
+target_link_options(celix_properties_jsonpath_fuzzer PRIVATE -fsanitize=fuzzer)
+
 add_custom_command(TARGET celix_properties_fuzzer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_CURRENT_SOURCE_DIR}/properties_corpus
@@ -50,3 +55,8 @@ add_custom_command(TARGET celix_filter_fuzzer POST_BUILD
     $<TARGET_FILE_DIR:celix_filter_fuzzer>/filter_corpus
 )
 
+add_custom_command(TARGET celix_properties_jsonpath_fuzzer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/jsonpath_corpus
+    $<TARGET_FILE_DIR:celix_properties_jsonpath_fuzzer>/jsonpath_corpus
+)

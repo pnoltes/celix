@@ -20,6 +20,7 @@
 #include <gtest/gtest.h>
 
 #include <climits>
+#include <limits>
 
 #include "celix_err.h"
 #include "celix_properties.h"
@@ -966,7 +967,8 @@ TEST_F(PropertiesTestSuite, JsonPathConvenienceApiTest) {
                   R"({"name":"book","nested":{"count":2},"values":[1,2,3],"nothing":null})", 0, &props));
     EXPECT_TRUE(celix_properties_checkPath("$.nested.count"));
     EXPECT_TRUE(celix_properties_checkPath("$['nested']['count']"));
-    EXPECT_FALSE(celix_properties_checkPath("$..count"));
+    EXPECT_TRUE(celix_properties_checkPath("$..count"));
+    EXPECT_EQ(2, celix_properties_getLongByPath(props, "$..count", -1));
     EXPECT_STREQ("book", celix_properties_getStringByPath(props, "$.name", "fallback"));
     EXPECT_EQ(2, celix_properties_getLongByPath(props, "$.nested.count", -1));
     EXPECT_EQ(3, celix_properties_getLongByPath(props, "$.values[-1]", -1));
@@ -981,4 +983,37 @@ TEST_F(PropertiesTestSuite, JsonPathConvenienceApiTest) {
     ASSERT_NE(nullptr, empty);
     EXPECT_EQ(CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING, celix_arrayList_getElementType(empty));
     EXPECT_EQ(0, celix_arrayList_size(empty));
+}
+
+TEST_F(PropertiesTestSuite, StructuredSetterSnapshotFailureIsAtomicAndPreservesStatus) {
+    celix_autoptr(celix_properties_t) props = celix_properties_create();
+    ASSERT_EQ(CELIX_SUCCESS, celix_properties_set(props, "key", "original"));
+
+    celix_autoptr(celix_array_list_t) invalidUtf8 = celix_arrayList_createVariantArray();
+    celix_array_list_variant_t stringValue{};
+    stringValue.type = CELIX_ARRAY_LIST_VARIANT_TYPE_STRING;
+    const char malformed[] = {'\xC3', '\x28', '\0'};
+    stringValue.value.stringValue = malformed;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(invalidUtf8, &stringValue));
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_properties_setArrayList(props, "key", invalidUtf8));
+    EXPECT_STREQ("original", celix_properties_getString(props, "key"));
+
+    celix_autoptr(celix_array_list_t) nonFinite = celix_arrayList_createVariantArray();
+    celix_array_list_variant_t doubleValue{};
+    doubleValue.type = CELIX_ARRAY_LIST_VARIANT_TYPE_DOUBLE;
+    doubleValue.value.doubleValue = std::numeric_limits<double>::infinity();
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(nonFinite, &doubleValue));
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_properties_setArrayList(props, "key", nonFinite));
+    EXPECT_STREQ("original", celix_properties_getString(props, "key"));
+
+    celix_autoptr(celix_properties_t) invalidChild = celix_properties_create();
+    auto* invalidVariant = celix_arrayList_createVariantArray();
+    celix_array_list_variant_t valid{};
+    valid.type = CELIX_ARRAY_LIST_VARIANT_TYPE_NULL;
+    ASSERT_EQ(CELIX_SUCCESS, celix_arrayList_addVariant(invalidVariant, &valid));
+    const_cast<celix_array_list_variant_t*>(celix_arrayList_getVariant(invalidVariant, 0))->type =
+        static_cast<celix_array_list_variant_type_e>(999);
+    EXPECT_EQ(CELIX_ILLEGAL_ARGUMENT, celix_properties_assignArrayList(invalidChild, "bad", invalidVariant));
+    EXPECT_EQ(0, celix_properties_size(invalidChild));
+    EXPECT_EQ(CELIX_SUCCESS, celix_properties_setProperties(props, "child", invalidChild));
 }

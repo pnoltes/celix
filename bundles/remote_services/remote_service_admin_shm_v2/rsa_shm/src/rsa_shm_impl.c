@@ -254,11 +254,27 @@ celix_status_t rsaShm_send(rsa_shm_t *admin, const endpoint_description_t *endpo
     return status;
 }
 
-static void rsaShm_overlayProperties(celix_properties_t *additionalProperties, celix_properties_t *serviceProperties) {
+static bool rsaShm_isLegacyStringProperty(const celix_properties_entry_t* entry) {
+    if (entry->valueType >= CELIX_PROPERTIES_VALUE_TYPE_STRING &&
+        entry->valueType <= CELIX_PROPERTIES_VALUE_TYPE_VERSION) {
+        return true;
+    }
+    if (entry->valueType == CELIX_PROPERTIES_VALUE_TYPE_ARRAY_LIST) {
+        celix_array_list_element_type_t type = celix_arrayList_getElementType(entry->typed.arrayValue);
+        return type >= CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING && type <= CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION;
+    }
+    return false;
+}
+
+static void rsaShm_overlayProperties(rsa_shm_t* admin, celix_properties_t *additionalProperties, celix_properties_t *serviceProperties) {
 
     /*The property keys of a service are case-insensitive,while the property keys of the specified additional properties map are case sensitive.
      * A property key in the additional properties map must therefore override any case variant property key in the properties of the specified Service Reference.*/
     CELIX_PROPERTIES_ITERATE(additionalProperties, additionalPropIter) {
+        if (!rsaShm_isLegacyStringProperty(&additionalPropIter.entry)) {
+            celix_logHelper_warning(admin->logHelper, "RSA SHM: Skipping structured endpoint property '%s'.", additionalPropIter.key);
+            continue;
+        }
         if (strcmp(additionalPropIter.key,(char*) CELIX_FRAMEWORK_SERVICE_NAME) != 0
                 && strcmp(additionalPropIter.key,(char*) CELIX_FRAMEWORK_SERVICE_ID) != 0) {
             bool propKeyCaseEqual = false;
@@ -358,21 +374,22 @@ celix_status_t rsaShm_exportService(rsa_shm_t *admin, char *serviceId,
         celix_logHelper_error(admin->logHelper, "Error creating exported properties.");
         return CELIX_ENOMEM;
     }
-    unsigned int propertySize = 0;
-    char **keys = NULL;
-    serviceReference_getPropertyKeys(reference, &keys, &propertySize);
-    for (int i = 0; i < propertySize; i++) {
-        char *key = keys[i];
-        const char *value = NULL;
-        if (serviceReference_getProperty(reference, key, &value) == CELIX_SUCCESS) {
-            celix_properties_set(exportedProperties, key, value);
+    service_registration_t* registration = NULL;
+    celix_properties_t* serviceProperties = NULL;
+    if (serviceReference_getServiceRegistration(reference, &registration) == CELIX_SUCCESS &&
+        serviceRegistration_getProperties(registration, &serviceProperties) == CELIX_SUCCESS) {
+        CELIX_PROPERTIES_ITERATE(serviceProperties, iter) {
+            if (rsaShm_isLegacyStringProperty(&iter.entry)) {
+                celix_properties_set(exportedProperties, iter.key, iter.entry.value);
+            } else {
+                celix_logHelper_warning(admin->logHelper, "RSA SHM: Skipping structured endpoint property '%s'.", iter.key);
+            }
         }
     }
-    free(keys);
 
     //Property in the additional properties overrides the Service Reference properties
     if (properties != NULL) {
-        rsaShm_overlayProperties(properties,exportedProperties);
+        rsaShm_overlayProperties(admin, properties,exportedProperties);
     }
 
     const char* rpcType = NULL;

@@ -480,7 +480,11 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_setProperties(celix_propertie
                                                                  const char* key,
                                                                  const celix_properties_t* value);
 
-/** Take ownership of and store a nested properties object. */
+/**
+ * Take ownership of and store a nested properties object. The supplied value is destroyed on insertion failure.
+ * Direct self-assignment is the sole exception: it is rejected and ownership remains with the caller, because
+ * destroying the supplied value would also destroy the parent object.
+ */
 CELIX_UTILS_EXPORT celix_status_t celix_properties_assignProperties(celix_properties_t* properties,
                                                                     const char* key,
                                                                     celix_properties_t* value);
@@ -952,8 +956,7 @@ CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const
 #define CELIX_PROPERTIES_ENCODE_PRETTY 0x01
 
 /**
- * @brief Flag to indicate that the encoded output should be flat; e.g. all properties entries are written as top level
- * field entries.
+ * @brief Deprecated compatibility flag. Property keys are always literal JSON member names.
  *
  * E.g:
  * @code{.c}
@@ -965,15 +968,12 @@ CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const
  * // json will be: {"key/with/slash": "value1", "key": "value2"}
  * @endcode
  *
- * Note that encoding with a flat encoding style, all properties keys are unique JSON keys and can be written.
- *
- * If no encoding style flag is set, the encoded output will use the default encoding style.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_ENCODE_FLAT_STYLE 0x02
 
 /**
- * @brief Flag to indicate that the encoded output should be nested; e.g. properties entries are split on '/' and
- * nested in JSON objects.
+ * @brief Deprecated compatibility flag. Nesting is represented only by nested properties values.
  *
  * E.g:
  * @code{.c}
@@ -987,15 +987,12 @@ CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const
  * // json will be: {"key": "value2"}
  * @endcode
  *
- * Note that encoding with a nested encoding style, it properties key can collide resulting in missing properties
- * entries or (if CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS is set) an error.
- *
- * If no encoding style flag is set, the encoded output will use the default encoding style.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_ENCODE_NESTED_STYLE 0x04
 
 /**
- * @brief Flag to indicate that the encoding should fail if the JSON representation will contain colliding keys.
+ * @brief Deprecated compatibility flag. Literal unique property keys cannot collide during encoding.
  *
  * Note that colliding keys can only occur when using the nested encoding style.
  *
@@ -1010,35 +1007,27 @@ CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const
  * // status will be CELIX_ILLEGAL_ARGUMENT and a error message will be logged to celix_err
  * @endcode
  *
- * If this flag is set, the encoding will fail if the JSON representation will contain colliding keys and if this flag
- * is not set, the encoding will not fail and the colliding keys will be ignored.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS 0x10
 
 /**
- * @brief Flag to indicate that the encoding should fail if the JSON representation will contain empty arrays.
+ * @brief Deprecated compatibility flag. Empty arrays are always encoded.
  *
- * Although empty arrays are valid in JSON, they cannot be decoded to a valid properties array entry and as such
- * empty arrays properties entries are not encoded.
- *
- * If this flag is set, the encoding will fail if the JSON representation will contain empty arrays and if this flag
- * is not set, the encoding will not fail and the empty arrays will be ignored.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_ENCODE_ERROR_ON_EMPTY_ARRAYS 0x20
 
 /**
- * @brief Flag to indicate that the encoding should fail if the JSON representation will contain NaN or Inf values.
+ * @brief Deprecated compatibility flag. Non-finite values are always rejected.
  *
  * NaN, Inf and -Inf are not valid JSON values and as such properties entries with these values are not encoded.
  *
- * If this flag is set, the encoding will fail if the JSON representation will contain NaN or Inf values and if this
- * flag is not set, the encoding will not fail and the NaN and Inf entries will be ignored.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF 0x40
 
-/**
- * @brief Flag to indicate that all encode "error on" flags should be set.
- */
+/** @brief Deprecated combination of compatibility flags. Non-finite values are rejected unconditionally. */
 #define CELIX_PROPERTIES_ENCODE_STRICT                                                                                 \
     (CELIX_PROPERTIES_ENCODE_ERROR_ON_COLLISIONS | CELIX_PROPERTIES_ENCODE_ERROR_ON_EMPTY_ARRAYS |                     \
      CELIX_PROPERTIES_ENCODE_ERROR_ON_NAN_INF)
@@ -1050,15 +1039,9 @@ CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const
  *
  * Properties are encoded as a JSON object.
  *
- * If no encoding style flag is set or when the CELIX_PROPERTIES_ENCODE_FLAT_STYLE flag is set, properties
- * entries are written as top level field entries.
- *
- * If the CELIX_PROPERTIES_ENCODE_NESTED_STYLE flag is set, properties entry keys are split on '/' and nested in
- * JSON objects. This leads to a more natural JSON representation, but if there are colliding properties keys (e.g.
- * `{"key": "value1", "key/with/slash": "value2"}`), not all properties entries will be written.
- *
- * With all encoding styles, the empty array properties entries are ignored, because they cannot be decoded to a valid
- * properties array entry.
+ * Property keys are always emitted literally. Dots, slashes, empty names, and escape characters are ordinary member
+ * name content. Nested JSON objects are represented by CELIX_PROPERTIES_VALUE_TYPE_PROPERTIES values. Empty arrays,
+ * nulls, nested objects, nested arrays, and heterogeneous arrays are all encoded without omission.
  *
  * Properties type entries are encoded as follows:
  * - CELIX_PROPERTIES_TYPE_STRING: The value is encoded as a JSON string.
@@ -1071,7 +1054,7 @@ CELIX_UTILS_EXPORT celix_array_list_t* celix_properties_getAllValuesByPath(const
  * (e.g. "version<1.2.3>").
  *
  * For a overview of the possible encode flags, see the CELIX_PROPERTIES_ENCODE_* flags documentation.
- * The default encoding style is a compact and flat JSON representation.
+ * The default encoding is compact. Property member names are always literal.
  *
  * @param properties The properties object to encode.
  * @param stream The stream to write the JSON representation of the properties object to.
@@ -1090,7 +1073,7 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_saveToStream(const celix_prop
  * For more information how a properties object is encoded to JSON, see the celix_properties_loadFromStream
  *
  * For a overview of the possible encode flags, see the CELIX_PROPERTIES_ENCODE_* flags documentation.
- * The default encoding style is a compact and flat JSON representation.
+ * The default encoding is compact. Property member names are always literal.
  *
  * @param[in] properties The properties object to encode.
  * @param[in] filename The file to write the JSON representation of the properties object to.
@@ -1109,7 +1092,7 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_save(const celix_properties_t
  * For more information how a properties object is encoded to JSON, see the celix_properties_loadFromStream
  *
  * For a overview of the possible encode flags, see the CELIX_PROPERTIES_ENCODE_* flags documentation.
- * The default encoding style is a compact and flat JSON representation.
+ * The default encoding is compact. Property member names are always literal.
  *
  * @param[in] properties The properties object to encode.
  * @param[in] encodeFlags The flags to use when encoding the input properties.
@@ -1123,81 +1106,54 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_saveToString(const celix_prop
                                                                 char** out);
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains duplicate JSON keys.
+ * @brief Deprecated compatibility flag. Duplicate JSON member names are always rejected.
  *
  * E.g. `{"key": "value", "key": "value2"}` is a duplicate key.
  *
- * If this flag is set, the decoding will fail if the input contains a duplicate key and if this flag is not set, the
- * decoding will not fail and the last entry will be used.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_DECODE_ERROR_ON_DUPLICATES 0x01
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains entry that collide on property keys.
- *
- * E.g. `{"obj/key": "value", "obj": {"key": "value2"}}` is a collision.
- *
- * If this flag is set, the decoding will fail if the input contains a collision and if this flag is not set, the
- * decoding will not fail and the last entry will be used.
+ * @brief Deprecated compatibility flag. JSON member names are literal and therefore do not collide through splitting.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_DECODE_ERROR_ON_COLLISIONS 0x02
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains null values.
- *
- * E.g. `{"key": null}` is a null value.
- *
- * Note arrays with null values are handled by the CELIX_PROPERTIES_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS flag.
- *
- * If this flag is set, the decoding will fail if the input contains a null value and if this flag is not set, the
- * decoding will not fail and the JSON null entry will be ignored.
+ * @brief Deprecated compatibility flag. Null values are always decoded as explicit null properties values.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_DECODE_ERROR_ON_NULL_VALUES 0x04
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains empty arrays.
- *
- *
- * E.g. `{"key": []}` is an empty array.
- *
- * Note that empty arrays are valid in JSON, but not cannot be decoded to a valid properties array entry.
- *
- * If this flag is set, the decoding will fail if the input contains an empty array and if this flag is not set, the
- * decoding will not fail and the JSON empty array entry will be ignored.
+ * @brief Deprecated compatibility flag. Empty arrays always decode to empty variant array lists.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_ARRAYS 0x08
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains unsupported arrays.
- *
- * Unsupported arrays are arrays that contain JSON objects, multiple arrays, arrays with null values and
- * mixed arrays.
- * E.g.
- * - `{"key": [{"nested": "value"}]}` (array with JSON object)
- * - `{"key": [[1,2],[3,4]]}` (array with array)
- * - `{"key": [null,null]}` (array with null values)
- * - `{"key": ["value", 1]}` (mixed array)
- *
- * If this flag is set, the decoding will fail if the input contains an unsupported array and if this flag is not set,
- * the decoding will not fail and the unsupported array entries will be ignored.
+ * @brief Deprecated compatibility flag. Every JSON array shape is represented recursively.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_DECODE_ERROR_ON_UNSUPPORTED_ARRAYS 0x10
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains empty keys.
- *
- * E.g. `{"": "value"}` is an empty key.
- *
- * Note that empty keys are valid in JSON and valid in properties, but not always desired.
- *
- * If this flag is set, the decoding will fail if the input contains an empty key.
+ * @brief Deprecated compatibility flag. Empty JSON member names are valid literal property keys.
+ * @deprecated This flag is retained as a no-op for source compatibility.
  */
 #define CELIX_PROPERTIES_DECODE_ERROR_ON_EMPTY_KEYS 0x20
 
 /**
- * @brief Flag to indicate that the decoding should fail if the input contains any of the decode error flags.
+ * @brief Opt-in compatibility flag to decode tagged `version<...>` JSON strings as Celix versions.
  *
- * This flag is a combination of all decode error flags.
+ * Without this flag every JSON string is decoded as a string. The flag is propagated recursively to nested objects
+ * and arrays and exists for Celix formats, such as bundle manifests, which deliberately use the tagged extension.
+ */
+#define CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS 0x40
+
+/**
+ * @brief Deprecated combination of no-op compatibility flags.
  */
 #define CELIX_PROPERTIES_DECODE_STRICT                                                                                 \
     (CELIX_PROPERTIES_DECODE_ERROR_ON_DUPLICATES | CELIX_PROPERTIES_DECODE_ERROR_ON_COLLISIONS |                       \
@@ -1212,26 +1168,20 @@ CELIX_UTILS_EXPORT celix_status_t celix_properties_saveToString(const celix_prop
  *
  * For decoding a single JSON object is decoded to a properties object.
  *
- * The keys of the JSON object are used as
- * properties keys and the values of the JSON object are used as properties values. If there are nested
- * JSON objects, the keys are concatenated with a '/' separator (e.g. `{"key": {"nested": "value"}}` will be
- * decoded to a properties object with a single entry with key `key/nested` and (string) value `value`).
- *
- * Because properties keys are created by concatenating the JSON keys, there there could be collisions
- * (e.g. `{"obj/key": "value", "obj": {"key": "value2"}}`, two entries with the key `obj/key`. In this case
- * the last decoded JSON entry will be used.
+ * JSON object keys are used literally as property keys. Nested JSON objects become nested properties values.
  *
  * Properties entry types are determined by the JSON value type:
  * - JSON string values are decoded as string properties entries.
  * - JSON number values are decoded as long or double properties entries, depending on the value.
  * - JSON boolean values are decoded as boolean properties entries.
- * - jSON string values with a "version<" prefix and a ">" suffix are decoded as version properties entries (e.g.
- * "version<1.2.3>").
- * - JSON array values are decoded as array properties entries. The array can contain any of the above types, but mixed
- * arrays are not supported.
- * - JSON null values are ignored.
+ * - JSON object values are decoded as nested properties entries.
+ * - JSON array values are decoded recursively. Empty and heterogeneous arrays use variant array lists.
+ * - JSON null values are decoded as explicit null entries.
  *
- * For a overview of the possible decode flags, see the CELIX_PROPERTIES_DECODE_* flags documentation.
+ * JSON strings, including strings formatted as `version<1.2.3>`, remain strings in standards-compatible decoding.
+ *
+ * Error-policy decode flags are deprecated no-ops. Duplicate member names and non-finite values are rejected
+ * unconditionally. CELIX_PROPERTIES_DECODE_LEGACY_VERSION_STRINGS remains an opt-in compatibility behavior.
  *
  * @param[in] stream The input stream to parse.
  * @param[in] decodeFlags The flags to use when decoding the input string.

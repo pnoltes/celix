@@ -239,6 +239,38 @@ public:
     }
 };
 
+TEST_F(CelixBundleContextServicesTestSuite, RegisterServiceWithStructuredProperties) {
+    int svc{};
+    celix_properties_t* props = nullptr;
+    ASSERT_EQ(
+        CELIX_SUCCESS,
+        celix_properties_loadFromString(
+            R"({"service.name":"literal","service":{"name":"nested"},"parent":{"child":"value","children":["zero","one","value"]},"structured":[{"child":"value"}],"null":null})",
+            0,
+            &props));
+    celix_service_registration_options_t opts{};
+    opts.serviceName = "structured.property.test";
+    opts.svc = &svc;
+    opts.properties = props; // ownership is transferred
+    long svcId = celix_bundleContext_registerServiceWithOptions(ctx, &opts);
+    ASSERT_GE(svcId, 0);
+
+    auto findService = [&](const char* filter) {
+        celix_service_filter_options_t filterOpts{};
+        filterOpts.serviceName = opts.serviceName;
+        filterOpts.filter = filter;
+        return celix_bundleContext_findServiceWithOptions(ctx, &filterOpts);
+    };
+    EXPECT_EQ(svcId, findService("($.parent.child=value)"));
+    EXPECT_EQ(svcId, findService("($.parent.children[2]=value)"));
+    EXPECT_EQ(svcId, findService("(service.name=literal)"));
+    EXPECT_LT(findService("(service.name=nested)"), 0);
+    EXPECT_EQ(svcId, findService("($.service.name=nested)"));
+    EXPECT_EQ(svcId, findService("($['service.name']=literal)"));
+
+    celix_bundleContext_unregisterService(ctx, svcId);
+}
+
 TEST_F(CelixBundleContextServicesTestSuite, RegisterServiceTest) {
     struct calc {
         int (*calc)(int);

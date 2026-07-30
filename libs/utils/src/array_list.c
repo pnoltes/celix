@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "celix_array_list.h"
+#include "celix_array_list_private.h"
 #include "celix_err.h"
 #include "celix_properties.h"
 #include "celix_stdlib_cleanup.h"
@@ -465,7 +466,7 @@ int celix_arrayList_size(const celix_array_list_t* list) { return (int)list->siz
 static celix_array_list_entry_t arrayList_getEntry(const celix_array_list_t* list, int index) {
     celix_array_list_entry_t entry;
     memset(&entry, 0, sizeof(entry));
-    if (index < list->size) {
+    if (index >= 0 && (size_t)index < list->size) {
         entry = list->elementData[index];
     }
     return entry;
@@ -682,7 +683,22 @@ celix_status_t celix_arrayList_addVariant(celix_array_list_t* list, const celix_
     if (status != CELIX_SUCCESS) {
         return status;
     }
-    celix_array_list_entry_t entry = {.variantVal = copy};
+    return celix_arrayList_assignVariant(list, copy);
+}
+
+celix_status_t celix_arrayList_assignVariant(celix_array_list_t* list, celix_array_list_variant_t* value) {
+    assert(list->elementType == CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT);
+    if (!value) {
+        celix_err_push("Cannot assign a NULL variant array-list entry");
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    if (value->type == CELIX_ARRAY_LIST_VARIANT_TYPE_ARRAY_LIST && value->value.arrayListValue == list) {
+        celix_err_push("Cannot assign an array list to itself through a variant");
+        value->value.arrayListValue = NULL;
+        celix_arrayList_destroyVariant(value);
+        return CELIX_ILLEGAL_ARGUMENT;
+    }
+    celix_array_list_entry_t entry = {.variantVal = value};
     return celix_arrayList_addEntry(list, entry);
 }
 

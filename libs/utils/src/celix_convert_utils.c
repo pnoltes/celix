@@ -141,8 +141,7 @@ celix_utils_convertStringToVersion(const char* val, const celix_version_t* defau
 static celix_status_t celix_utils_convertStringToArrayList(const char* val,
                                                            celix_array_list_t* listIn,
                                                            const celix_array_list_t* defaultValue,
-                                                           celix_status_t (*addEntry)(celix_array_list_t*,
-                                                                                      const char*),
+                                                           celix_status_t (*addEntry)(celix_array_list_t*, const char*),
                                                            celix_array_list_t** listOut) {
     assert(listOut != NULL);
     *listOut = NULL;
@@ -186,7 +185,7 @@ static celix_status_t celix_utils_convertStringToArrayList(const char* val,
                 status = CELIX_ILLEGAL_ARGUMENT;
             }
         } else if (val[i] == SEPARATOR_CHAR || val[i] == '\0') {
-            //end of entry
+            // end of entry
             int rc = fputc('\0', entryStream);
             if (rc == EOF) {
                 status = CELIX_ENOMEM;
@@ -196,7 +195,7 @@ static celix_status_t celix_utils_convertStringToArrayList(const char* val,
             status = addEntry(list, buf);
             rewind(entryStream);
         } else {
-            //normal char
+            // normal char
             int rc = fputc(val[i], entryStream);
             if (rc == EOF) {
                 status = CELIX_ENOMEM;
@@ -299,7 +298,8 @@ celix_status_t celix_utils_convertStringToVersionArrayList(const char* val,
  * @return The string representation of the list or NULL if an error occurred.
  */
 static char* celix_utils_arrayListToStringInternal(const celix_array_list_t* list,
-                                           int (*printCb)(FILE* stream, const celix_array_list_entry_t* entry)) {
+                                                   int (*printCb)(FILE* stream,
+                                                                  const celix_array_list_entry_t* entry)) {
     char* result = NULL;
     size_t len;
     FILE* stream = open_memstream(&result, &len);
@@ -343,7 +343,7 @@ static int celix_utils_printStrEntry(FILE* stream, const celix_array_list_entry_
     int rc = 0;
     for (int i = 0; str[i] != '\0'; ++i) {
         if (str[i] == ESCAPE_CHAR || str[i] == SEPARATOR_CHAR) {
-            //both escape and separator char need to be escaped
+            // both escape and separator char need to be escaped
             rc = fputc(ESCAPE_CHAR, stream);
         }
         if (rc != EOF) {
@@ -374,17 +374,22 @@ char* celix_utils_arrayListToString(const celix_array_list_t* list) {
     }
     celix_array_list_element_type_t elType = celix_arrayList_getElementType(list);
     switch (elType) {
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
-            return celix_utils_arrayListToStringInternal(list, celix_utils_printLongEntry);
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
-            return celix_utils_arrayListToStringInternal(list, celix_utils_printDoubleEntry);
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
-            return celix_utils_arrayListToStringInternal(list, celix_utils_printBoolEntry);
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
-            return celix_utils_arrayListToStringInternal(list, celix_utils_printStrEntry);
-        case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION:
-            return celix_utils_arrayListToStringInternal(list, celix_utils_printVersionEntry);
-        default:
-            return NULL;
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_LONG:
+        return celix_utils_arrayListToStringInternal(list, celix_utils_printLongEntry);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_DOUBLE:
+        return celix_utils_arrayListToStringInternal(list, celix_utils_printDoubleEntry);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_BOOL:
+        return celix_utils_arrayListToStringInternal(list, celix_utils_printBoolEntry);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_STRING:
+        return celix_utils_arrayListToStringInternal(list, celix_utils_printStrEntry);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VERSION:
+        return celix_utils_arrayListToStringInternal(list, celix_utils_printVersionEntry);
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_PROPERTIES:
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_ARRAY_LIST:
+    case CELIX_ARRAY_LIST_ELEMENT_TYPE_VARIANT:
+        // This legacy conversion format is scalar-only. Structured values must use the JSON codec explicitly.
+        return NULL;
+    default:
+        return NULL;
     }
 }
